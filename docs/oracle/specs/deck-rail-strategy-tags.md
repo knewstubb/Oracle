@@ -1,6 +1,6 @@
 # Spec: Deck left rail, Strategy window and card Tags (DV-01, DV-02, RQ-12)
-Role: Designer · Status: **Proposal, awaiting owner approval (Gate 3).** Section 1a (Deck health rows, HC-01 and HC-02) added 2026-11-20. **Sections 4a to 4d (showing Tags: card window and collection Tag filter) added and the Tags bullet in section 4 replaced 2026-11-20; they supersede the earlier Tag order and wording.** Nothing new is built. · 2026-11-19
-Mockup for sections 4a to 4d: `docs/oracle/mockups/card-tags-display.html`.
+Role: Designer · Status: **Proposal, awaiting owner approval (Gate 3).** Section 1a (Deck health rows, HC-01 and HC-02) added 2026-11-20. **Sections 4a to 4d (showing Tags: reusable Tag read path, collection Tag filter, Claude's search and deck read) added 2026-11-20. The card window Tags section is NOT designed here: it moved to the card details redesign (4a).** Nothing new is built. · 2026-11-19
+Mockup for sections 4b to 4d (collection Tag filter only): `docs/oracle/mockups/card-tags-display.html`.
 Mockup for the rest: `docs/oracle/mockups/deck-rail-strategy-tags.html` (open from disk in a browser; switches for every state, phone width and greyscale; sample data for the deck Yedora, the Explorer).
 Briefs: `briefs/categories-drive-deck-health.md` (section 1a), `briefs/deck-page-left-rail-and-strategy.md`, `briefs/card-tags-and-deck-slot-why.md`, `briefs/claude-change-reason.md`. Evidence: `reports/2026-11-19-architect-audit.md`, `reports/2026-11-19-architect-conflict-list.md`. Owner direction: `.agents/tasks/planning-round-2026-11-19/owner-direction.md` (binding out-of-scope list).
 Supersedes the layout parts of `specs/card-roles-and-deck-jobs.md` (three-layer Strategy tab, Card jobs layer, strategy points, proposals bar, Group by Job). That spec is marked partly superseded only after the owner approves this one.
@@ -117,33 +117,26 @@ Behaviour:
 Save and the other inactive buttons use `aria-disabled` (not `disabled`) so keyboard users can still reach them and hear why.
 
 ## 4. Card details (the card window)
-Opens from a card row on the Cards tab or from the collection. Read-only Tags, then the editable fields. The editable label section built in CC-26 slice 2 is gone.
+Opens from a card row on the Cards tab or from the collection. Read-only Tags, then the editable fields. (Superseded in part 2026-11-20: Tags in the card window now belong to the card details redesign, section 4a.) The editable label section built in CC-26 slice 2 is gone.
 
-- **Tags** (lock icon, read-only). Replaces the old editable section. Full design in section 4a.
+- **Tags.** Not changed in the card window. The card window is being replaced by the card details redesign, which will show Tags (rules carried over in section 4a). The editable section from CC-26 slice 2 and the text-reading guess stay in the card window until that redesign replaces it.
 - **Category.** Existing select. Helper "Your own grouping in this deck's list." A Tag never changes it.
 - **Why (optional).** One line, up to 120 characters with counter, saves when you leave the field, with a polite "Why saved" status. If Claude filled an empty Why: "Added by Claude · 19 Nov · See in History". If Claude later changes a Why you wrote, nothing waits in this window; it appears in History with the reason and Undo.
 - **Keep.** Switch with the text "Keep: On" or "Keep: Off". Helper "Protects a pet card or combo piece. Only you can switch this." A card with Keep on shows a small "Keep" mark with an icon in the deck list row; a Why shows as a grey second line under the card name in the list.
 - **Status and price** as today.
 
-## 4a. Tags section in the card window (RQ-12, showing Tags)
-Binding owner decisions of 2026-11-20: Tags are read-only; at most five shown; the editable section (built in CC-26 slice 2, headed "Universal roles") is removed and replaced by this one; no add, remove, "Set by you" or "Proposed by Claude". Mockup: `card-tags-display.html`, screen "Card window".
-**Where.** Same place the old section had: below Category, above the type groups. Heading "Tags" with a lock icon and the hidden words "(read-only)". Helper: "What this card does in any deck. The same in every deck, and you can't change it."
-**Chips.** Plain outlined pills with the Tag's name as stored ("Targeted removal", "Stax / tax"). All chips look the same: broad and mechanic Tags are not told apart on screen. A chip is not a button: no hover effect, no pointer cursor, not a tab stop, no "x". The row is a list ("Tags, read-only") so a screen reader reads each name. Text 14.18:1 on the window, outline 5.07:1 (needed 3:1). Long names ("Direct damage or life loss to opponents") wrap inside the chip and are never cut.
-**Which five show first, and why.** All Tags the card has are sorted broad first, then mechanic, each group in the Tag list's own order (stored order: Targeted removal, Card draw, Ramp, Recursion, Card selection, Protection, Tutor, Fixing, Board wipe, Hand disruption, Stax / tax, Counterspell, Graveyard hate; then the mechanic Tags from Direct damage down to Blink). The first five show. Why: broad Tags answer "what is this card for" at a glance, and the Tag list's own order puts the commonest first (order is by how many Commander cards carry the Tag), so no second rule is needed and the build reads one stored number. This replaces the earlier "alphabetical inside each".
-Examples: Sol Ring shows "Ramp". Warren Soultrader shows "Ramp", "Token generator", "Sacrifice outlet", "Treasure generator" (four, so no extra line). A card with Card draw, Fixing, Ramp, Recursion, Sacrifice outlet, Token generator and Treasure generator shows "Card draw", "Ramp", "Recursion", "Fixing", "Token generator".
-**More than five.** Under the chips: "and 2 more. Use the Tag filter in your collection search to find this card by them." ("by it" for one.) The hidden Tags are not named and nothing expands: the owner's rule is five shown, the rest found by search. The line is plain text, not a link.
-**No Tags.** One quiet secondary line: "No Tags for this card." Nothing is guessed. This covers a plain creature, and also a card released after the 7 August 2026 Scryfall copy (about 630 cards), which the line does not explain.
-**The text-reading guess is gone from this window.** The brief hides it on cards that have stored Tags; the owner also said a card with no Tag shows none, no guess. Together: this window never shows a role guessed from card text, with or without stored Tags (see open question 1 in section 8b). Deck health keeps its classifier and its numbers; only this window stops showing the guess.
-**States.**
-| State | What the section shows |
-|---|---|
-| Loading | Heading and helper stay; one grey placeholder bar; polite status "Checking Tags for Sol Ring" (hidden text). Stops animating under reduced motion |
-| Loaded | Chips as above |
-| Failed | Red-outlined box, icon and the words "Couldn't load Tags for Sol Ring. Nothing has changed." and a "Try again" button (44 px). Announced as an alert. It does not fall back to a guess |
-| No Tags | The quiet line above |
-The Tags load on their own after the window opens, with their own lookup, so a slow or failed Tag lookup never blocks Category, Why, Keep, price or the type groups, and a failed type-group lookup never hides Tags.
-**Phone (800 px and below).** The window is the existing full-screen sheet. Chips wrap to as many lines as needed; "and N more" stays under them; Try again is 44 px.
-**Opens from.** The card window opens from deck lists only today. The collection has no card window (open question 2).
+## 4a. Tags in the card window: moved to the card details redesign; the shared Tag read path stays here
+**Moved.** On 2026-11-20 the owner asked for a full redesign of the card details modal, which replaces the card window. This slice does not design or build anything in the card window: no Tags section, the editable "Universal roles" section is not removed, the text-reading guess is not hidden. An earlier draft of this section (chips, order, loading and failed states) was withdrawn; the owner decisions below carry over to the redesign as inputs, not as work here.
+**Carried over to the card details redesign (owner decisions, binding there).** Tags are read-only chips with no add, remove, "Set by you" or "Proposed by Claude". At most five show; the rest are found by search. Recommended order: broad Tags first, then mechanic Tags, each in the Tag list's own order (commonest first), which the shared read path below already returns, so the modal sorts nothing itself. A card with no Tag shows a quiet line and no guess. Tags never change a Category and a Category never changes a Tag. Chips are not buttons.
+**Shared Tag read path (built in this slice, reused by the new modal).** One server function, `getCardTags(oracleIds)` in a new file `src/lib/card-tags-read.ts`, next to `card-tags.ts`.
+- *Input:* a list of oracle ids (up to 500, duplicates ignored, anything that is not a uuid dropped and counted). An empty list returns at once with no read.
+- *Output:* `{ status: 'ok', byOracleId: Map<oracle_id, Tag[]> }`, where each Tag is `{ key, name, kind }` and every requested id is present (an id with no Tag has an empty list, which is how "no Tag" differs from "could not read"). Or `{ status: 'error' }`. Never a partial answer.
+- *Order:* broad first, then mechanic, each in the Tag list's order (the app's fixed list of 40 in `card-tags.ts`; names are not read from the stored list). A Tag key found in storage but missing from the app's list is skipped and logged as a warning, so a later list change cannot crash a screen.
+- *Reading:* the signed-in user's own session reads `ref_card_tags` (signed-in users can read it; no service role is used on a screen). The ids are read 100 at a time, up to 4 reads at once, each page of 1,000 rows followed until short, because the database returns at most 1,000 rows per read.
+- *Failure:* any failed read gives `{ status: 'error' }`, logged once at error level with the number of ids and no card names; the caller shows its own failed state. It is recoverable by trying again. A failure is never shown as "no Tags".
+- *Reverse read:* `oracleIdsWithTags(tagKeys, mode)` returns the oracle ids that have all (or any) of the given Tags, one read per Tag followed page by page (the biggest Tag has about 4,900 cards, so up to 5 pages), then an intersection or union in the app. Used by the collection filter and Claude's search so both give the same cards.
+- *Tests:* order, empty list, unknown key, more than 1,000 rows, a failed page are unit tests with a fake client. One integration check reads Sol Ring and Warren Soultrader from the live copy.
+- *Not changed:* no stored-data change, no write, no migration, no new table, no new function in the database. If the page cannot be filtered without one, the build stops and reports BLOCKED (see 4b).
 ## 4b. Tag filter in the collection search (CC-14 screen side)
 Mockup: screen "Collection". Binding: filter by Tag in the collection search; it combines with the colour and the other filters.
 **Where it sits.** In the filter row under the search box, at the right end after the colour buttons and the status buttons (the same row, which already scrolls sideways on a phone). It is one button, "Tags" with a tag icon and a chevron, at least 44 px high. With picks it reads "Tags: 2" and takes the green selected look plus the count, so it is not colour alone.
@@ -155,22 +148,26 @@ Mockup: screen "Collection". Binding: filter by Tag in the collection search; it
 5. The quiet line "Cards released after 7 August 2026 have no Tags yet."
 6. "Clear Tags", the live card count ("12 cards", polite), and "Done".
 **Multi-select, All of them by default.** Picking Sacrifice outlet and Treasure generator shows cards that have both, like every other filter you add narrows the list. "Any of them" widens it. The same two choices exist in Claude's search (section 4c).
-**Applies at once.** The list behind updates as you tick; Done only closes the panel. Escape closes it and returns focus to the Tags button. Keyboard: Tab moves through the find box and rows, Space ticks.
+**Applies at once.** The list behind updates as you tick; Done only closes the panel. The collection page reads its cards a page at a time from the server, so the filter is applied there: the server asks the shared Tag read path (section 4a) which of your cards have the chosen Tags, and the existing list reads are limited to those cards, still 50 cards a page and still in the chosen order. The Tag choice goes with the list request like the colour choice does. If a page of the list cannot be limited this way without a new database function or view, that is a stored-data change: stop and report BLOCKED. Escape closes it and returns focus to the Tags button. Keyboard: Tab moves through the find box and rows, Space ticks.
 **Combined with other filters.** Tags are one more yes-or-no filter next to colour, status, Basic and the name search; all must hold (a card must match the colours AND the status AND the Tags). Tags never change the colour or status filter, and they never change a card's Category.
 **After picking.** A line under the filter row: "Tags: Sacrifice outlet, Treasure generator (all of them) · 12 cards" with a "Clear Tags" button (44 px). The Tags button also keeps the count.
 **Empty result.** Replaces the list with a dashed box: "No cards match". One sentence naming what was asked: "You own no cards with all of these Tags in Green." Then one hint ("Try Any of them, or take a Tag off." with two or more Tags, otherwise "Try taking a filter off.") and two 44 px buttons: "Clear Tags" and "Clear all filters". Announced politely.
-**States.** Opening is instant (the 40 names are fixed, nothing to load). If the result list is loading, the existing list loading state is used and the count reads "Checking…". If the filter lookup fails, the list shows the existing load failure with Try again; the panel stays usable.
+**States.** Reading which cards match can take a moment on the first pick; the count line reads "Checking…" and the existing list loading state shows. Opening is instant (the 40 names are fixed, nothing to load). If the result list is loading, the existing list loading state is used and the count reads "Checking…". If the filter lookup fails, the list shows the existing load failure with Try again; the panel stays usable.
 **Rows and tiles.** Unchanged in this slice (section 4c).
-## 4c. Where Tags appear elsewhere, and Claude's search
+## 4c. Where Tags appear elsewhere, and Claude's search and deck read
 - **Collection list and grid: no Tags on rows or tiles.** Rows are already full, and five chips per tile would crowd the grid. With a Tag filter on, the line under the filter row says which Tags the list is filtered by. Alternative (not recommended now): a small "Matches: Sacrifice outlet" second line on each row while a filter is on.
-- **Claude's search_collection tool** gets the same filter: a list of Tag names and "all" or "any" (default all), working together with every other filter, for example owned cards tagged Sacrifice outlet that are not in a deck in one call. Same names and same results as the screen. A Tag name Oracle does not have gets a plain "no such Tag" answer with the list of the 40. Claude's answers use the words "Tag" and "Category"; the word "role" is not used for Tags. The old role filter stays as it is for now (it feeds nothing the owner sees).
-## 4d. Accessibility for sections 4a to 4c
-- Chips are not buttons and not tab stops; the list has an accessible name. The Tag filter controls are real checkboxes in a group, labelled by their Tag name.
-- Contrast: chip text 14.18:1, chip and control outlines 5.07:1, selected green text on its fill 6.82:1 or better, secondary text 6.36:1; all at least 4.5:1 for text and 3:1 for outlines.
+- **search_collection: Tag filter.** Two new inputs: `tags` (a list of Tag names, 1 to 40; the Tag's name as shown on screen or its stored key, not case sensitive) and `tags_match` ("all" or "any", default "all"). They work together with every other filter and with `only_free`, for example owned cards tagged "Sacrifice outlet" that are not in a deck in one call. A name that is not one of the 40 is refused as invalid input, and the message lists the 40 names. The filter needs a card identity, so it counts with the other card-fact filters: a card with no card data never matches it, and it cannot be combined with `no_card_facts`. Same cards as the screen filter, because both call the same reverse read (section 4a).
+- **search_collection: Tags per card in results.** Each card in the results carries `tags`: every Tag the card has (not cut to five, because Claude has no screen limit), by display name, broad first then mechanic in list order. A card with none has an empty list. If the Tag read fails, the result still returns and says `tags_unavailable: true` for those cards; it never shows an empty list for a failed read. This costs one batched read per result page (at most the page's distinct oracle ids), never one read per card.
+- **get_deck: Tags per card.** Each card row carries `tags` in the same form, with the same failure marker, read in one batch for the whole deck (a 100-card deck is one read of 100 ids). Deck health numbers, Categories and the order of get_deck are unchanged.
+- **Tool wording.** Descriptions use "Tag" and "Category". The `tags` description reads: "Tags say what a card does in any deck (for example Ramp, Sacrifice outlet). They are the same for every deck and cannot be changed. A card with no Tag has none; cards released after 7 August 2026 may not have Tags yet." The old role filter keeps its behaviour; its description gains one sentence: "Not the same as Tags." Descriptions say a Tag never changes a Category.
+- **Not in this slice:** deck health numbers, the roles tables and drafts, Why and Keep.
+## 4d. Accessibility for the Tag filter (4b)
+- The Tag filter controls are real checkboxes in a group, labelled by their Tag name.
+- Contrast: text 14.18:1, control outlines 5.07:1, selected green text on its fill 6.82:1 or better, secondary text 6.36:1; all at least 4.5:1 for text and 3:1 for outlines.
 - Nothing by colour alone: selected Tag = tick + bold; selected filter button = count in its label; failed = icon + words; all/any choice = tick + word. Checked with the greyscale switch in the mockup.
-- Targets: every filter control (button, find box, checkbox row, All/Any, Clear, Done) is at least 44 px high; the chips are not controls and have no target size.
+- Targets: every filter control (button, find box, checkbox row, All/Any, Clear, Done) is at least 44 px high.
 - Focus: the 2 px white outline with black halo used elsewhere. Panel opens with focus on "Find a Tag" and Escape or Done returns it to the Tags button. On a phone the sheet traps Tab and the page behind is inert.
-- Live regions: card count in the panel and "Checking Tags for …" are polite; a failed Tag load is an alert. Loading shimmer stops under reduced motion.
+- Live regions: the card count in the panel is polite; a failed read is an alert.
 ## 5. Phone layout
 At 800 px page width and below (was 720; moved up so tablets, 768 px, get the compact row): the rail stacks above the card list and collapses to one compact row (card thumbnail, deck name, target bracket line with the warning icon and words when exceeded, "102 / 100 · 2 over", chevron). The row is a 64 px button with `aria-expanded`. Expanded, the full rail appears in the same order and scrolls with the page (no inner scroll). The tab row (with "...") follows the rail. The card list becomes one column. The Strategy window and card details become full-screen sheets; the bracket picker stays five across (numbers 20 px, names 11 px) and the footer wraps so Cancel and Save stay 44 px tall.
 
@@ -198,7 +195,7 @@ At 800 px page width and below (was 720; moved up so tablets, 768 px, get the co
 The existing faint border (#35353A, 1.42:1) is decoration only and is not used on controls in these screens.
 
 ## 7. Copy list (exact)
-Strategy, Target bracket, Target bracket: Not set, Add a one-line summary of how this deck plays, One-line summary, Shown on the deck page., Playgroup (optional), Last changed by you · 19 Nov · See in History, Cards in this deck imply at least Bracket N. Your target is Bracket M., Couldn't load your strategy., Couldn't save., You're offline., Tags, Category, Why, Keep, No Tags for this card., and 2 more, Filter by Tag, Find a Tag, Broad Tags, Mechanic Tags, All of them, Any of them, Clear Tags, Clear all filters, No cards match, Cards released after 7 August 2026 have no Tags yet. Not used anywhere: role, job, strategy point, "restricted", "limited", "only suggest", "recommended for your bracket".
+Strategy, Target bracket, Target bracket: Not set, Add a one-line summary of how this deck plays, One-line summary, Shown on the deck page., Playgroup (optional), Last changed by you · 19 Nov · See in History, Cards in this deck imply at least Bracket N. Your target is Bracket M., Couldn't load your strategy., Couldn't save., You're offline., Tags, Category, Why, Keep, Filter by Tag, Find a Tag, Broad Tags, Mechanic Tags, All of them, Any of them, Clear Tags, Clear all filters, No cards match, Cards released after 7 August 2026 have no Tags yet. Not used anywhere: role, job, strategy point, "restricted", "limited", "only suggest", "recommended for your bracket".
 
 ## 8. Open questions for the owner (recommendation first)
 1. Warning wording in the rail: full sentence, as built here. Alternative: your wireframe's shorter "Cards imply at least Bracket 4".
@@ -216,14 +213,12 @@ Strategy, Target bracket, Target bracket: Not set, Add a one-line summary of how
 4. Cards with no card text sit in Game Plan and are named in a note. Recommend keep.
 
 ## 8b. Open questions for the owner, showing Tags (recommendation first)
-1. **Cards with no stored Tag show no guess at all.** The brief hid the text-reading guess only on cards that have Tags; your later rule was "no Tag shows none". Recommend: the guess is gone from the card window everywhere. You would see "No Tags for this card." Alternative: keep the grey guess on cards with no stored Tag. Trade-off: the alternative shows two ways of describing cards.
-2. **Collection has no card window.** Tags show on a card only in a deck's card window today. Recommend: do nothing extra now; the collection finds cards by the filter. Alternative: a card window from the collection (a separate, larger slice).
-3. **Five first: broad Tags first, then the list's own order.** Alternative: alphabetical.
-4. **Filter: pick several, "All of them" by default, "Any of them" one tap away.** Alternative: pick one only (simpler, but Claude can do more than the screen).
-5. **Panel lists all 40 with a "Find a Tag" box and no counts.** Alternative: a number beside each Tag (how many you own). Easier to avoid empty results, one extra lookup.
-6. **Filter sits in the existing filter row as one "Tags" button.** Alternative: a separate row of its own.
-7. **Quiet line about cards after 7 August 2026 in the panel.** Recommend keep until the Scryfall refresh happens.
-8. **No Tags on collection rows or tiles.** Alternative: a "Matches: Sacrifice outlet" line while a filter is on.
-9. **Chips look identical for broad and mechanic Tags.** Alternative: a small mark on broad ones.
+The card window questions (order, "and N more", the no-Tag line, loading and failed states) moved to the card details redesign.
+1. **Filter: pick several, "All of them" by default, "Any of them" one tap away.** Alternative: pick one only (simpler, but Claude's search can do more than the screen).
+2. **Panel lists all 40 with a "Find a Tag" box and no counts.** Alternative: a number beside each Tag (how many you own). Easier to avoid empty results; one extra lookup.
+3. **Filter sits in the existing filter row as one "Tags" button.** Alternative: a separate row of its own.
+4. **Quiet line about cards after 7 August 2026 in the panel.** Recommend keep until the Scryfall refresh happens.
+5. **No Tags on collection rows or tiles.** Alternative: a "Matches: Sacrifice outlet" line while a filter is on.
+6. **Claude sees every Tag on a card, not five.** Alternative: the same five as on screen. Recommend all: it has no screen to fit.
 ## 9. Not covered here
-Build, migrations, RQ-13 and RQ-14 maths, the Picklist screens, the EDHREC build picker and category manager (they stay where they are), and the Workbench and Analysis tabs.
+Build, migrations, RQ-13 and RQ-14 maths, the Picklist screens, the EDHREC build picker and category manager (they stay where they are), and the Workbench and Analysis tabs. The card window itself (card details redesign).

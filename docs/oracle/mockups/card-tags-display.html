@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle · Showing card Tags: card window and collection Tag filter (RQ-12 mockup)</title>
+<style>
+/* Proposal, awaiting owner approval (Gate 3). Sample data only; Tag names and order are the real 40-Tag list. */
+:root{
+  --bg-canvas:#131316;--bg-surface:#1A1A1E;--bg-hover:#212126;
+  --border-subtle:#262629;      /* decoration only */
+  --border-ctl:#8A8A93;         /* controls and chips: 5.07:1 on surface */
+  --text:#E8E8EA;--text2:#9C9CA3;
+  --accent:#1D9E75;--accent-text:#3DC99A;--accent-bg:rgba(29,158,117,.15);--on-accent:#0B0B0D;
+  --warn:#EF9F27;--err:#F2766B;--err-bg:rgba(242,118,107,.14);
+  --fs-xs:12px;--fs-sm:13px;--fs-md:14px;--fs-lg:16px;--fs-xl:20px;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0;background:#0b0b0d;color:var(--text);font:var(--fs-md)/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid #fff;outline-offset:2px;box-shadow:0 0 0 4px #000}
+svg.i{width:1.15em;height:1.15em;flex:none;vertical-align:-.2em;fill:none;stroke:currentColor;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.muted{color:var(--text2)}
+/* mockup controls (not part of the app) */
+.ctl{position:sticky;top:0;z-index:100;background:#000;border-bottom:1px solid var(--border-subtle);padding:10px 16px;display:flex;flex-wrap:wrap;gap:8px 18px}
+.ctl h1{font-size:var(--fs-md);margin:0 0 2px;font-weight:600;flex-basis:100%}
+.grp{display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.grp>span{font-size:var(--fs-xs);color:var(--text2);margin-right:2px}
+.seg{border:1px solid var(--border-ctl);background:var(--bg-surface);border-radius:6px;padding:6px 10px;font-size:var(--fs-sm);min-height:36px}
+.seg[aria-pressed=true]{background:var(--text);color:#111;border-color:var(--text);font-weight:600}
+.note{max-width:1100px;margin:10px auto 0;padding:0 16px;color:var(--text2);font-size:var(--fs-sm)}
+.note b{color:var(--text)}
+.stage{padding:16px;display:flex;justify-content:center}
+.frame{position:relative;width:1100px;max-width:100%;height:860px;overflow:hidden;background:var(--bg-canvas);border:1px solid var(--border-subtle);border-radius:8px}
+.frame.phone{width:390px;height:780px}
+.frame.grey{filter:grayscale(1)}
+/* ---- collection page ---- */
+.page{height:100%;overflow:auto;padding:16px}
+.page h2{margin:0 0 10px;font-size:var(--fs-xl)}
+.row1{display:flex;gap:8px;flex-wrap:wrap}
+.field{flex:1;min-width:180px;border:1px solid var(--border-ctl);border-radius:6px;padding:10px 12px;color:var(--text2);background:var(--bg-surface);min-height:44px}
+.row2{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.frame.phone .row2{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px}
+.pill{border:1px solid var(--border-ctl);background:transparent;border-radius:999px;padding:0 14px;min-height:44px;min-width:44px;display:inline-flex;align-items:center;gap:6px;font-size:var(--fs-sm);white-space:nowrap}
+.pill[aria-pressed=true],.pill[aria-expanded=true],.pill.on{border-color:var(--accent-text);background:var(--accent-bg);color:var(--accent-text);font-weight:600}
+.btn{border:1px solid var(--border-ctl);background:var(--bg-surface);border-radius:6px;padding:0 14px;min-height:44px;min-width:44px;font-size:var(--fs-sm)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+.btn.link{border-color:transparent;background:transparent;text-decoration:underline}
+.sumline{margin:10px 0 0;display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:var(--fs-sm)}
+.list{margin:12px 0 0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px}
+.list li{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:8px;padding:10px 12px;display:flex;justify-content:space-between;gap:10px}
+.empty{margin-top:16px;background:var(--bg-surface);border:1px dashed var(--border-ctl);border-radius:8px;padding:16px}
+.empty h3{margin:0 0 6px;font-size:var(--fs-lg)}
+.empty .acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* Tag filter panel */
+.fwrap{position:relative}
+.panel{position:absolute;z-index:20;top:50px;left:0;width:360px;max-height:520px;display:flex;flex-direction:column;background:var(--bg-surface);border:1px solid var(--border-ctl);border-radius:10px;box-shadow:0 8px 28px rgba(0,0,0,.6)}
+.frame.phone .panel{position:fixed;left:0;right:0;bottom:0;top:auto;width:auto;max-height:86%;border-radius:14px 14px 0 0}
+.frame.phone{transform:translateZ(0)}
+.panel header{padding:12px 14px 6px}
+.panel h3{margin:0;font-size:var(--fs-lg)}
+.panel .srch{margin:6px 14px;border:1px solid var(--border-ctl);border-radius:6px;background:var(--bg-canvas);padding:0 12px;min-height:44px;width:calc(100% - 28px)}
+.panel .scroll{overflow:auto;padding:0 6px;flex:1}
+.panel h4{margin:10px 8px 2px;font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--text2)}
+.opt{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 8px;border-radius:6px;cursor:pointer;width:100%}
+.opt:hover{background:var(--bg-hover)}
+.opt input{width:22px;height:22px;accent-color:#1D9E75;flex:none}
+.opt span{flex:1}
+.opt input:checked+span{font-weight:650}
+.panel footer{border-top:1px solid var(--border-subtle);padding:10px 14px;display:flex;flex-direction:column;gap:8px}
+.mode{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.mode .pill{min-height:44px}
+.frame.phone .opt{min-height:48px}
+.dim{position:absolute;inset:0;background:rgba(0,0,0,.55);z-index:15}
+/* ---- card window ---- */
+.dlg{background:var(--bg-surface);border:1px solid var(--border-ctl);border-radius:12px;width:520px;max-width:100%;margin:24px auto;display:flex;flex-direction:column;max-height:calc(100% - 48px)}
+.frame.phone .dlg{width:100%;height:100%;max-height:100%;margin:0;border-radius:0;border:0}
+.dlg header{display:flex;justify-content:space-between;gap:8px;padding:14px 16px;border-bottom:1px solid var(--border-subtle)}
+.dlg h2{margin:0;font-size:var(--fs-lg)}
+.dlg .bd{padding:14px 16px;overflow:auto;display:flex;flex-direction:column;gap:18px}
+.dlg footer{padding:12px 16px;border-top:1px solid var(--border-subtle);display:flex;justify-content:flex-end}
+.cardhead{display:flex;gap:12px;align-items:flex-start}
+.art{width:84px;aspect-ratio:488/680;border-radius:8px;border:1px solid var(--border-ctl);background:repeating-linear-gradient(135deg,#202026 0 10px,#1a1a1e 10px 20px);color:var(--text2);font-size:11px;display:flex;align-items:center;justify-content:center;text-align:center}
+.lab{font-size:var(--fs-xs);letter-spacing:.08em;text-transform:uppercase;color:var(--text2);font-weight:600;display:flex;gap:6px;align-items:center}
+.hint{font-size:var(--fs-xs);color:var(--text2);margin-top:4px}
+.tags{display:flex;flex-wrap:wrap;gap:6px;list-style:none;margin:8px 0 0;padding:0}
+.tag{border:1px solid var(--border-ctl);border-radius:999px;padding:4px 12px;font-size:var(--fs-sm);background:var(--bg-canvas);max-width:100%;overflow-wrap:anywhere;cursor:default}
+.tagmore{margin-top:8px;font-size:var(--fs-sm)}
+.skel{height:26px;width:60%;border-radius:999px;background:linear-gradient(90deg,#222228,#2c2c33,#222228);background-size:200% 100%;animation:sh 1.4s linear infinite;margin-top:8px}
+@keyframes sh{to{background-position:-200% 0}}
+@media (prefers-reduced-motion:reduce){.skel{animation:none}}
+.fail{margin-top:8px;border:1px solid var(--err);background:var(--err-bg);border-radius:8px;padding:10px 12px;color:var(--text)}
+.fail .ic{color:var(--err)}
+.fake{border:1px dashed var(--border-subtle);border-radius:8px;padding:10px 12px;color:var(--text2);font-size:var(--fs-sm)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></symbol>
+<symbol id="i-err" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></symbol>
+<symbol id="i-tag" viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1"/></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+</defs></svg>
+
+<div class="ctl">
+  <h1>Oracle mockup · Showing card Tags. Proposal, awaiting owner approval. Sample data.</h1>
+  <div class="grp" id="g-screen"><span>Screen</span></div>
+  <div class="grp" id="g-card"><span>Card window: card</span></div>
+  <div class="grp" id="g-state"><span>Card window: Tags state</span></div>
+  <div class="grp" id="g-filt"><span>Collection: filter state</span></div>
+  <div class="grp" id="g-view"><span>View</span></div>
+</div>
+<div class="note"><b>How to review.</b> "Card window" shows the Tags section for four cards and the loading and failed states. "Collection" opens the Tag filter: pick Tags, switch between "all of them" and "any of them", and combine with colour and Unplaced. "Empty result" shows what you see when nothing matches. "Phone" narrows the frame (card window becomes a full sheet, the filter a bottom sheet). "Greyscale" proves nothing depends on colour. The Tag chips are plain text in rounded outlines on purpose: they are read-only and do nothing when selected. The 40 Tags and their order are the real list; the cards, colours and statuses are samples.</div>
+<div class="stage"><div class="frame" id="frame"><div id="root" style="height:100%"></div></div></div>
+<div class="sr" role="status" id="live"></div>
+
+<script>
+// The real 40 Tags in display_order (kind: B broad, M mechanic).
+const TAGS=[
+['targeted_removal','Targeted removal','B'],['card_draw','Card draw','B'],['ramp','Ramp','B'],['recursion','Recursion','B'],['card_selection','Card selection','B'],['protection','Protection','B'],['tutor','Tutor','B'],['fixing','Fixing','B'],['board_wipe','Board wipe','B'],['hand_disruption','Hand disruption','B'],['stax_tax','Stax / tax','B'],['counterspell','Counterspell','B'],['graveyard_hate','Graveyard hate','B'],
+['direct_damage','Direct damage or life loss to opponents','M'],['plus_one_counters','+1/+1 counter maker','M'],['lifegain','Lifegain','M'],['token_generator','Token generator','M'],['play_from_exile','Play from exile (impulse)','M'],['anthem','Anthem / team pump','M'],['death_trigger','Death trigger','M'],['mana_sink','Mana sink','M'],['sacrifice_outlet','Sacrifice outlet','M'],['discard_outlet','Discard outlet','M'],['counters_payoff','Counters payoff','M'],['cast_trigger','Cast trigger','M'],['graveyard_payoff','Graveyard payoff','M'],['artifact_payoff','Artifact payoff','M'],['self_mill','Self-mill','M'],['copy_clone','Copy / clone','M'],['tapper','Tapper','M'],['steal_control','Steal / gain control','M'],['creature_enters_payoff','Creature-enters payoff','M'],['spellslinger_payoff','Spellslinger payoff','M'],['mill_opponents','Mill opponents','M'],['group_hug','Group hug','M'],['free_cast','Free cast / cheat into play','M'],['cost_reducer','Cost reducer','M'],['landfall','Landfall','M'],['treasure_generator','Treasure generator','M'],['blink','Blink','M']];
+const ORDER=Object.fromEntries(TAGS.map((t,i)=>[t[0],i])), NAME=Object.fromEntries(TAGS.map(t=>[t[0],t[1]]));
+// Sample cards. col: W B G C. unplaced = in no deck.
+const CARDS={
+ sol:{n:'Sol Ring',t:'Artifact',tags:['ramp'],col:'C',un:true},
+ warren:{n:'Warren Soultrader',t:'Creature',tags:['ramp','token_generator','sacrifice_outlet','treasure_generator'],col:'B',un:false},
+ tithe:{n:'Smothering Tithe',t:'Enchantment',tags:['ramp','stax_tax','token_generator','treasure_generator'],col:'W',un:true},
+ many:{n:'Sample card, 7 Tags',t:'Creature',tags:['card_draw','fixing','ramp','recursion','sacrifice_outlet','token_generator','treasure_generator'],col:'G',un:true},
+ none:{n:'Sample card, no Tags',t:'Creature',tags:[],col:'G',un:true},
+ seer:{n:'Sample sacrifice card',t:'Creature',tags:['sacrifice_outlet','death_trigger'],col:'B',un:true},
+ cult:{n:'Sample green ramp card',t:'Sorcery',tags:['ramp','fixing'],col:'G',un:false}
+};
+const COLN={W:'White',B:'Black',G:'Green',C:'Colourless'};
+const S={screen:'card',card:'warren',state:'loaded',filt:'closed',phone:false,grey:false,sel:new Set(),mode:'all',cols:new Set(),unplaced:false,find:''};
+const $=s=>document.querySelector(s);
+const ic=n=>`<svg class="i" aria-hidden="true"><use href="#i-${n}"/></svg>`;
+function seg(host,items,key,cb){const h=$(host);items.forEach(([v,l])=>{const b=document.createElement('button');b.className='seg';b.textContent=l;b.dataset.v=v;b.onclick=()=>{S[key]=v;sync(h);cb&&cb(v)};h.appendChild(b)});sync(h);
+ function sync(h){h.querySelectorAll('.seg').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==S[key])))}}
+seg('#g-screen',[['card','Card window'],['coll','Collection']],'screen',render);
+seg('#g-card',[['sol','Sol Ring'],['warren','Warren Soultrader'],['tithe','Smothering Tithe'],['many','7 Tags'],['none','No Tags']],'card',render);
+seg('#g-state',[['loaded','Loaded'],['loading','Loading'],['failed','Failed']],'state',render);
+seg('#g-filt',[['closed','Closed'],['open','Open'],['picked','Two picked'],['empty','Empty result']],'filt',v=>{
+  if(v==='closed'){S.sel=new Set();S.cols=new Set();S.unplaced=false}
+  if(v==='open'){S.sel=new Set();S.cols=new Set()}
+  if(v==='picked'){S.sel=new Set(['sacrifice_outlet','treasure_generator']);S.cols=new Set();S.mode='all'}
+  if(v==='empty'){S.sel=new Set(['stax_tax','counterspell']);S.mode='all';S.cols=new Set(['G'])}
+  S.open=(v==='open'||v==='picked');S.screen='coll';S.find='';resync();render()});
+function resync(){document.querySelectorAll('#g-screen .seg').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==S.screen)))}
+const gv=$('#g-view');[['phone','Phone'],['grey','Greyscale']].forEach(([k,l])=>{const b=document.createElement('button');b.className='seg';b.textContent=l;b.setAttribute('aria-pressed','false');b.onclick=()=>{S[k]=!S[k];b.setAttribute('aria-pressed',String(S[k]));$('#frame').classList.toggle('phone',S.phone);$('#frame').classList.toggle('grey',S.grey)};gv.appendChild(b)});
+
+// Order rule: broad Tags first, then mechanic; inside each, the list's display order. First five shown.
+function ordered(keys){return [...keys].sort((a,b)=>ORDER[a]-ORDER[b])}
+function tagsSection(c){
+  let body;
+  if(S.state==='loading')body=`<div role="status"><span class="sr">Checking Tags for ${c.n}</span><div class="skel"></div></div>`;
+  else if(S.state==='failed')body=`<div class="fail" role="alert"><span class="ic">${ic('err')}</span> <b>Couldn't load Tags for ${c.n}.</b> Nothing has changed.<div style="margin-top:8px"><button class="btn" id="retry">Try again</button></div></div>`;
+  else if(!c.tags.length)body=`<p class="muted" style="margin:8px 0 0;font-size:var(--fs-sm)">No Tags for this card.</p>`;
+  else{const all=ordered(c.tags),shown=all.slice(0,5),more=all.length-shown.length;
+    body=`<ul class="tags" aria-label="Tags, read-only">${shown.map(k=>`<li class="tag">${NAME[k]}</li>`).join('')}</ul>`+(more>0?`<p class="tagmore">and ${more} more. Use the Tag filter in your collection search to find this card by ${more===1?'it':'them'}.</p>`:'')}
+  return `<section aria-labelledby="lbT"><div class="lab" id="lbT">${ic('lock')}Tags<span class="sr"> (read-only)</span></div>${body}<div class="hint">What this card does in any deck. The same in every deck, and you can't change it.</div></section>`}
+function cardWin(){const c=CARDS[S.card];
+  return `<div style="padding:0;height:100%;position:relative"><div class="dlg" role="dialog" aria-modal="true" aria-labelledby="cT">
+  <header><div><h2 id="cT">${c.n}</h2><div class="muted" style="font-size:var(--fs-sm)">${c.t}</div></div><button class="btn" aria-label="Close">✕</button></header>
+  <div class="bd">
+   <div class="cardhead"><div class="art" role="img" aria-label="Card image placeholder">Card<br>image</div><div class="muted" style="font-size:var(--fs-sm)">In deck: Yedora, the Explorer<br>Original copy</div></div>
+   <section><div class="lab">Category</div><div class="fake" style="margin-top:8px">Unchanged. Your own grouping in this deck's list. A Tag never changes it.</div></section>
+   ${tagsSection(c)}
+   <section><div class="lab">Types</div><div class="fake" style="margin-top:8px">Unchanged: the type line split by the Magic rules. Loads on its own, so it still shows if Tags fail.</div></section>
+  </div>
+  <footer><button class="btn primary">Done</button></footer></div></div>`}
+
+// collection
+function matches(c){
+  if(S.cols.size&&!S.cols.has(c.col))return false;
+  if(S.unplaced&&!c.un)return false;
+  if(S.sel.size){const has=k=>c.tags.includes(k);const ok=S.mode==='all'?[...S.sel].every(has):[...S.sel].some(has);if(!ok)return false}
+  return true}
+function selText(){const n=ordered(S.sel).map(k=>NAME[k]);return n.join(', ')+(n.length>1?(S.mode==='all'?' (all of them)':' (any of them)'):'')}
+function panel(){
+  const f=S.find.trim().toLowerCase();const vis=TAGS.filter(t=>!f||t[1].toLowerCase().includes(f));
+  const grp=(k,title)=>{const l=vis.filter(t=>t[2]===k);return l.length?`<h4>${title}</h4>`+l.map(t=>`<label class="opt"><input type="checkbox" data-k="${t[0]}" ${S.sel.has(t[0])?'checked':''}><span>${t[1]}</span></label>`).join(''):''};
+  const body=grp('B','Broad Tags')+grp('M','Mechanic Tags')||`<p class="muted" style="padding:8px 10px">No Tag is named like that.</p>`;
+  const n=S.sel.size,count=Object.values(CARDS).filter(matches).length;
+  return `${S.phone?'<div class="dim"></div>':''}<div class="panel" id="tp" role="${S.phone?'dialog':'group'}" ${S.phone?'aria-modal="true"':''} aria-labelledby="tpT">
+   <header><h3 id="tpT">Filter by Tag</h3><div class="hint">What a card does in any deck. Each Tag is a plain yes or no.</div></header>
+   <input class="srch" id="tfind" type="text" placeholder="Find a Tag" aria-label="Find a Tag in this list" value="${S.find}">
+   <div class="scroll">${body}</div>
+   <footer>
+    ${n>1?`<div class="mode" role="radiogroup" aria-label="Match"><span class="muted" style="font-size:var(--fs-sm)">Show cards with</span><button class="pill ${S.mode==='all'?'on':''}" role="radio" aria-checked="${S.mode==='all'}" data-m="all">${S.mode==='all'?'✓ ':''}All of them</button><button class="pill ${S.mode==='any'?'on':''}" role="radio" aria-checked="${S.mode==='any'}" data-m="any">${S.mode==='any'?'✓ ':''}Any of them</button></div>`:''}
+    <div class="hint" style="margin:0">Cards released after 7 August 2026 have no Tags yet.</div>
+    <div style="display:flex;gap:8px;justify-content:space-between;align-items:center"><button class="btn link" id="tclear" ${n?'':'aria-disabled="true"'}>Clear Tags</button><span class="muted" role="status" id="tcount" style="font-size:var(--fs-sm)">${count} ${count===1?'card':'cards'}</span><button class="btn primary" id="tdone">Done</button></div>
+   </footer></div>`}
+function coll(){
+  const list=Object.values(CARDS).filter(matches);const n=S.sel.size;
+  const colBtn=c=>`<button class="pill" data-c="${c}" aria-pressed="${S.cols.has(c)}">${S.cols.has(c)?'✓ ':''}${COLN[c]}</button>`;
+  const sum=(n||S.cols.size||S.unplaced)?`<p class="sumline">${n?`<span>${ic('tag')} <b>Tags:</b> ${selText()}</span>`:''}<span class="muted">${list.length} ${list.length===1?'card':'cards'}</span>${n?`<button class="btn link" id="sclear">Clear Tags</button>`:''}</p>`:'';
+  const res=list.length?`<ul class="list" aria-label="Cards">${list.map(c=>`<li><span><b>${c.n}</b> <span class="muted">· ${c.t}</span></span><span class="muted">${c.un?'Unplaced':'In a deck'}</span></li>`).join('')}</ul>`
+   :`<div class="empty" role="status"><h3>No cards match</h3><p style="margin:0">${n?`You own no cards with ${S.mode==='all'&&n>1?'all of these Tags':'this Tag'}`:'Nothing you own fits'}${S.cols.size?` in ${[...S.cols].map(c=>COLN[c]).join(', ')}`:''}${S.unplaced?' that are not in a deck':''}.</p><p class="muted" style="margin:6px 0 0;font-size:var(--fs-sm)">${n>1&&S.mode==='all'?'Try "Any of them", or take a Tag off.':'Try taking a filter off.'}</p><div class="acts">${n?'<button class="btn" id="eclearT">Clear Tags</button>':''}<button class="btn" id="eclearAll">Clear all filters</button></div></div>`;
+  return `<div class="page"><h2>Collection</h2>
+   <div class="row1"><div class="field">Search cards…</div></div>
+   <div class="row2" role="group" aria-label="Filters">
+    ${['W','B','G','C'].map(colBtn).join('')}
+    <button class="pill" id="unp" aria-pressed="${S.unplaced}">${S.unplaced?'✓ ':''}Unplaced</button>
+    <span class="fwrap"><button class="pill ${n?'on':''}" id="tbtn" aria-expanded="${!!S.open}" aria-controls="tp" aria-haspopup="true">${ic('tag')}Tags${n?': '+n:''}${ic('chev')}</button>${S.open&&!S.phone?panel():''}</span>
+   </div>
+   ${sum}${res}
+   ${S.open&&S.phone?panel():''}</div>`}
+
+function render(){
+  const r=$('#root');r.innerHTML=S.screen==='card'?cardWin():coll();wire();
+  if(S.state==='loading'&&S.screen==='card')$('#live').textContent='';}
+function wire(){
+  const q=(s,f)=>{const e=$(s);if(e)e.onclick=f};
+  q('#retry',()=>{S.state='loaded';document.querySelectorAll('#g-state .seg').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.v==='loaded')));render()});
+  q('#tbtn',()=>{S.open=!S.open;render();const b=$(S.open?'#tfind':'#tbtn');b&&b.focus()});
+  q('#tdone',()=>{S.open=false;render();$('#tbtn').focus()});
+  q('#tclear',()=>{if(S.sel.size){S.sel=new Set();render();$('#tclear').focus()}});
+  q('#sclear',()=>{S.sel=new Set();render()});
+  q('#eclearT',()=>{S.sel=new Set();render()});
+  q('#eclearAll',()=>{S.sel=new Set();S.cols=new Set();S.unplaced=false;render()});
+  q('#unp',()=>{S.unplaced=!S.unplaced;render()});
+  document.querySelectorAll('[data-c]').forEach(b=>b.onclick=()=>{const c=b.dataset.c;S.cols.has(c)?S.cols.delete(c):S.cols.add(c);render()});
+  document.querySelectorAll('.opt input').forEach(i=>i.onchange=()=>{const k=i.dataset.k;i.checked?S.sel.add(k):S.sel.delete(k);const keep=i.dataset.k;render();const e=document.querySelector(`.opt input[data-k="${keep}"]`);e&&e.focus()});
+  document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{S.mode=b.dataset.m;render();document.querySelector(`[data-m="${S.mode}"]`).focus()});
+  const f=$('#tfind');if(f)f.oninput=()=>{S.find=f.value;const p=f.selectionStart;render();const g=$('#tfind');g.focus();g.setSelectionRange(p,p)};
+}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.open){S.open=false;render();const b=$('#tbtn');b&&b.focus()}});
+render();
+</script>
+</body>
+</html>

@@ -82,8 +82,9 @@ async function resolveOracleId(
 
 async function loadFacts(supabase: Client, cardName: string): Promise<CardFacts | null> {
   const cols = 'name, oracle_text, type_line, mana_cost, mana_value, color_identity, power, toughness'
-  let { data, error } = await supabase.from('ref_cards').select(cols).eq('name', cardName).limit(1)
-  if (error) fail('card facts lookup', error)
+  const first = await supabase.from('ref_cards').select(cols).eq('name', cardName).limit(1)
+  if (first.error) fail('card facts lookup', first.error)
+  let data = first.data
   if (!data?.[0]) {
     const front = cardName.split(' // ')[0]
     const r = await supabase.from('ref_cards').select(cols).ilike('name', `${front.replace(/[\\%_]/g, (c) => `\\${c}`)} // %`).limit(1)

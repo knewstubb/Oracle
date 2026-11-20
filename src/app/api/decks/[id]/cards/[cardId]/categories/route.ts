@@ -2,7 +2,7 @@
  * PUT /api/decks/[id]/cards/[cardId]/categories
  *
  * Update the categories for a specific card within a deck.
- * Validates the category cap (1 primary + max 2 secondary) and no duplicates.
+ * Validates the category cap (1 first + max 4 more, names up to 60 characters) and no duplicates.
  *
  * Validates: Requirements 1.1, 1.2, 2.1, 2.2, 2.3
  */
@@ -10,7 +10,7 @@
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
-import { serializeCategories } from '@/lib/categoryUtils'
+import { serializeCategories, validateCategoryNames, MAX_ADDITIONAL_CATEGORIES } from '@/lib/categoryUtils'
 
 interface CategoriesRequestBody {
   primary_category: string
@@ -60,9 +60,9 @@ export async function PUT(
       )
     }
 
-    if (body.additional_categories.length > 2) {
+    if (body.additional_categories.length > MAX_ADDITIONAL_CATEGORIES) {
       return Response.json(
-        { success: false, error: 'additional_categories must have at most 2 entries' },
+        { success: false, error: `additional_categories must have at most ${MAX_ADDITIONAL_CATEGORIES} entries` },
         { status: 400 }
       )
     }
@@ -87,6 +87,10 @@ export async function PUT(
       )
     }
 
+    const nameError = validateCategoryNames(primaryTrimmed, additionalTrimmed)
+    if (nameError) {
+      return Response.json({ success: false, error: nameError }, { status: 400 })
+    }
     // --- Serialize categories ---
     const serialized = serializeCategories({
       primary_category: primaryTrimmed,

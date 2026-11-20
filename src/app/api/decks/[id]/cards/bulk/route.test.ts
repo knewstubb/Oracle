@@ -24,6 +24,7 @@ function createQueryMock(table: string) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const chain: any = {
     select: () => chain,
+    update: () => chain,
     eq: () => chain,
     in: () => chain,
     order: () => chain,
@@ -243,5 +244,35 @@ describe('POST /api/decks/[id]/cards/bulk — add-proxy', () => {
     const res = await callPost({ operation: 'add-proxy', cardIds: [101] })
 
     expect(res.status).toBe(404)
+  })
+})
+
+describe('POST /api/decks/[id]/cards/bulk — move-category (HC-02: five categories, 60-character names)', () => {
+  beforeEach(() => {
+    queues = {}
+    vi.clearAllMocks()
+    mockAuthResult = { id: 'user-1' }
+  })
+
+  it('accepts a first category plus four more', async () => {
+    queueDeckOk()
+    queue('deck_cards', { data: [{ id: 101 }], error: null })
+    const res = await callPost({
+      operation: 'move-category',
+      cardIds: [101],
+      payload: { primary_category: 'Ramp', additional_categories: ['Game Plan & Win Conditions', 'B', 'C', 'D'] },
+    })
+    expect(res.status).toBe(200)
+  })
+
+  it('refuses five more (six in all) and a name over 60 characters', async () => {
+    queueDeckOk()
+    queue('deck_cards', { data: [{ id: 101 }], error: null })
+    const six = await callPost({ operation: 'move-category', cardIds: [101], payload: { primary_category: 'A', additional_categories: ['B', 'C', 'D', 'E', 'F'] } })
+    expect(six.status).toBe(400)
+    queueDeckOk()
+    queue('deck_cards', { data: [{ id: 101 }], error: null })
+    const long = await callPost({ operation: 'move-category', cardIds: [101], payload: { primary_category: 'A'.repeat(61), additional_categories: [] } })
+    expect(long.status).toBe(400)
   })
 })

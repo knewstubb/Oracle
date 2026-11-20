@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { CardImage } from '@/components/CardImage'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
-import { parseCategoriesCapped, type StructuredCategories } from '@/lib/categoryUtils'
+import { parseCategoriesCapped, MAX_CATEGORIES_PER_CARD, MAX_CATEGORY_LENGTH, type StructuredCategories } from '@/lib/categoryUtils'
 import type { CardWindowLookup } from '@/lib/card-window-roles'
 import {
   ROLE_SLUG_LABELS, ROLE_SOURCE_LABELS, applyOwnerAction, mergeWindowRoles,
@@ -100,6 +100,8 @@ interface CardWindowProps {
 }
 
 const UNDO_WINDOW_MS = 10_000
+/** Names that mean something else in a deck (not ordinary categories). */
+const RESERVED_NAMES = new Set(['maybeboard', 'sideboard', 'commander', 'companion'])
 
 function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availableCategories, onSaveCategories, onClose }: CardWindowProps) {
   const closeRef = useRef<HTMLButtonElement>(null)
@@ -138,6 +140,30 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
       parsed,
     )
   }
+
+  const held = [parsed.primary_category, ...parsed.additional_categories]
+  const full = held.length >= MAX_CATEGORIES_PER_CARD
+  const [newName, setNewName] = useState('')
+  const [nameProblem, setNameProblem] = useState<string | null>(null)
+  const addCategory = (raw: string) => {
+    if (!card) return
+    const trimmed = raw.trim()
+    if (!trimmed) return
+    // Use the deck's own spelling when the name matches one the deck already shows.
+    const spelled = [...availableCategories, ...held].find((c) => c.toLowerCase() === trimmed.toLowerCase()) ?? trimmed
+    if (spelled.length > MAX_CATEGORY_LENGTH) { setNameProblem(`Names can be up to ${MAX_CATEGORY_LENGTH} characters. This one is ${spelled.length}.`); return }
+    if (RESERVED_NAMES.has(spelled.toLowerCase())) { setNameProblem(`"${spelled}" is a reserved name and can't be added here.`); return }
+    if (held.some((c) => c.toLowerCase() === spelled.toLowerCase())) { setNameProblem('This card is already in that category.'); return }
+    if (full) return
+    setNameProblem(null)
+    setNewName('')
+    void commit({ primary_category: parsed.primary_category, additional_categories: [...parsed.additional_categories, spelled] }, parsed)
+  }
+  const removeCategory = (name: string) => {
+    if (!card) return
+    void commit({ primary_category: parsed.primary_category, additional_categories: parsed.additional_categories.filter((c) => c !== name) }, parsed)
+  }
+  const addable = availableCategories.filter((c) => c && !held.includes(c) && !RESERVED_NAMES.has(c.toLowerCase()))
 
   return (
     <Dialog open onOpenChange={(o) => { if (!o) onClose() }}>
@@ -181,29 +207,103 @@ function CardWindow({ deckId, cardId, card, lastName, status, lifecycle, availab
               {/* Category */}
               <section aria-labelledby="cw-category">
                 <h3 id="cw-category" className="text-[length:var(--fs-xs)] font-medium uppercase tracking-wide text-muted-foreground">Category</h3>
-                <p className="text-[length:var(--fs-xs)] text-muted-foreground">Where it sits in the list</p>
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span
-                    data-testid="card-window-category"
-                    className="rounded-full border border-[var(--border-default)] px-2 py-0.5 text-[length:var(--fs-sm)]"
-                  >
-                    {parsed.primary_category}
-                  </span>
+                <p className="text-[length:var(--fs-xs)] text-muted-foreground">Every category this card is in. The first one is where it shows in the list.</p>
+                <ul className="mt-2 flex flex-col gap-1.5" aria-label="Categories this card is in" data-testid="card-window-categories">
+                  {held.map((name, i) => (
+                    <li key={`${i}-${name}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <span
+                        data-testid="card-window-category"
+                        className={`max-w-full break-words rounded-2xl border px-2 py-0.5 text-[length:var(--fs-sm)] ${i === 0 ? 'border-2 border-[var(--text-primary)]' : 'border-[var(--border-default)]'}`}
+                      >
+                        {name}
+                      </span>
+                      {i === 0 && <span className="text-[length:var(--fs-xs)] text-muted-foreground">Shown in the list</span>}
+                      {editing && i > 0 && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="max-sm:h-11"
+                          disabled={save.kind === 'saving'}
+                          onClick={() => removeCategory(name)}
+                          aria-label={`Remove ${name}`}
+                        >
+                          Remove
+                        </Button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <div className="mt-2">
                   <Button variant="outline" size="sm" className="max-sm:h-11" onClick={() => setEditing((v) => !v)} aria-expanded={editing}>
                     {editing ? 'Done' : 'Edit'}
                   </Button>
                 </div>
                 {editing && (
-                  <div className="mt-3 rounded-lg border border-[var(--border-default)] p-3">
-                    <select
-                      value={parsed.primary_category}
-                      onChange={(e) => changePrimary(e.target.value)}
-                      disabled={save.kind === 'saving'}
-                      className="h-7 w-full rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] max-sm:h-11"
-                      aria-label="Category"
-                    >
-                      {primaryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
-                    </select>
+                  <div className="mt-3 flex flex-col gap-3 rounded-lg border border-[var(--border-default)] p-3">
+                    <label className="flex flex-col gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
+                      First category (the list group)
+                      <select
+                        value={parsed.primary_category}
+                        onChange={(e) => changePrimary(e.target.value)}
+                        disabled={save.kind === 'saving'}
+                        className="h-7 w-full rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] text-foreground max-sm:h-11"
+                        aria-label="Category"
+                      >
+                        {primaryOptions.map((c) => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </label>
+                    {full ? (
+                      <p className="text-[length:var(--fs-sm)]" data-testid="card-window-category-full">
+                        A card can be in {MAX_CATEGORIES_PER_CARD} categories. Remove one to add another.
+                      </p>
+                    ) : (
+                      <>
+                        {addable.length > 0 && (
+                          <label className="flex flex-col gap-1 text-[length:var(--fs-xs)] text-muted-foreground">
+                            Add one this deck already uses
+                            <select
+                              value=""
+                              onChange={(e) => addCategory(e.target.value)}
+                              disabled={save.kind === 'saving'}
+                              className="h-7 w-full rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] text-foreground max-sm:h-11"
+                              aria-label="Add a category from this deck"
+                            >
+                              <option value="">Choose…</option>
+                              {addable.map((c) => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                          </label>
+                        )}
+                        <form
+                          className="flex flex-col gap-1"
+                          onSubmit={(e) => { e.preventDefault(); addCategory(newName) }}
+                        >
+                          <label htmlFor="cw-new-category" className="text-[length:var(--fs-xs)] text-muted-foreground">Or add a new name (up to {MAX_CATEGORY_LENGTH} characters)</label>
+                          <div className="flex items-start gap-2">
+                            <input
+                              id="cw-new-category"
+                              type="text"
+                              value={newName}
+                              onChange={(e) => { setNewName(e.target.value); setNameProblem(null) }}
+                              disabled={save.kind === 'saving'}
+                              aria-describedby="cw-new-category-count"
+                              aria-invalid={newName.trim().length > MAX_CATEGORY_LENGTH}
+                              className="h-7 min-w-0 flex-1 rounded-md border border-input bg-background px-2 text-[length:var(--fs-sm)] text-foreground max-sm:h-11 max-sm:text-base"
+                            />
+                            <Button type="submit" variant="outline" size="sm" className="max-sm:h-11" disabled={save.kind === 'saving' || !newName.trim()}>
+                              Add
+                            </Button>
+                          </div>
+                          <span id="cw-new-category-count" className="text-[length:var(--fs-xs)] text-muted-foreground">
+                            {newName.trim().length} of {MAX_CATEGORY_LENGTH}
+                          </span>
+                          {(nameProblem || newName.trim().length > MAX_CATEGORY_LENGTH) && (
+                            <p role="alert" className="text-[length:var(--fs-sm)]" data-testid="card-window-category-problem">
+                              {nameProblem ?? `Names can be up to ${MAX_CATEGORY_LENGTH} characters. This one is ${newName.trim().length}.`}
+                            </p>
+                          )}
+                        </form>
+                      </>
+                    )}
                   </div>
                 )}
                 <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">

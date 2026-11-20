@@ -8,7 +8,8 @@
 
 /**
  * Canonical app-layer category type.
- * primary_category is always non-empty; additional_categories has 0–2 entries.
+ * primary_category is always non-empty; additional_categories has 0–4 entries
+ * (5 categories in all, HC-02). The first one decides the group in the list.
  */
 export interface StructuredCategories {
   primary_category: string
@@ -80,17 +81,22 @@ export function parseCategories(raw: string | null | undefined): StructuredCateg
   }
 }
 
+/** Most categories one card can hold: the first plus four more. Matches Claude's set_card_category (1 to 5). */
+export const MAX_CATEGORIES_PER_CARD = 5
+/** Most entries after the first. */
+export const MAX_ADDITIONAL_CATEGORIES = MAX_CATEGORIES_PER_CARD - 1
+
 /**
- * Enforce the 3-category hard cap (1 primary + max 2 secondary).
+ * Enforce the 5-category hard cap (1 first + max 4 more).
  * Truncates additional_categories silently. Idempotent.
  */
 export function enforceCategoryCap(structured: StructuredCategories): StructuredCategories {
-  if (structured.additional_categories.length <= 2) {
+  if (structured.additional_categories.length <= MAX_ADDITIONAL_CATEGORIES) {
     return structured
   }
   return {
     primary_category: structured.primary_category,
-    additional_categories: structured.additional_categories.slice(0, 2),
+    additional_categories: structured.additional_categories.slice(0, MAX_ADDITIONAL_CATEGORIES),
   }
 }
 
@@ -105,8 +111,20 @@ export function serializeCategories(structured: StructuredCategories): string {
   ])
 }
 
-/** Maximum allowed length for any single category name. */
-export const MAX_CATEGORY_LENGTH = 16
+/** Maximum allowed length for any single category name. Matches Claude's set_card_category (up to 60). */
+export const MAX_CATEGORY_LENGTH = 60
+
+/**
+ * Check a category list before it is stored. Returns an error sentence, or null when it is fine.
+ * Names are 1 to MAX_CATEGORY_LENGTH characters; nothing is cut or changed here.
+ */
+export function validateCategoryNames(primary: string, additional: string[]): string | null {
+  const all = [primary, ...additional]
+  if (all.length > MAX_CATEGORIES_PER_CARD) return `A card can be in at most ${MAX_CATEGORIES_PER_CARD} categories`
+  if (all.some((n) => n.length === 0)) return 'Category names cannot be empty'
+  if (all.some((n) => n.length > MAX_CATEGORY_LENGTH)) return `Category names can be at most ${MAX_CATEGORY_LENGTH} characters`
+  return null
+}
 
 /**
  * Parse and cap in one call — convenience for read paths.
@@ -123,12 +141,12 @@ export function parseCategoriesCapped(raw: string | null | undefined): Structure
 
 /**
  * Apply bulk category suggestions (e.g. from AI) with cap enforcement.
- * Filters out the primary category from suggestions, keeps only the first 2.
+ * Filters out the primary category from suggestions, keeps only the first 4.
  */
 export function applyCategoryBulk(suggestions: string[], primaryCategory: string): StructuredCategories {
   const filtered = suggestions.filter(s => s !== primaryCategory)
   return {
     primary_category: primaryCategory,
-    additional_categories: filtered.slice(0, 2),
+    additional_categories: filtered.slice(0, MAX_ADDITIONAL_CATEGORIES),
   }
 }

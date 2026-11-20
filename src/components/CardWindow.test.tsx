@@ -106,7 +106,7 @@ describe('card window', () => {
     fireEvent.click(screen.getAllByTestId('card-name-button')[0])
     const win = await screen.findByTestId('card-window')
     expect(within(win).getByRole('heading', { name: 'Category' })).toBeInTheDocument()
-    expect(within(win).getByText('Where it sits in the list')).toBeInTheDocument()
+    expect(within(win).getByText(/The first one is where it shows in the list/)).toBeInTheDocument()
     expect(within(win).getByTestId('card-window-category')).toHaveTextContent('Ramp')
     expect(within(win).getByRole('heading', { name: 'Universal roles' })).toBeInTheDocument()
     expect(within(win).getByText(/Roles are the same in every deck/)).toBeInTheDocument()
@@ -129,19 +129,119 @@ describe('card window', () => {
     expect(await screen.findByTestId('card-window')).toBeInTheDocument()
   })
 
-  it('shows one category, with no primary or secondary wording, and keeps stored extra categories', async () => {
+  it('shows every category the card holds, in order, with no primary or secondary wording', async () => {
     const user = userEvent.setup()
     solCategories = '["Ramp","Artifact"]' // Sol Ring with a stored second category
     const { onSave } = renderHarness()
     await user.click(screen.getAllByTestId('card-name-button')[0])
     const win = await screen.findByTestId('card-window')
-    expect(within(win).getAllByTestId('card-window-category')).toHaveLength(1)
-    expect(within(win).getByTestId('card-window-category')).toHaveTextContent(/^Ramp$/)
+    const chips = within(win).getAllByTestId('card-window-category')
+    expect(chips.map((c) => c.textContent)).toEqual(['Ramp', 'Artifact'])
+    expect(within(win).getByText('Shown in the list')).toBeInTheDocument()
     await user.click(within(win).getByRole('button', { name: 'Edit' }))
     expect(within(win).queryByText(/primary|secondary|additional|\(main\)|Main:/i)).not.toBeInTheDocument()
-    expect(within(win).queryByRole('textbox')).not.toBeInTheDocument()
     await user.selectOptions(within(win).getByRole('combobox', { name: 'Category' }), 'Draw')
     await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Draw', additional_categories: ['Artifact'] }))
+  })
+
+  describe('five categories and long names (HC-02)', () => {
+    const LONG = 'Game Plan & Win Conditions'
+    const SIXTY = 'Z'.repeat(60)
+
+    it('shows three categories with a long name whole, and keeps the first as the list group', async () => {
+      solCategories = JSON.stringify(['Ramp', LONG, SIXTY])
+      renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      expect(within(win).getAllByTestId('card-window-category').map((c) => c.textContent)).toEqual(['Ramp', LONG, SIXTY])
+      // the list still groups the card under its first category
+      expect(document.getElementById('category-ramp')).not.toBeNull()
+    })
+
+    it('shows all five categories', async () => {
+      solCategories = JSON.stringify(['Ramp', 'Artifact', LONG, 'Payoffs', 'Protection'])
+      renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      expect(within(win).getAllByTestId('card-window-category')).toHaveLength(5)
+    })
+
+    it('adds a typed 60-character name whole and saves it after the existing ones', async () => {
+      const user = userEvent.setup()
+      const { onSave } = renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      await user.click(within(win).getByRole('button', { name: 'Edit' }))
+      await user.type(within(win).getByLabelText(/Or add a new name/), SIXTY)
+      expect(within(win).getByText('60 of 60')).toBeInTheDocument()
+      await user.click(within(win).getByRole('button', { name: 'Add' }))
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Ramp', additional_categories: [SIXTY] }))
+      await waitFor(() => expect(within(win).getAllByTestId('card-window-category').map((c) => c.textContent)).toEqual(['Ramp', SIXTY]))
+    })
+
+    it('does not cut a name over 60 characters: it says so and saves nothing', async () => {
+      const user = userEvent.setup()
+      const { onSave } = renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      await user.click(within(win).getByRole('button', { name: 'Edit' }))
+      fireEvent.change(within(win).getByLabelText(/Or add a new name/), { target: { value: 'Y'.repeat(61) } })
+      expect(await within(win).findByRole('alert')).toHaveTextContent('Names can be up to 60 characters. This one is 61.')
+      await user.click(within(win).getByRole('button', { name: 'Add' }))
+      expect(onSave).not.toHaveBeenCalled()
+    })
+
+    it('adds a name the deck already uses from the list, and refuses a duplicate or a reserved name', async () => {
+      const user = userEvent.setup()
+      const { onSave } = renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      await user.click(within(win).getByRole('button', { name: 'Edit' }))
+      await user.type(within(win).getByLabelText(/Or add a new name/), 'ramp')
+      await user.click(within(win).getByRole('button', { name: 'Add' }))
+      expect(await within(win).findByRole('alert')).toHaveTextContent('already in that category')
+      await user.clear(within(win).getByLabelText(/Or add a new name/))
+      await user.type(within(win).getByLabelText(/Or add a new name/), 'Maybeboard')
+      await user.click(within(win).getByRole('button', { name: 'Add' }))
+      expect(await within(win).findByRole('alert')).toHaveTextContent('reserved')
+      expect(onSave).not.toHaveBeenCalled()
+      await user.selectOptions(within(win).getByRole('combobox', { name: 'Add a category from this deck' }), 'Draw')
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Ramp', additional_categories: ['Draw'] }))
+    })
+
+    it('at five categories it says so and offers no way to add a sixth', async () => {
+      const user = userEvent.setup()
+      solCategories = JSON.stringify(['Ramp', 'Artifact', LONG, 'Payoffs', 'Protection'])
+      renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      await user.click(within(win).getByRole('button', { name: 'Edit' }))
+      expect(within(win).getByTestId('card-window-category-full')).toHaveTextContent('A card can be in 5 categories. Remove one to add another.')
+      expect(within(win).queryByLabelText(/Or add a new name/)).not.toBeInTheDocument()
+    })
+
+    it('removes one extra category and keeps the rest whole and in order', async () => {
+      const user = userEvent.setup()
+      solCategories = JSON.stringify(['Ramp', 'Artifact', LONG, 'Payoffs'])
+      const { onSave } = renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      await user.click(within(win).getByRole('button', { name: 'Edit' }))
+      expect(within(win).queryByRole('button', { name: 'Remove Ramp' })).not.toBeInTheDocument()
+      await user.click(within(win).getByRole('button', { name: 'Remove Artifact' }))
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Ramp', additional_categories: [LONG, 'Payoffs'] }))
+    })
+
+    it('changing the first category keeps long and extra names whole', async () => {
+      const user = userEvent.setup()
+      solCategories = JSON.stringify(['Ramp', LONG, 'Payoffs', 'Protection', SIXTY])
+      const { onSave } = renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      const win = await screen.findByTestId('card-window')
+      await user.click(within(win).getByRole('button', { name: 'Edit' }))
+      await user.selectOptions(within(win).getByRole('combobox', { name: 'Category' }), 'Draw')
+      await waitFor(() => expect(onSave).toHaveBeenCalledWith(1, { primary_category: 'Draw', additional_categories: [LONG, 'Payoffs', 'Protection', SIXTY] }))
+    })
   })
 
   it('closes with Escape', async () => {

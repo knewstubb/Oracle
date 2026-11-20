@@ -36,7 +36,7 @@ import { MovedSlotNote, useMovedSlots } from '@/components/connector/MovedSlotNo
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
 import { useCardWindow } from '@/components/CardWindow'
-import { parseCategoriesCapped } from '@/lib/categoryUtils'
+import { parseCategoriesCapped, MAX_ADDITIONAL_CATEGORIES } from '@/lib/categoryUtils'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { useIsMobile } from '@/hooks/useIsMobile'
 import type { StructuredCategories } from '@/lib/categoryUtils'
@@ -1668,7 +1668,7 @@ function CategorySuggestionsDialog({
     if (!activePrimary) return
     onApply({
       primary_category: activePrimary,
-      additional_categories: selectedSecondary.slice(0, 2), // Max 2 secondary
+      additional_categories: selectedSecondary.slice(0, MAX_ADDITIONAL_CATEGORIES), // 5 in all
     })
   }
 
@@ -1678,7 +1678,7 @@ function CategorySuggestionsDialog({
       if (prev.includes(category)) {
         return prev.filter(c => c !== category)
       }
-      if (prev.length >= 2) {
+      if (prev.length >= MAX_ADDITIONAL_CATEGORIES) {
         return [...prev.slice(1), category] // Replace oldest
       }
       return [...prev, category]

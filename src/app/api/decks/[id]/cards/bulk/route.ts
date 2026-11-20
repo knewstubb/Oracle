@@ -15,7 +15,7 @@ import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
 import { isGenericSlot } from '@/lib/basic-lands'
-import { serializeCategories } from '@/lib/categoryUtils'
+import { serializeCategories, validateCategoryNames } from '@/lib/categoryUtils'
 import { assertAtomicRpcCount, assertAtomicRpcSuccess } from '@/lib/atomic-rpc'
 import { createVersionSnapshot, BULK_CHANGE_THRESHOLD } from '@/lib/deck-versions'
 
@@ -159,11 +159,9 @@ export async function POST(
       const additionalTrimmed = (body.payload.additional_categories ?? []).map(c => c.trim())
 
       // Validate category cap
-      if (additionalTrimmed.length > 2) {
-        return Response.json(
-          { error: 'additional_categories must have at most 2 entries' },
-          { status: 400 }
-        )
+      const nameError = validateCategoryNames(primaryTrimmed, additionalTrimmed)
+      if (nameError) {
+        return Response.json({ error: nameError }, { status: 400 })
       }
 
       const serialized = serializeCategories({

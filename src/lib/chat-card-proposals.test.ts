@@ -288,7 +288,8 @@ describe('propose_deck_cards', () => {
   it('model categories: Maybeboard and over-long names are ignored', () => {
     expect(sanitiseCategory('Ramp')).toBe('Ramp')
     expect(sanitiseCategory('maybeboard')).toBeUndefined()
-    expect(sanitiseCategory('x'.repeat(40))).toBeUndefined()
+    expect(sanitiseCategory('x'.repeat(61))).toBeUndefined()
+    expect(sanitiseCategory('x'.repeat(60))).toBe('x'.repeat(60))
     expect(sanitiseCategory(5)).toBeUndefined()
   })
 })

@@ -44,7 +44,7 @@ export const addCardsInput = z.strictObject({
             message: 'The category "Maybeboard" is reserved. To put cards on the Maybeboard use set_card_zone. Nothing was changed.',
           })
           .optional()
-          .describe('Optional. A category for this card. Leave it out and the card starts in its type\'s category (for example Creature or Land). If you send one, reuse a name the deck already shows in get_deck. Deck health reads card text, not categories. "Maybeboard" is not allowed here; use set_card_zone.'),
+          .describe('Optional. A category for this card. Leave it out and the card starts in its type\'s category (for example Creature or Land). A category is where the card sits in the deck\'s list, not a card role. If you send one, use the exact name the deck already shows in get_deck (up to 60 characters). Deck health still reads card text, not categories. "Maybeboard" is not allowed here; use set_card_zone.'),
       }),
     )
     .min(1)
@@ -74,7 +74,7 @@ export const setCategoryInput = z.strictObject({
           .array(z.string().trim().min(1).max(60))
           .min(1)
           .max(5)
-          .describe('1 to 5 category names for this card; replaces its whole list. Order is kept; the first is the group it shows under. Any free text; new names are fine. Oracle matches letter case to categories the deck already uses.'),
+          .describe('1 to 5 category names for this card; replaces its whole list. Order is kept; the first is the group it shows under, the others are extra places it sits. Each name is up to 60 characters and is kept whole. Use the exact names the deck already shows in get_deck; a new name only when the owner asked for a new group. Oracle matches letter case to categories the deck already uses.'),
       }),
     )
     .min(1)

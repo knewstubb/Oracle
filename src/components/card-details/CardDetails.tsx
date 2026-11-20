@@ -15,7 +15,9 @@ import { PrintingsTab } from './PrintingsTab'
 import { CopiesTab } from './CopiesTab'
 import { RulingsTab } from './RulingsTab'
 import { setLabel, finishSuffix, titleCase, LEGALITY } from './shared'
-import { useCardDetailsData } from './useCardDetailsData'
+import { useDeckCollection, useDeckOverview, useDeckRulings } from './useCardDetailsData'
+import { Skeleton } from '@/components/ui/skeleton'
+import type { CardDetails as CardDetailsData } from '@/lib/card-details/load'
 import { CardDetailsShell, useRememberedTab, type ShellTab } from './CardDetailsShell'
 
 export { resetCardDetailsTabMemory } from './CardDetailsShell'
@@ -35,8 +37,14 @@ export interface CardDetailsProps {
 
 
 export function CardDetails({ deckId, cardId, card, lastName, status, lifecycle, availableCategories, onSaveCategories, onClose }: CardDetailsProps) {
-  const query = useCardDetailsData(deckId, cardId)
-  const data = query.data
+  const overviewQuery = useDeckOverview(deckId, cardId)
+  const overview = overviewQuery.data
+  // Printings, Copies and Rulings load after the Overview (it tells us the card), in the background.
+  const noOracle = !!overview && !overview.oracleId
+  const collectionQuery = useDeckCollection(deckId, cardId, overview?.oracleId, !!overview)
+  const rulingsQuery = useDeckRulings(deckId, cardId, overview?.oracleId, !!overview)
+  const collection = noOracle ? { printings: [], copies: [] } : collectionQuery.data
+  const rulings = noOracle ? [] : rulingsQuery.data?.rulings
   const [tab, setTab] = useRememberedTab('deck')
   const [previewId, setPreviewId] = useState<string | null>(null)
   const previewTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -58,27 +66,40 @@ export function CardDetails({ deckId, cardId, card, lastName, status, lifecycle,
       onClose()
     },
   })
-  const name = data?.cardName ?? card?.card_name ?? lastName
-  const printingCount = data ? new Set(data.printings.map((p) => p.scryfallId)).size : null
+  const name = overview?.cardName ?? card?.card_name ?? lastName
+  const printingCount = collection ? new Set(collection.printings.map((p) => p.scryfallId)).size : null
+  // What each tab reads, as one object. A section that has not arrived is empty, and its tab shows a placeholder.
+  const data: CardDetailsData | undefined = overview && {
+    ...overview,
+    printings: collection?.printings ?? overview.slotPrintings,
+    copies: collection?.copies ?? [],
+    rulings: rulings ?? [],
+  }
   const tabs: ShellTab[] = [
     { id: 'overview', label: 'Overview', count: null },
     { id: 'printings', label: 'Printings', count: printingCount },
-    { id: 'copies', label: 'Copies', count: data ? data.copies.length : null },
-    { id: 'rulings', label: 'Rulings', count: data ? data.rulings.length : null },
+    { id: 'copies', label: 'Copies', count: collection ? collection.copies.length : null },
+    { id: 'rulings', label: 'Rulings', count: rulings ? rulings.length : null },
   ]
   // Rail values (all from the details lookup; nothing guessed)
-  const slotRows = data?.printings.filter((p) => p.isSlotPrinting) ?? []
-  const slotRow = slotRows.find((p) => p.finish === (data?.slot.finish ?? 'nonfoil')) ?? slotRows[0]
-  const railPrinting = slotRow ? `${setLabel(slotRow.setCode, slotRow.collectorNumber)}${finishSuffix(slotRow.finish)}` : setLabel(data?.slot.setCode, null)
+  const slotRows = overview?.slotPrintings ?? []
+  const slotRow = slotRows.find((p) => p.finish === (overview?.slot.finish ?? 'nonfoil')) ?? slotRows[0]
+  const railPrinting = slotRow ? `${setLabel(slotRow.setCode, slotRow.collectorNumber)}${finishSuffix(slotRow.finish)}` : setLabel(overview?.slot.setCode, null)
   const railPrice = slotRow ? (slotRow.priceUsd == null ? '—' : formatPrice(slotRow.priceUsd)) : '—'
-  const railLegal = data?.commanderLegality ? (LEGALITY[data.commanderLegality] ?? titleCase(data.commanderLegality)) : '—'
-  const imageId = previewId ?? data?.slot.scryfallId ?? card?.scryfall_id ?? null
-  const rarity = slotRow ? titleCase(slotRow.rarity) : null
-  const subline = [data?.facts?.typeLine, rarity, data?.deckName].filter(Boolean).join(' · ')
+  const railLegal = overview?.commanderLegality ? (LEGALITY[overview.commanderLegality] ?? titleCase(overview.commanderLegality)) : '—'
+  const imageId = previewId ?? overview?.slot.scryfallId ?? card?.scryfall_id ?? null
+  // Until the Overview arrives, the header uses what the deck list already knows about the card.
+  const rarity = slotRow ? titleCase(slotRow.rarity) : overview ? null : card?.rarity ? titleCase(card.rarity) : null
+  const typeLine = overview ? overview.facts?.typeLine : card?.type_line
+  const subline = [typeLine, rarity, overview?.deckName].filter(Boolean).join(' · ')
+  const railLoading = !overview && overviewQuery.isPending
+  const railValue = (v: string) => (railLoading ? <Skeleton className="ml-auto inline-block h-4 w-16 align-middle" aria-hidden="true" /> : v)
+  const activeQuery = overviewQuery.isSuccess && !noOracle && tab !== 'overview' ? (tab === 'rulings' ? rulingsQuery : collectionQuery) : overviewQuery
+  const panelStatus = activeQuery.isError ? 'error' : activeQuery.isSuccess ? 'ready' : 'loading'
   return (
     <CardDetailsShell
       name={name}
-      manaCost={data?.facts?.manaCost}
+      manaCost={overview ? overview.facts?.manaCost : card?.mana_cost}
       subline={subline}
       description={`Details for ${name} in this deck.`}
       imageId={imageId}
@@ -87,11 +108,11 @@ export function CardDetails({ deckId, cardId, card, lastName, status, lifecycle,
           {card && <div><CardSlotBadge status={status} lifecycle={lifecycle} variant="badge" /></div>}
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-[length:var(--fs-sm)] max-sm:grid-cols-[auto_auto] max-sm:text-[length:var(--fs-xs)]">
             <dt className="text-muted-foreground">Printing</dt>
-            <dd className="text-right max-sm:text-left" data-testid="card-details-rail-printing">{railPrinting}</dd>
+            <dd className="text-right max-sm:text-left" data-testid="card-details-rail-printing">{railValue(railPrinting)}</dd>
             <dt className="text-muted-foreground">Price</dt>
-            <dd className="text-right max-sm:text-left">{railPrice}</dd>
+            <dd className="text-right max-sm:text-left">{railValue(railPrice)}</dd>
             <dt className="text-muted-foreground">Commander</dt>
-            <dd className="text-right max-sm:text-left">{railLegal}</dd>
+            <dd className="text-right max-sm:text-left">{railValue(railLegal)}</dd>
           </dl>
         </>
       }
@@ -113,8 +134,8 @@ export function CardDetails({ deckId, cardId, card, lastName, status, lifecycle,
       tabs={tabs}
       tab={tab}
       onTab={setTab}
-      status={query.isPending ? 'loading' : query.isError || !data ? 'error' : 'ready'}
-      onRetry={() => void query.refetch()}
+      status={panelStatus}
+      onRetry={() => void activeQuery.refetch()}
       onClose={onClose}
       override={
         !card ? (

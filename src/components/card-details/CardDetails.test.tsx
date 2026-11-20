@@ -62,6 +62,14 @@ function baseDetails(): Details {
 }
 
 let details: Details
+/** The answer for one part of the details request (the window asks for Overview, collection and rulings separately). */
+function detailsPart(url: string) {
+  const part = new URL(url, 'http://x').searchParams.get('part')
+  const { printings, copies, rulings, ...overview } = details
+  if (part === 'collection') return { printings, copies }
+  if (part === 'rulings') return { rulings }
+  return { ...overview, slotPrintings: printings.filter((p) => p.isSlotPrinting) }
+}
 let fetchLog: Array<{ url: string; method: string; body: unknown }>
 let failWhy = false
 let failPatch = false
@@ -79,7 +87,7 @@ beforeEach(() => {
     const body = init?.body ? JSON.parse(String(init.body)) : undefined
     fetchLog.push({ url: String(url), method, body })
     const u = String(url)
-    if (u.endsWith('/details')) return detailsFails ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => details }
+    if (u.includes('/details')) return detailsFails ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => detailsPart(u) }
     if (u.endsWith('/why')) return failWhy ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({ ok: true }) }
     if (method === 'PATCH') return failPatch ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({}) }
     if (u.includes('/move-here')) return { ok: true, status: 200, json: async () => ({ sourceDeckId: 9, sourceDeckName: 'Auntie Ool', sourceWasPlayable: true, undo: {} }) }
@@ -155,9 +163,10 @@ describe('card details modal (deck context)', () => {
     // the three type chip groups are gone, and so are roles
     expect(within(win).queryByText(/Universal roles/)).not.toBeInTheDocument()
     expect(within(win).queryByText('Supertypes')).not.toBeInTheDocument()
-    expect(within(win).getByRole('tab', { name: /Printings/ })).toHaveTextContent('2')
-    expect(within(win).getByRole('tab', { name: /Copies/ })).toHaveTextContent('3')
-    expect(within(win).getByRole('tab', { name: /Rulings/ })).toHaveTextContent('1')
+    // The counts come with the sections the tabs load after the Overview.
+    await waitFor(() => expect(within(win).getByRole('tab', { name: /Printings/ })).toHaveTextContent('2'))
+    await waitFor(() => expect(within(win).getByRole('tab', { name: /Copies/ })).toHaveTextContent('3'))
+    await waitFor(() => expect(within(win).getByRole('tab', { name: /Rulings/ })).toHaveTextContent('1'))
   })
   it('opens from the card menu item "Card details"', async () => {
     const user = userEvent.setup()
@@ -438,5 +447,93 @@ describe('card details modal (deck context)', () => {
       await goTo(win, /Rulings/)
       expect(await within(win).findByText('No rulings for this card.')).toBeInTheDocument()
     })
+  })
+})
+
+/** Hold back every answer whose URL contains `part` until `release()` is called. */
+function holdBack(part: string) {
+  let release!: () => void
+  const gate = new Promise<void>((r) => { release = r })
+  const inner = globalThis.fetch as unknown as (url: string, init?: RequestInit) => Promise<unknown>
+  vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+    if (String(url).includes(part)) {
+      fetchLog.push({ url: String(url), method: 'GET', body: undefined })
+      await gate
+      const u = String(url)
+      return { ok: true, status: 200, json: async () => detailsPart(u) }
+    }
+    return inner(url, init)
+  }))
+  return release
+}
+describe('card details speed (deck context)', () => {
+  it('shows the window at once with what the deck list knows, then fills in', async () => {
+    Object.assign(SOL, { mana_cost: '{1}', type_line: 'Artifact', rarity: 'uncommon' })
+    try {
+      const release = holdBack('part=overview')
+      renderHarness()
+      fireEvent.click(screen.getAllByTestId('card-name-button')[0])
+      // No answer has arrived yet.
+      const win = screen.getByTestId('card-details')
+      expect(screen.getByRole('dialog', { name: 'Sol Ring' })).toBeInTheDocument()
+      expect(within(win).getByText('Artifact · Uncommon')).toBeInTheDocument()
+      expect(within(win).getByTestId('card-details-loading')).toBeInTheDocument()
+      expect(within(win).getAllByRole('tab')).toHaveLength(4)
+      expect(within(win).queryByTestId('card-details-oracle')).not.toBeInTheDocument()
+      release()
+      await within(win).findByTestId('card-details-oracle')
+      expect(within(win).getByText(/Artifact · Uncommon · Rocco's Secret Sauce/)).toBeInTheDocument()
+    } finally {
+      for (const k of ['mana_cost', 'type_line', 'rarity']) delete (SOL as unknown as Record<string, unknown>)[k]
+    }
+  })
+  it('loads Printings and Copies after the Overview and shows a placeholder in their tab until they arrive', async () => {
+    const release = holdBack('part=collection')
+    renderHarness()
+    const win = await openWindow()
+    await waitFor(() => expect(within(win).getByRole('tab', { name: /Rulings/ })).toHaveTextContent('1'))
+    // Overview and Rulings are in; Printings and Copies are still on their way, with no count shown.
+    expect(within(win).getByRole('tab', { name: /Printings/ })).not.toHaveTextContent(/\d/)
+    expect(within(win).getByRole('tab', { name: /Copies/ })).not.toHaveTextContent(/\d/)
+    await goTo(win, /Printings/)
+    expect(within(win).getByTestId('card-details-loading')).toBeInTheDocument()
+    expect(within(win).queryAllByTestId('card-details-printing-row')).toHaveLength(0)
+    release()
+    await waitFor(() => expect(within(win).getAllByTestId('card-details-printing-row')).toHaveLength(2))
+    expect(within(win).getByRole('tab', { name: /Printings/ })).toHaveTextContent('2')
+  })
+  it('asks for each part once, however many tabs are visited, and not for everything at once', async () => {
+    renderHarness()
+    const win = await openWindow()
+    await waitFor(() => expect(within(win).getByRole('tab', { name: /Copies/ })).toHaveTextContent('3'))
+    await goTo(win, /Printings/)
+    await goTo(win, /Copies/)
+    await goTo(win, /Rulings/)
+    await goTo(win, /Overview/)
+    const asked = fetchLog.filter((l) => l.url.includes('/details')).map((l) => l.url)
+    expect(asked).toHaveLength(3)
+    expect(new Set(asked).size).toBe(3)
+    expect(asked[0]).toContain('part=overview')
+    expect(asked.some((u) => u.includes('part=collection&oracleId=oid-1'))).toBe(true)
+    expect(asked.some((u) => u.includes('part=rulings&oracleId=oid-1'))).toBe(true)
+  })
+  it('reads the Overview once when the name is hovered before it is clicked', async () => {
+    renderHarness()
+    const name = screen.getAllByTestId('card-name-button')[0]
+    fireEvent.mouseEnter(name)
+    await waitFor(() => expect(fetchLog.filter((l) => l.url.includes('part=overview'))).toHaveLength(1))
+    const win = await openWindow()
+    await waitFor(() => expect(within(win).getByRole('tab', { name: /Rulings/ })).toHaveTextContent('1'))
+    expect(fetchLog.filter((l) => l.url.includes('part=overview'))).toHaveLength(1)
+  })
+  it('keeps a failed section in its own tab and leaves the Overview alone', async () => {
+    const inner = globalThis.fetch as unknown as (url: string, init?: RequestInit) => Promise<unknown>
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) =>
+      String(url).includes('part=collection') ? { ok: false, status: 500, json: async () => ({}) } : inner(url, init)))
+    renderHarness()
+    const win = await openWindow()
+    expect(within(win).getByTestId('card-details-oracle')).toBeInTheDocument()
+    await goTo(win, /Copies/)
+    expect(await within(win).findByText(/Couldn.t load details for Sol Ring/)).toBeInTheDocument()
   })
 })

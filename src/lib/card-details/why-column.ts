@@ -15,6 +15,16 @@ export function resetWhyColumnCache(): void {
   cached = null
 }
 
+/** The cached answer if it is still fresh, else null (unknown). Lets a caller skip the probe. */
+export function peekWhyColumn(now: number = Date.now()): boolean | null {
+  return cached && now - cached.at < CACHE_MS ? cached.value : null
+}
+
+/** Record what a real read showed, so the next read within 60 seconds needs no probe. */
+export function rememberWhyColumn(value: boolean, now: number = Date.now()): void {
+  cached = { value, at: now }
+}
+
 export async function whyColumnAvailable(supabase: RefClient, now: number = Date.now()): Promise<boolean> {
   if (cached && now - cached.at < CACHE_MS) return cached.value
   const { error } = await supabase.from('deck_cards').select('why_here').limit(1)

@@ -133,9 +133,12 @@ export function CardDetailsShell({
                 data-testid={`card-details-panel-${tab}`}
               >
                 {status === 'loading' ? (
-                  <div role="status" className="p-4">
+                  <div role="status" className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-4" data-testid="card-details-loading">
                     <span className="sr-only">Loading details for {name}</span>
-                    <Skeleton className="h-24 w-full" />
+                    <Skeleton className="h-4 w-1/3 shrink-0" />
+                    <Skeleton className="h-16 w-full shrink-0" />
+                    <Skeleton className="h-4 w-1/2 shrink-0" />
+                    <Skeleton className="h-24 w-full shrink-0" />
                   </div>
                 ) : status === 'error' ? (
                   <p className="p-4 text-[length:var(--fs-sm)]">

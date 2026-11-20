@@ -17,7 +17,7 @@
  * - Health bar indicators (from List view)
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query'
 import { applyStatusPatch, type StatusPatch } from '@/lib/generic-status-patch'
 import { ChevronDown, ChevronRight, Tags, MoreVertical, Trash2, GripVertical, Sparkles, Check, AlertCircle, Crown, Pencil, Info } from 'lucide-react'
@@ -339,6 +339,13 @@ function UnifiedCardRow({
 
   // Click or tap on the name opens the card window (hover preview stays on computer).
   // Without a card window above the list, a phone tap still opens the picture as before.
+  // Hovering a name for a moment starts reading its details, so the window fills faster on the click.
+  const prefetchTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const schedulePrefetch = () => {
+    clearTimeout(prefetchTimer.current)
+    prefetchTimer.current = setTimeout(() => cardWindow?.prefetch(card.id), 120)
+  }
+  useEffect(() => () => clearTimeout(prefetchTimer.current), [])
   const openCardDetails = () => {
     hideCardPreview()
     if (cardWindow) cardWindow.open(card.id, card.card_name)
@@ -376,6 +383,9 @@ function UnifiedCardRow({
         className="min-w-0 flex-1 truncate text-left text-[length:var(--fs-sm)] cursor-pointer hover:underline focus-visible:underline max-sm:min-h-11"
         onClick={openCardDetails}
         {...(isMobile ? {} : triggerProps)}
+        onMouseEnter={(e) => { if (!isMobile) triggerProps.onMouseEnter(e); schedulePrefetch() }}
+        onMouseLeave={() => { if (!isMobile) triggerProps.onMouseLeave(); clearTimeout(prefetchTimer.current) }}
+        onFocus={() => { clearTimeout(prefetchTimer.current); cardWindow?.prefetch(card.id) }}
       >
         {card.card_name}
       </button>

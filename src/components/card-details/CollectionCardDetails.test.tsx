@@ -58,7 +58,10 @@ beforeEach(() => {
     log.push({ url: u, method, body: init?.body ? JSON.parse(String(init.body)) : undefined })
     const ok = (json: unknown) => ({ ok: true, status: 200, json: async () => json })
     if (failUrl && u.includes(failUrl)) return { ok: false, status: 500, json: async () => ({ error: 'boom' }) }
-    if (u.endsWith('/details')) return ok(details)
+    if (u.includes('/details')) {
+      const { rulings, ...main } = details
+      return ok(new URL(u, 'http://x').searchParams.get('part') === 'rulings' ? { rulings } : main)
+    }
     if (u.includes('/api/settings/storage-locations')) return ok([{ id: 3, name: 'Binder 2', color: null }, { id: 4, name: 'Box', color: null }])
     if (u.includes('/api/allocation/valid-decks')) return ok([{ deckId: 4, deckName: 'Rocco', deckStatus: 'brewing' }])
     return ok({ ok: true })
@@ -362,5 +365,34 @@ describe('collection window: bulk selection', () => {
     await goTo('Copies')
     fireEvent.click(screen.getByLabelText('Select all copies'))
     expect(onToggle.mock.calls.map((c) => c[0]).sort()).toEqual([10, 11, 12])
+  })
+})
+
+describe('collection window: loading', () => {
+  it('shows the window with the list name at once and loads rulings after the main part, once', async () => {
+    let release!: () => void
+    const gate = new Promise<void>((r) => { release = r })
+    const inner = globalThis.fetch as unknown as (url: string, init?: RequestInit) => Promise<unknown>
+    vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
+      if (String(url).includes('part=main')) {
+        await gate
+      }
+      return inner(url, init)
+    }))
+    open()
+    expect(screen.getByTestId('card-details')).toBeInTheDocument()
+    expect(screen.getByRole('dialog', { name: 'Sol Ring' })).toBeInTheDocument()
+    expect(screen.getByTestId('card-details-loading')).toBeInTheDocument()
+    expect(log.some((l) => l.url.includes('part=rulings'))).toBe(false)
+    release()
+    await screen.findByTestId('card-details-own-pill')
+    await waitFor(() => expect(screen.getByRole('tab', { name: /^Rulings/ })).toHaveTextContent('1'))
+    fireEvent.click(screen.getByRole('tab', { name: /^Printings/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Copies/ }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Rulings/ }))
+    const asked = log.filter((l) => l.url.includes('/details')).map((l) => l.url)
+    expect(asked).toHaveLength(2)
+    expect(asked.filter((u) => u.includes('part=main'))).toHaveLength(1)
+    expect(asked.filter((u) => u.includes('part=rulings'))).toHaveLength(1)
   })
 })

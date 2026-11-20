@@ -4,14 +4,18 @@
  * group, which unmounts the row that opened it. Rows ask the host to open it with open(cardId, cardName).
  */
 import { createContext, useContext, useMemo, useState, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import type { StructuredCategories } from '@/lib/categoryUtils'
 import type { DeckCard } from '@/components/CardGrid'
 import type { CardSlotStatus, DeckCardLifecycle } from '@/lib/card-status'
 import { CardDetails } from './CardDetails'
+import { prefetchDeckOverview } from './useCardDetailsData'
 
 interface CardDetailsApi {
   /** The name is kept so the modal can still say which card it was if the card leaves the deck. */
   open: (cardId: number, cardName: string) => void
+  /** Start reading the Overview before the click (hover or focus on a card name). */
+  prefetch: (cardId: number) => void
 }
 const CardDetailsContext = createContext<CardDetailsApi | null>(null)
 
@@ -34,7 +38,11 @@ export interface CardDetailsProviderProps {
 
 export function CardDetailsProvider({ deckId, cards, statusMap, lifecycleMap, availableCategories, onSaveCategories, children }: CardDetailsProviderProps) {
   const [opened, setOpened] = useState<{ id: number; name: string } | null>(null)
-  const api = useMemo<CardDetailsApi>(() => ({ open: (id, name) => setOpened({ id, name }) }), [])
+  const queryClient = useQueryClient()
+  const api = useMemo<CardDetailsApi>(
+    () => ({ open: (id, name) => setOpened({ id, name }), prefetch: (id) => prefetchDeckOverview(queryClient, deckId, id) }),
+    [queryClient, deckId],
+  )
   const openId = opened?.id ?? null
   const card = openId == null ? undefined : cards.find((c) => c.id === openId)
   return (

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { normaliseWhy, resetWhyColumnCache, whyColumnAvailable } from './why-column'
+import { normaliseWhy, peekWhyColumn, rememberWhyColumn, resetWhyColumnCache, whyColumnAvailable } from './why-column'
 import { fakeClient } from './fake-client'
 
 beforeEach(() => resetWhyColumnCache())
@@ -39,5 +39,15 @@ describe('normaliseWhy', () => {
     expect(normaliseWhy('x'.repeat(200)).ok).toBe(true)
     expect(normaliseWhy('x'.repeat(201)).ok).toBe(false)
     expect(normaliseWhy(5).ok).toBe(false)
+  })
+})
+
+describe('peekWhyColumn / rememberWhyColumn', () => {
+  it('is unknown until a read records it, then fresh for 60 seconds', () => {
+    resetWhyColumnCache()
+    expect(peekWhyColumn(1000)).toBeNull()
+    rememberWhyColumn(false, 1000)
+    expect(peekWhyColumn(30_000)).toBe(false)
+    expect(peekWhyColumn(62_000)).toBeNull()
   })
 })

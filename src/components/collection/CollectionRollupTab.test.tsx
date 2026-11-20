@@ -225,13 +225,14 @@ describe('CollectionRollupTab card details window', () => {
     const base = global.fetch
     global.fetch = vi.fn((url: string | URL | Request, init?: RequestInit) => {
       const urlStr = typeof url === 'string' ? url : url.toString()
-      if (urlStr.endsWith(`/api/collection/instances/${ORACLE_ID}/details`)) {
+      if (urlStr.includes(`/api/collection/instances/${ORACLE_ID}/details`)) {
         fetchCalls.push({ url: urlStr, init })
+        if (urlStr.includes('part=rulings')) return Promise.resolve({ ok: true, json: async () => ({ rulings: [] }) } as Response)
         return Promise.resolve({
           ok: true,
           json: async () => ({
             oracleId: ORACLE_ID, cardName: 'Sol Ring', facts: null, tags: [], printings: [], copies: REAL_COPY_IDS.map(copy),
-            waitingDecks: [], rulings: [], commanderLegality: 'legal', ownedCount: 2, collectionValue: 4.2, cheapest: 2.1, imageScryfallId: null,
+            waitingDecks: [], commanderLegality: 'legal', ownedCount: 2, collectionValue: 4.2, cheapest: 2.1, imageScryfallId: null,
           }),
         } as Response)
       }

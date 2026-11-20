@@ -51,6 +51,7 @@ export function matchesColourFilter(cardColours: readonly string[] | null | unde
 export interface ViewQuery extends PromiseLike<{ data: unknown; error: { message: string } | null; count?: number | null }> {
   eq(column: string, value: unknown): ViewQuery
   ilike(column: string, pattern: string): ViewQuery
+  in(column: string, values: unknown[]): ViewQuery
   or(filters: string): ViewQuery
   order(column: string, opts?: { ascending?: boolean }): ViewQuery
   range(from: number, to: number): ViewQuery

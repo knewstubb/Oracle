@@ -44,7 +44,7 @@ export const addCardsInput = z.strictObject({
             message: 'The category "Maybeboard" is reserved. To put cards on the Maybeboard use set_card_zone. Nothing was changed.',
           })
           .optional()
-          .describe('Optional. A category for this card. Leave it out and the card starts in its type\'s category (for example Creature or Land). A category is where the card sits in the deck\'s list, not a card role. If you send one, use the exact name the deck already shows in get_deck (up to 60 characters). Deck health still reads card text, not categories. "Maybeboard" is not allowed here; use set_card_zone.'),
+          .describe('Optional. A category for this card. Leave it out and the card starts in its type\'s category (for example Creature or Land). A category is where the card sits in the deck\'s list, not what the card does (that is its Tags, which cannot be changed, and a Tag never changes a category). If you send one, use the exact name the deck already shows in get_deck (up to 60 characters). Deck health still reads card text, not categories. "Maybeboard" is not allowed here; use set_card_zone.'),
       }),
     )
     .min(1)

@@ -9,6 +9,8 @@ import { matchesRulesText } from './rules-text-match'
 import { fetchAll, LookupFailed, rows as resultRows, type ToolContext } from './common'
 import { parseTypeLine, hasCardType, hasSupertype, type ParsedTypeLine } from '../../type-line'
 import { applyPushdown, factFilterNames, norm, type CollectionFilters } from './collection-filters'
+import { resolveTag, oracleIdsWithTags } from '../../card-tags-read'
+import { connectorTagReader } from './card-tags-tool'
 import { NARROW_COLS, readMatchingCopies, scopedView, type NarrowRow } from './collection-view'
 
 export const ROLE_NAME_CEILING = 5000 // distinct card names; above this the role step fails loudly
@@ -75,6 +77,7 @@ function inTradePlace(r: Pick<NarrowRow, 'place_kind' | 'location_id'>, ids: Set
 function columnsFor(f: CollectionFilters, extra: string[] = [], leaveOutTrade = false): string {
   const cols = new Set(NARROW_COLS.split(', '))
   if (f.types || f.legendary != null || f.basic != null || f.snow != null) cols.add('type_line')
+  if (f.tags) cols.add('oracle_id')
   if (f.location) for (const c of ['place_kind', 'deck_name', 'storage_name']) cols.add(c)
   if (leaveOutTrade) for (const c of ['place_kind', 'location_id']) cols.add(c)
   for (const c of extra) cols.add(c)
@@ -184,6 +187,13 @@ export async function findMatchingCopies(ctx: ToolContext, f: CollectionFilters,
     }
   }
 
+  if (f.tags) {
+    // Tags: the same reverse read the collection screen uses. A failed read is LookupFailed, never "no cards".
+    const keys = f.tags.map((t) => resolveTag(t)!.key)
+    const tagged = await oracleIdsWithTags(connectorTagReader(ctx.db), keys, f.tags_match ?? 'all')
+    if (tagged.status !== 'ok') throw new LookupFailed()
+    rows = rows.filter((r) => r.facts_available && !!r.oracle_id && tagged.ids.has(r.oracle_id))
+  }
   let roleInfo: Map<string, RoleInfo> | undefined
   let cardsWithoutText: number | undefined
   if (f.roles || f.text || f.can_be_commander != null || opts.classify) {

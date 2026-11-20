@@ -32,6 +32,9 @@ export interface CollectionPrintingsParams {
   includeProxies?: boolean
   /** Only Basic cards (Basic supertype). */
   basic?: boolean
+  /** Tag keys the card must have (stored keys), and whether it needs all of them or any. */
+  tags?: string[]
+  tagsMatch?: 'all' | 'any'
   enabled?: boolean
 }
 
@@ -56,11 +59,14 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     colorMode = 'includes',
     includeProxies = false,
     basic = false,
+    tags: tagsParam = [],
+    tagsMatch = 'all',
     enabled = true,
   } = params
 
   // Same colours in any click order are the same request (and the same cache entry)
   const colors = [...colorsParam].sort()
+  const tags = [...tagsParam].sort()
   // Build query string
   const queryString = new URLSearchParams({
     page: String(page),
@@ -71,10 +77,11 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     ...(search ? { search } : {}),
     ...(basic ? { basic: 'true' } : {}),
     ...(colors.length > 0 ? { colors: colors.join(','), colorMode } : {}),
+    ...(tags.length > 0 ? { tags: tags.join(','), tagsMatch } : {}),
   }).toString()
 
   return useQuery<CollectionPrintingsResponse>({
-    queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies, basic],
+    queryKey: ['collection', 'printings', page, pageSize, search, sort, sortDir, colors.join(','), colorMode, includeProxies, basic, tags.join(','), tagsMatch],
     queryFn: async ({ signal }) => {
       // signal: a request that is no longer wanted (the filter changed again) is cancelled
       const res = await fetch(`/api/collection/printings?${queryString}`, { signal })

@@ -3,6 +3,7 @@ import type { DeckCardView } from '../../../../docs/oracle/contracts/claude-conn
 import type { CardFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
 import { fetchCardFacts, factsFor } from './card-facts'
+import { oracleIdsByPrinting, tagFields, tagNamesByOracleId, type TagFields } from './card-tags-tool'
 import { loadStrategyBrackets } from './bracket'
 import { loadDeckHealthView, loadDeckStrategy, type HealthLoader } from './deck-strategy-read'
 import { DECK_COLUMNS, deckStatusAndSleeved, toDeckSummary, type DeckRow } from './list-decks'
@@ -85,7 +86,12 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const withRules = input.include_rules_text ?? false
     const facts = await fetchCardFacts(ctx, page.map((r) => r.card_name), { includeRulesText: withRules, prices: new Map() }) // prices are not shown on deck rows
 
-    const items: (DeckCardView & { facts: DeckRowFacts })[] = page.map((r) => {
+    // Tags for the whole page in one batch: printing -> card identity, then Tags. A failed read (or a row with no printing) is marked, never "no Tags".
+    const printingOf = (r: DeckCardRow) => (r.copy_id != null ? copyById.get(r.copy_id)?.printing_id : null) ?? r.scryfall_id
+    const oracleByPrinting = await oracleIdsByPrinting(ctx, page.map(printingOf).filter((x): x is string => !!x))
+    const oracleIds = oracleByPrinting ? [...new Set(oracleByPrinting.values())] : []
+    const tagsById = oracleByPrinting ? await tagNamesByOracleId(ctx, oracleIds) : null
+    const items: (DeckCardView & { facts: DeckRowFacts } & TagFields)[] = page.map((r) => {
       const copy = r.copy_id != null ? copyById.get(r.copy_id) : undefined
       return {
         facts: slimFacts(factsFor(facts, r.card_name, withRules)),
@@ -98,6 +104,7 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
         sleeved: r.copy_id != null,
         printingId: copy?.printing_id ?? r.scryfall_id,
         finish: copy?.finish ?? r.requested_finish,
+        ...tagFields(tagsById, oracleByPrinting?.get(printingOf(r) ?? '')),
       }
     })
     const strategy = await loadStrategyBrackets(ctx, [input.deck_id])

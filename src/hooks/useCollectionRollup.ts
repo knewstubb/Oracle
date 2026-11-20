@@ -66,6 +66,9 @@ export interface CollectionRollupParams {
   colorMode?: string
   /** Only Basic cards (Basic supertype). */
   basic?: boolean
+  /** Tag keys the card must have (stored keys), and whether it needs all of them or any. */
+  tags?: string[]
+  tagsMatch?: 'all' | 'any'
   /** Whether the main rollup query should run. Defaults to `true`, preserving existing callers. */
   enabled?: boolean
 }
@@ -93,11 +96,14 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     colors: colorsParam = [],
     colorMode = 'includes',
     basic = false,
+    tags: tagsParam = [],
+    tagsMatch = 'all',
     enabled = true,
   } = params
 
   // Same colours in any click order are the same request (and the same cache entry)
   const colors = [...colorsParam].sort()
+  const tags = [...tagsParam].sort()
   // Build query string
   const queryString = new URLSearchParams({
     tab,
@@ -108,11 +114,12 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     ...(search ? { search } : {}),
     ...(colors.length > 0 ? { colors: colors.join(','), colorMode } : {}),
     ...(basic ? { basic: 'true' } : {}),
+    ...(tags.length > 0 ? { tags: tags.join(','), tagsMatch } : {}),
   }).toString()
 
   // Main rollup query — keyed by all filter/pagination params
   const rollupQuery = useQuery<CollectionRollupResponse>({
-    queryKey: ['collection', 'rollup', tab, page, pageSize, search, sort, sortDir, colors.join(','), colorMode, basic],
+    queryKey: ['collection', 'rollup', tab, page, pageSize, search, sort, sortDir, colors.join(','), colorMode, basic, tags.join(','), tagsMatch],
     queryFn: async ({ signal }) => {
       // signal: a request that is no longer wanted (the filter changed again) is cancelled
       const res = await fetch(`/api/collection/rollup?${queryString}`, { signal })

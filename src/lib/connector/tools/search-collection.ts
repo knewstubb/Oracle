@@ -6,6 +6,7 @@ import { COPIES_PER_CARD_MAX, SEARCH_PAGE_MAX, fitRows } from '../limits'
 import { LookupFailed, lookupFailed, pageNote, tooLarge, type ToolContext, type ToolOutput } from './common'
 import { filterFields, refineFilters } from './collection-filters'
 import { ROLE_RULES_VERSION, classifyNames, findMatchingCopies } from './collection-query'
+import { tagFields, tagNamesByOracleId, type TagFields } from './card-tags-tool'
 import { groupByCardAndKind, locationOf, readDetail, sortGroups, type DetailRow } from './collection-view'
 
 export const searchCollectionInput = z
@@ -40,7 +41,10 @@ export async function searchCollection(ctx: ToolContext, input: z.infer<typeof s
     // Roles shown on each row come from the same classifier; reuse the role step's result when there was one.
     const roleInfo = match.roleInfo ?? (await classifyNames(ctx, pageGroups.map((g) => g.name)))
 
-    const items: SearchRow[] = pageGroups.map((g) => {
+    // Tags for every card on the page: one batched read, never one per card. A failed read is marked, never shown as "no Tags".
+    const pageOracleIds = pageGroups.map((g) => detail.get(g.copyIds[0])?.oracle_id).filter((x): x is string => !!x)
+    const tagsById = await tagNamesByOracleId(ctx, pageOracleIds)
+    const items: (SearchRow & TagFields)[] = pageGroups.map((g) => {
       const copies: CopyView[] = g.copyIds
         .slice(0, COPIES_PER_CARD_MAX)
         .map((id) => detail.get(id))
@@ -57,6 +61,7 @@ export async function searchCollection(ctx: ToolContext, input: z.infer<typeof s
         facts: f,
         ...(first.keywords ? { keywords: first.keywords } : {}),
         ...(info?.hasText ? { roles: info.roles } : {}),
+        ...tagFields(tagsById, first.oracle_id),
         kind: g.kind,
         copyCount: g.copyIds.length,
         copies,
@@ -64,7 +69,7 @@ export async function searchCollection(ctx: ToolContext, input: z.infer<typeof s
       }
     })
 
-    const build = (kept: SearchRow[]) => {
+    const build = (kept: (SearchRow & TagFields)[]) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
       const note = [meta.note, ...match.notes].filter(Boolean).join(' ') || undefined
       return {

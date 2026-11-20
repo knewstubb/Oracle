@@ -4,6 +4,7 @@ import { getDeck, getDeckInput } from '../tools/get-deck'
 import { listDeckCardsByOwnership, listByOwnershipInput } from '../tools/list-deck-cards-by-ownership'
 import { byteLength, MAX_RESPONSE_BYTES } from '../limits'
 import { mockDb, type RecordedQuery } from './mock-db'
+import { clearCardTagCaches } from '../../card-tags-read'
 import { copyRow, resetIds, viewDb } from './view-db'
 
 const U = 'user-1'
@@ -119,25 +120,55 @@ describe('get_deck facts (CC-06c)', () => {
     expect(on.mainboard.items[0].facts.rulesText).toBeTruthy()
   })
 
-  it('a realistic 100-card deck comes back whole in one call, under the cap', async () => {
-    const names = Array.from({ length: 100 }, (_, i) => `Eternal Witness of Things ${i}`)
+  // Every card has its own printing id, a card identity, and two Tags, as a real deck does.
+  const deckWithTags = (names: string[], extra: (n: string) => Record<string, unknown> = () => ({})) => {
     const lib = Object.fromEntries(names.map((n) => [n, { name: n, type_line: 'Legendary Creature — Elf Druid', oracle_text: 'x'.repeat(500), mana_cost: '{2}{G}{G}', mana_value: 4, color_identity: 'G', commander_legal: true }]))
-    const { db, queries } = mockDb((q) => {
-      if (q.table === 'decks') return { data: [{ ...DECK, card_count: 100 }] }
-      if (q.table === 'deck_cards') return { data: names.map((n, i) => ({ ...slotRow(i + 1, n), categories: '["Creature","Ramp"]', scryfall_id: '12345678-1234-1234-1234-123456789012' })) }
+    return mockDb((q) => {
+      if (q.table === 'decks') return { data: [{ ...DECK, card_count: names.length }] }
+      if (q.table === 'deck_cards') return { data: names.map((n, i) => ({ ...slotRow(i + 1, n), categories: '["Creature","Ramp"]', scryfall_id: `12345678-1234-1234-1234-${String(i).padStart(12, '0')}`, ...extra(n) })) }
       if (q.table === 'ref_cards') return { data: inList(q).filter((n) => lib[n]).map((n) => lib[n]) }
+      if (q.table === 'ref_printings' && q.columns === 'scryfall_id, oracle_id') return { data: inList(q).map((id) => ({ scryfall_id: id, oracle_id: `o-${id}` })) }
+      if (q.table === 'ref_card_tags') return { data: inList(q).flatMap((id) => [{ oracle_id: id, tag_key: 'ramp' }, { oracle_id: id, tag_key: 'token_generator' }]) }
       return { data: [] }
     })
-    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; truncated: boolean; note?: string } }
+  }
+  it('a 60-card deck comes back whole in one call with its Tags, under the cap', async () => {
+    clearCardTagCaches()
+    const names = Array.from({ length: 60 }, (_, i) => `Elvish Witness ${i}`)
+    const { db, queries } = deckWithTags(names)
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; truncated: boolean; note?: string; items: { tags: string[] }[] } }
     expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
-    // Slim deck facts: the whole 100-card deck comes back in one call, with no truncation and no per-card price.
-    expect(r.mainboard.returned).toBe(100)
+    expect(r.mainboard.returned).toBe(60)
     expect(r.mainboard.truncated).toBe(false)
-    expect(r.mainboard.note).toBeUndefined()
     expect(JSON.stringify(r)).not.toContain('"price"')
+    expect(r.mainboard.items[0].tags).toEqual(['Ramp', 'Token generator'])
+    // One batched Tag read for the whole page, not one per card.
+    expect(queries.filter((q) => q.table === 'ref_card_tags').length).toBe(1)
     for (const q of queries.filter((x) => !x.table.startsWith('ref_'))) expect(q.filters.some((f) => f.op === 'eq' && f.args[0] === 'user_id' && f.args[1] === U), q.table).toBe(true)
   })
-
+  it('a 100-card deck with two Tags a card stays under the cap; if the cap is reached it says so and gives the next offset (never a silent short list)', async () => {
+    clearCardTagCaches()
+    const names = Array.from({ length: 100 }, (_, i) => `Elvish Witness ${i}`)
+    const { db } = deckWithTags(names)
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; total: number; truncated: boolean; note?: string } }
+    expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
+    expect(r.mainboard.total).toBe(100)
+    expect(r.mainboard.returned).toBeGreaterThanOrEqual(85)
+    if (r.mainboard.returned < 100) {
+      expect(r.mainboard.truncated).toBe(true)
+      expect(r.mainboard.note).toContain(`offset ${r.mainboard.returned}`)
+    }
+  })
+  it('a failed Tag read marks the cards tags_unavailable and never shows an empty list', async () => {
+    clearCardTagCaches()
+    const names = ['Elvish Witness 1', 'Elvish Witness 2']
+    const inner = deckWithTags(names).db
+    const db = { select: (t: string, c: string, o?: never) => (t === 'ref_card_tags' ? mockDb(() => ({ error: { message: 'down' } })).db.select(t, c, o) : inner.select(t, c, o)) }
+    const r = (await getDeck({ db: db as never, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { ok: boolean; mainboard: { items: { tags?: string[]; tags_unavailable?: boolean }[] } }
+    expect(r.ok).toBe(true)
+    for (const i of r.mainboard.items) expect(i).toMatchObject({ tags_unavailable: true })
+    for (const i of r.mainboard.items) expect(i.tags).toBeUndefined()
+  })
   it('ownership rows carry facts and keep their own price figures and totals', async () => {
     const { db } = mockDb((q) => {
       if (q.table === 'decks') return { data: [{ id: 1, name: 'Korvold', is_active: true }] }

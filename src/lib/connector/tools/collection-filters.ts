@@ -3,12 +3,17 @@
 import { z } from 'zod'
 import type { CollectionSummaryInput } from '../../../../docs/oracle/contracts/connector-collection-search.types'
 import { ROLE_ORDER, type Role } from '../../card-roles'
+import { ALL_TAGS, resolveTag } from '../../card-tags-read'
 import { CARD_TYPES as TYPE_LINE_CARD_TYPES } from '../../type-line-constants'
 import type { ReadQuery } from '../user-client'
 import { escapeLike } from './common'
 
 /** The filters, without paging, rules text or grouping. The summary input is the same list. */
-export type CollectionFilters = Omit<CollectionSummaryInput, 'group_by'>
+export type CollectionFilters = Omit<CollectionSummaryInput, 'group_by'> & {
+  /** Tag names or keys (card-tags-read.ts). */
+  tags?: string[]
+  tags_match?: 'all' | 'any'
+}
 
 /** Every card type of the Magic rules, lower case, from the one shared list (type-line-constants.ts). */
 export const CARD_TYPES = TYPE_LINE_CARD_TYPES.map((t) => t.toLowerCase()) as unknown as readonly [Lowercase<(typeof TYPE_LINE_CARD_TYPES)[number]>, ...Lowercase<(typeof TYPE_LINE_CARD_TYPES)[number]>[]]
@@ -29,8 +34,10 @@ export const filterFields = {
   subtypes: z.array(word).min(1).max(10).optional().describe('Creature types and other subtypes such as Elf, Kithkin, Equipment, Time Lord. Whole word, not case sensitive. A card matches if it has ANY of them.'),
   keywords: z.array(word).min(1).max(10).optional().describe('Printed keyword abilities such as flying, haste, deathtouch, landfall. Not words that merely appear in rules text ("target creature gains flying" does not make a card a flying creature). "Kinship" is a keyword here, not a creature type.'),
   keywords_match: z.enum(['all', 'any']).optional().describe('all (default): the card must have every listed keyword. any: at least one.'),
-  roles: z.array(z.enum(ROLE_ORDER as unknown as [Role, ...Role[]])).min(1).max(4).optional().describe('Roles worked out live from rules text by the same rules as Deck health: ramp, draw, removal, wipes. A best guess, front face only, lands never have a role, cost reducers count as ramp. Not the same as EDHREC categories.'),
+  roles: z.array(z.enum(ROLE_ORDER as unknown as [Role, ...Role[]])).min(1).max(4).optional().describe('Roles worked out live from rules text by the same rules as Deck health: ramp, draw, removal, wipes. A best guess, front face only, lands never have a role, cost reducers count as ramp. Not the same as EDHREC categories. Not the same as Tags.'),
   roles_match: z.enum(['any', 'all']).optional().describe('any (default): the card has at least one listed role. all: every listed role (removal and wipes = cards that are both).'),
+  tags: z.array(z.string().trim().min(1).max(60)).min(1).max(40).optional().describe('Tags say what a card does in any deck (for example Ramp, Sacrifice outlet). They are the same for every deck and cannot be changed. A card with no Tag has none; cards released after 7 August 2026 may not have Tags yet. Use the Tag names (not case sensitive): ' + ALL_TAGS.map((t) => t.name).join(', ') + '. A Tag never changes a Category and a Category never changes a Tag. Needs card facts.'),
+  tags_match: z.enum(['all', 'any']).optional().describe('all (default): the card must have every listed Tag. any: at least one. Needs tags.'),
   mana_value_min: z.number().int().min(0).max(20).optional().describe('Lowest mana value, inclusive.'),
   mana_value_max: z.number().int().min(0).max(20).optional().describe('Highest mana value, inclusive.'),
   location: z.string().trim().min(1).max(100).optional().describe('A deck name, a box or binder name, or the words "In your hand" or "Missing" (not case sensitive, whole name).'),
@@ -54,6 +61,10 @@ export function refineFilters(f: CollectionFilters, ctx: z.RefinementCtx): void 
   if (f.colourless && f.colours && f.colours.length > 0) bad('colourless', 'colourless cannot be combined with colours')
   if (f.mana_value_min != null && f.mana_value_max != null && f.mana_value_min > f.mana_value_max) bad('mana_value_min', 'mana_value_min is higher than mana_value_max')
   if (f.text && f.text.split(/\s+/).length > 8) bad('text', 'text can have at most 8 words')
+  if (f.tags_match && !f.tags) bad('tags_match', 'tags_match needs tags')
+  for (const t of f.tags ?? []) {
+    if (!resolveTag(t)) bad('tags', `"${t}" is not one of the Tags. The Tags are: ${ALL_TAGS.map((x) => x.name).join(', ')}`)
+  }
   if (f.text_match && !f.text) bad('text_match', 'text_match needs text')
   if (f.no_card_facts && factFilterNames(f).length > 0) bad('no_card_facts', `no_card_facts cannot be combined with the ${factFilterNames(f).join(', ')} filter`)
 }
@@ -78,6 +89,7 @@ export function factFilterNames(f: CollectionFilters): string[] {
   if (f.subtypes) out.push('subtype')
   if (f.keywords) out.push('keyword')
   if (f.roles) out.push('role')
+  if (f.tags) out.push('Tag')
   if (f.legendary != null) out.push('legendary')
   if (f.basic != null) out.push('basic')
   if (f.snow != null) out.push('snow')
@@ -131,6 +143,6 @@ export function applyPushdown(q: ReadQuery, f: CollectionFilters, withFacts = tr
     const t = f.types[0]
     out = FLAG_TYPES[t] ? out.eq(FLAG_TYPES[t], true) : out.ilike('type_line', `%${t}%`)
   }
-  if (f.types || f.roles || f.text || f.can_be_commander != null) out = out.eq('facts_available', true)
+  if (f.types || f.roles || f.tags || f.text || f.can_be_commander != null) out = out.eq('facts_available', true)
   return out
 }

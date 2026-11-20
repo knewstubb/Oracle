@@ -33,6 +33,7 @@ export interface NarrowRow {
   t_battle?: boolean
   mana_value?: number | null
   subtypes?: string[] | null
+  oracle_id?: string | null
 }
 
 export interface DetailRow {

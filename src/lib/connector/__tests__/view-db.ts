@@ -187,6 +187,8 @@ export interface ViewDbOptions {
   tradePlaces?: { id: number; name: string }[]
   /** CC-25: make the user_locations read fail with this message (for example the missing column before the draft is applied). */
   locationsError?: string
+  /** Stored Tags: oracle id (`o-<name>` in these tests) to Tag keys. Answers reads of ref_card_tags. */
+  tags?: Record<string, string[]>
   /** Called for every query on the view (after filtering), to inspect or count. */
   onView?: (q: RecordedQuery, matched: number) => void
 }
@@ -199,6 +201,10 @@ export function viewDb(view: ViewRow[], opts: ViewDbOptions = {}) {
       const r = applyFilters(view as unknown as Row[], q)
       opts.onView?.(q, r.total)
       return { data: r.rows }
+    }
+    if (q.table === 'ref_card_tags') {
+      const all = Object.entries(opts.tags ?? {}).flatMap(([id, keys]) => keys.map((k) => ({ oracle_id: id, tag_key: k })))
+      return { data: applyFilters(all, q).rows }
     }
     if (q.table === 'user_locations') return opts.locationsError ? { error: { message: opts.locationsError } } : { data: opts.tradePlaces ?? [] }
     if (q.table === 'ref_cards') {

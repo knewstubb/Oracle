@@ -3,6 +3,7 @@ import { getLastRefreshTimestamp, isPriceDataStale } from '@/lib/price-store'
 import { requireAuth } from '@/lib/auth'
 import { asViewClient, colourOrExpression, matchingFactlessCopyIds, parseColourFilter } from '@/lib/collection-colour-filter'
 import { hasSupertype, parseTypeLine } from '@/lib/type-line'
+import { InvalidTagFilter, loadTagFilterOracleIds, parseTagFilter } from '@/lib/collection-tag-filter'
 import { NextRequest } from 'next/server'
 
 /**
@@ -24,6 +25,7 @@ import { NextRequest } from 'next/server'
  *   - colors: comma-separated color identity filter (e.g. 'B,G')
  *   - colorMode: 'exact' | 'includes' | 'at_most' (default: 'includes')
  *   - basic: 'true' = only cards with the Basic supertype (read from the card library type line)
+ *   - tags: comma-separated Tag keys; tagsMatch: 'all' (default) | 'any'
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -121,6 +123,13 @@ export async function GET(request: NextRequest) {
   const colors = searchParams.get('colors')?.split(',').filter(Boolean) || []
   const colorMode = searchParams.get('colorMode') || 'includes'
   const basicOnly = searchParams.get('basic') === 'true'
+  let tagFilter: ReturnType<typeof parseTagFilter>
+  try {
+    tagFilter = parseTagFilter(searchParams.get('tags'), searchParams.get('tagsMatch'))
+  } catch (e) {
+    if (e instanceof InvalidTagFilter) return Response.json({ error: e.message }, { status: 400 })
+    throw e
+  }
 
   try {
     // ──── Step 1: Count + paginate cards ────────────────────
@@ -156,7 +165,7 @@ export async function GET(request: NextRequest) {
     let totalCount: number
     let cards: PageCard[]
 
-    if (!colourFilter && !basicOnly) {
+    if (!colourFilter && !basicOnly && !tagFilter) {
       // No colour or Basic filter: count and page are independent, so they run together.
       let countQuery = supabase
         .from('user_cards')
@@ -183,7 +192,10 @@ export async function GET(request: NextRequest) {
       const matchQuery = () => {
         let q = view
           .from('connector_collection_copies')
-          .select(basicOnly ? 'card_id, card_name, type_line' : 'card_id, card_name', { count: 'exact' })
+          .select(
+            ['card_id', 'card_name', ...(basicOnly ? ['type_line'] : []), ...(tagFilter ? ['oracle_id'] : [])].join(', '),
+            { count: 'exact' }
+          )
           .eq('user_id', userId)
           .eq('is_proxy', isProxyFilter)
         if (search) q = q.ilike('card_name', `%${search}%`)
@@ -193,7 +205,7 @@ export async function GET(request: NextRequest) {
           .order('card_name', { ascending })
           .order('card_id', { ascending: true })
       }
-      type Match = { card_id: number; card_name: string; type_line?: string | null }
+      type Match = { card_id: number; card_name: string; type_line?: string | null; oracle_id?: string | null }
       const BATCH = 1000
       const first = await matchQuery().range(0, BATCH - 1)
       if (first.error) throw first.error
@@ -210,7 +222,10 @@ export async function GET(request: NextRequest) {
           matches.push(...((r.data ?? []) as Match[]))
         }
       }
-      const exact = basicOnly ? matches.filter((m) => hasSupertype(parseTypeLine(m.type_line), 'Basic', 'any')) : matches
+      const basicMatches = basicOnly ? matches.filter((m) => hasSupertype(parseTypeLine(m.type_line), 'Basic', 'any')) : matches
+      // Tag filter: the shared Tag read says which cards carry the Tags; a failed read throws (error state), never "no cards".
+      const tagged = tagFilter ? await loadTagFilterOracleIds(tagFilter) : null
+      const exact = tagged ? basicMatches.filter((m) => !!m.oracle_id && tagged.has(m.oracle_id)) : basicMatches
       const cardIds = [...new Set(exact.map((m) => m.card_id))]
       totalCount = cardIds.length
       const pageIds = cardIds.slice(offset, offset + pageSize)

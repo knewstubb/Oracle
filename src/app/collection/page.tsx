@@ -15,6 +15,8 @@ import {
   VIEW_MODE_KEY,
   type ViewMode,
 } from '@/components/collection/CollectionToolbar'
+import { CollectionTagFilter, TagEmptyState, TagSummaryLine } from '@/components/collection/CollectionTagFilter'
+import type { TagMatch } from '@/lib/card-tags-read'
 import { CollectionGridView } from '@/components/collection/CollectionGridView'
 import { PrintingListView } from '@/components/collection/PrintingListView'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
@@ -46,6 +48,8 @@ export default function CollectionPage() {
   const [colorMode, setColorMode] = useState<ColorIdentityMode>('exact')
   const [activeStatuses, setActiveStatuses] = useState<StatusFilter[]>([])
   const [basicOnly, setBasicOnly] = useState(false)
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [tagsMatch, setTagsMatch] = useState<TagMatch>('all')
 
   // ─── Printing-specific sort state ──────────────────────────────
   const [printingSortField, setPrintingSortField] = useState<PrintingSortField>('cardName')
@@ -124,6 +128,25 @@ export default function CollectionPage() {
     setCurrentPage(1)
     setPrintingPage(1)
   }, [])
+  const handleTagsChange = useCallback((keys: string[]) => {
+    setSelectedTags(keys)
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
+  const handleTagsMatchChange = useCallback((match: TagMatch) => {
+    setTagsMatch(match)
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
+  const handleClearAllFilters = useCallback(() => {
+    setSearchQuery('')
+    setSelectedColors([])
+    setActiveStatuses([])
+    setBasicOnly(false)
+    setSelectedTags([])
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
   const handleIncludeProxiesChange = useCallback(() => {
     setIncludeProxies((prev) => !prev)
     setPrintingPage(1)
@@ -141,6 +164,8 @@ export default function CollectionPage() {
       colors: selectedColors,
       colorMode,
       basic: basicOnly,
+      tags: selectedTags,
+      tagsMatch,
       enabled: viewResolved && !isPrintingView,
     })
 
@@ -160,6 +185,8 @@ export default function CollectionPage() {
     colorMode,
     includeProxies,
     basic: basicOnly,
+    tags: selectedTags,
+    tagsMatch,
     enabled: viewResolved && isPrintingView,
   })
 
@@ -221,6 +248,12 @@ export default function CollectionPage() {
       : totalCount  // grid view uses rollup count (which doesn't include proxies)
   const proxyCount = hasActiveData ? printingRows.filter((r) => r.isProxy).length : 0
 
+  // Card count for the Tag filter: null while the answer for the current Tags is still being worked out.
+  const tagResultCount = !hasActiveData || (isPrintingView ? printingIsFetching : isFetching)
+    ? null
+    : isPrintingView
+      ? printingTotalCount
+      : totalCount
   // Pagination derived state
   const totalPages = Math.ceil(totalCount / pageSize)
   const printingTotalPages = Math.ceil(printingTotalCount / (printingData?.pageSize ?? 100))
@@ -307,6 +340,15 @@ export default function CollectionPage() {
                 sortContext={isPrintingView ? 'printing' : 'rollup'}
                 basicOnly={basicOnly}
                 onBasicOnlyChange={handleBasicOnlyChange}
+                tagControl={
+                  <CollectionTagFilter
+                    selectedTags={selectedTags}
+                    onTagsChange={handleTagsChange}
+                    tagsMatch={tagsMatch}
+                    onTagsMatchChange={handleTagsMatchChange}
+                    resultCount={tagResultCount}
+                  />
+                }
               />
             </div>
             {/* Proxy toggle chip */}
@@ -332,6 +374,12 @@ export default function CollectionPage() {
             )}
           </div>
 
+          <TagSummaryLine
+            selectedTags={selectedTags}
+            tagsMatch={tagsMatch}
+            resultCount={tagResultCount}
+            onClear={() => handleTagsChange([])}
+          />
           {/* ─── Main Content: Loading / Error / Empty / Data ──── */}
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
             {/* Spinner over the table while a filter/search/sort answer is loading */}
@@ -353,7 +401,11 @@ export default function CollectionPage() {
               <LoadingSkeleton viewMode={viewMode} />
             ) : isPrintingView ? (
               printingRows.length === 0 ? (
-                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0 || basicOnly} />
+                selectedTags.length > 0 ? (
+                  <TagEmptyState selectedTags={selectedTags} tagsMatch={tagsMatch} onClearTags={() => handleTagsChange([])} onClearAll={handleClearAllFilters} />
+                ) : (
+                  <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || activeStatuses.length > 0 || basicOnly} />
+                )
               ) : (
                 <div className={cn("flex-1 overflow-y-auto", printingIsFetching && "opacity-70 transition-opacity")}>
                   <PrintingListView
@@ -366,7 +418,11 @@ export default function CollectionPage() {
               )
             ) : (
               rows.length === 0 ? (
-                <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || basicOnly} />
+                selectedTags.length > 0 ? (
+                  <TagEmptyState selectedTags={selectedTags} tagsMatch={tagsMatch} onClearTags={() => handleTagsChange([])} onClearAll={handleClearAllFilters} />
+                ) : (
+                  <EmptyState hasFilters={searchQuery !== '' || selectedColors.length > 0 || basicOnly} />
+                )
               ) : (
                 <div className={cn("flex-1 overflow-y-auto p-4", isFetching && "opacity-70 transition-opacity")}>
                   <CollectionGridView rows={rows} onExpand={expandSubgroups} />

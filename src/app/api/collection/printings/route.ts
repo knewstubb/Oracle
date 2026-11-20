@@ -15,6 +15,7 @@ import {
   parseColourFilter,
 } from '@/lib/collection-colour-filter'
 import { hasSupertype, parseTypeLine } from '@/lib/type-line'
+import { InvalidTagFilter, loadTagFilterOracleIds, parseTagFilter } from '@/lib/collection-tag-filter'
 import { NextRequest } from 'next/server'
 
 /**
@@ -32,6 +33,7 @@ import { NextRequest } from 'next/server'
  *   - colorMode: 'exact' | 'includes' (default: 'includes')
  *   - includeProxies: 'true' | 'false' (default: 'false')
  *   - basic: 'true' = only Basic cards
+ *   - tags: comma-separated Tag keys; tagsMatch: 'all' (default) | 'any'
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -63,7 +65,7 @@ interface UserCopyWithCardName {
   finish: string | null
   is_proxy: boolean
   created_at: string | null
-  user_cards: { card_name: string } | null
+  user_cards: { card_name: string; oracle_id?: string | null } | null
 }
 
 /** Subset of ref_printings used to enrich copies. */
@@ -123,6 +125,13 @@ export async function GET(request: NextRequest) {
   const colorMode = searchParams.get('colorMode') || 'includes'
   const basicOnly = searchParams.get('basic') === 'true'
   const includeProxies = searchParams.get('includeProxies') === 'true'
+  let tagFilter: ReturnType<typeof parseTagFilter>
+  try {
+    tagFilter = parseTagFilter(searchParams.get('tags'), searchParams.get('tagsMatch'))
+  } catch (e) {
+    if (e instanceof InvalidTagFilter) return Response.json({ error: e.message }, { status: 400 })
+    throw e
+  }
 
   try {
     const offset = (page - 1) * pageSize
@@ -136,24 +145,44 @@ export async function GET(request: NextRequest) {
       // The freshness read does not depend on the page, so it starts now and runs alongside the rest.
       const refreshPromise = getLastRefreshTimestamp()
       const extraCopyIds = colourFilter ? await matchingFactlessCopyIds(supabase, userId, colourFilter) : []
-      let pageQuery = asViewClient(supabase)
-        .from('connector_collection_copies')
-        .select('copy_id, card_id, printing_id, finish, is_proxy, card_name', { count: 'exact' })
-        .eq('user_id', userId)
-      if (!includeProxies) pageQuery = pageQuery.eq('is_proxy', false)
-      if (search) pageQuery = pageQuery.ilike('card_name', `%${escapeLike(search)}%`)
-      if (colourFilter) pageQuery = pageQuery.or(colourOrExpression(colourFilter, extraCopyIds))
-      // Basic is the only word of its kind in a type line, so the text prefilter is what pages the result (an exact check cannot run on a single page).
-      if (basicOnly) pageQuery = pageQuery.ilike('type_line', '%basic%')
-      pageQuery = pageQuery
-        .order('card_name', { ascending: sortDir === 'asc' })
-        .order('copy_id', { ascending: true })
-        .range(offset, offset + pageSize - 1)
-
+      const filteredView = (columns: string, withCount: boolean) => {
+        let q = asViewClient(supabase)
+          .from('connector_collection_copies')
+          .select(columns, withCount ? { count: 'exact' } : undefined)
+          .eq('user_id', userId)
+        if (!includeProxies) q = q.eq('is_proxy', false)
+        if (search) q = q.ilike('card_name', `%${escapeLike(search)}%`)
+        if (colourFilter) q = q.or(colourOrExpression(colourFilter, extraCopyIds))
+        // Basic is the only word of its kind in a type line, so the text prefilter is what pages the result (an exact check cannot run on a single page).
+        if (basicOnly) q = q.ilike('type_line', '%basic%')
+        return q
+          .order('card_name', { ascending: sortDir === 'asc' })
+          .order('copy_id', { ascending: true })
+      }
+      // Tag filter: the database cannot join the Tag table to the view, so the copies that pass the other filters are
+      // listed (copy and card identity only), limited to the tagged cards here, then paged. Only the page's copies are read in full.
+      let taggedCopyIds: number[] | null = null
+      if (tagFilter) {
+        const tagged = await loadTagFilterOracleIds(tagFilter)
+        taggedCopyIds = []
+        for (let from = 0; ; from += 1000) {
+          const r = await filteredView('copy_id, oracle_id', false).range(from, from + 999)
+          if (r.error) throw r.error
+          const got = (r.data ?? []) as Array<{ copy_id: number; oracle_id: string | null }>
+          for (const g of got) if (g.oracle_id && tagged.has(g.oracle_id)) taggedCopyIds.push(g.copy_id)
+          if (got.length < 1000) break
+        }
+      }
+      const pageColumns = 'copy_id, card_id, printing_id, finish, is_proxy, card_name'
+      const pageQuery: PromiseLike<{ data: unknown; error: { message: string } | null; count?: number | null }> = taggedCopyIds
+        ? taggedCopyIds.length === 0
+          ? Promise.resolve({ data: [], error: null, count: 0 })
+          : filteredView(pageColumns, false).in('copy_id', taggedCopyIds.slice(offset, offset + pageSize))
+        : filteredView(pageColumns, true).range(offset, offset + pageSize - 1)
       const [lastPriceRefresh, pageResult] = await Promise.all([refreshPromise, pageQuery])
       const priceStale = await isPriceDataStale(lastPriceRefresh)
       if (pageResult.error) throw pageResult.error
-      const totalCount = pageResult.count ?? 0
+      const totalCount = taggedCopyIds ? taggedCopyIds.length : (pageResult.count ?? 0)
       const pageCopies = ((pageResult.data ?? []) as Array<{
         copy_id: number
         card_id: number
@@ -288,7 +317,8 @@ export async function GET(request: NextRequest) {
           is_proxy,
           created_at,
           user_cards!user_copies_card_id_fkey (
-            card_name
+            card_name,
+            oracle_id
           )
         `, { count: batchOffset === 0 ? 'exact' : undefined })
         .eq('user_id', userId)
@@ -327,6 +357,7 @@ export async function GET(request: NextRequest) {
         is_proxy: row.is_proxy,
         created_at: row.created_at,
         card_name: card?.card_name || '',
+        oracle_id: card?.oracle_id ?? null,
       }
     })
 
@@ -373,6 +404,10 @@ export async function GET(request: NextRequest) {
       enrichedCopies = enrichedCopies.filter((c) => matchesColourFilter(c.colorIdentity, colourFilter))
     }
     if (basicOnly) enrichedCopies = enrichedCopies.filter((c) => hasSupertype(parseTypeLine(c.typeLine), 'Basic', 'any'))
+    if (tagFilter) {
+      const tagged = await loadTagFilterOracleIds(tagFilter)
+      enrichedCopies = enrichedCopies.filter((c) => !!c.oracle_id && tagged.has(c.oracle_id))
+    }
     const pageTotalCount = enrichedCopies.length
 
     if (pageTotalCount === 0) {

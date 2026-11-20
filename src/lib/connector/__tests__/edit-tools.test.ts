@@ -182,10 +182,10 @@ describe('edit tools', () => {
     expect(d('add_cards_to_deck')).not.toMatch(/land under "Other"/)
     expect(d('set_card_category')).not.toMatch(/new ones are fine/)
     expect(d('set_card_category')).toMatch(/send the card's existing names too/)
-    // HC-02 wording: a category is where a card sits, not a role; exact names; up to 5 names of 60 characters, kept whole.
-    expect(d('add_cards_to_deck')).toMatch(/A category is where a card sits in the deck's list, not a card role/)
+    // HC-02 wording: a category is where a card sits, not what the card does (its Tags); exact names; up to 5 names of 60 characters, kept whole.
+    expect(d('add_cards_to_deck')).toMatch(/A category is where a card sits in the deck's list, not what the card does \(that is its Tags/)
     expect(d('add_cards_to_deck')).toMatch(/exact name the deck already shows/)
-    expect(d('set_card_category')).toMatch(/A category is where a card sits in the deck's list, not a card role/)
+    expect(d('set_card_category')).toMatch(/A category is where a card sits in the deck's list, not what the card does \(that is its Tags/)
     expect(d('set_card_category')).toMatch(/exact names the deck already shows/)
     expect(d('set_card_category')).toMatch(/up to 5 in all, each up to 60 characters, kept whole/)
     expect(d('set_card_category')).not.toMatch(/free text/i)

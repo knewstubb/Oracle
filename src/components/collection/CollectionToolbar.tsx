@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowDownAZ,
   ArrowUpAZ,
@@ -119,6 +119,8 @@ export interface CollectionToolbarProps {
   /** Show only Basic cards (the Basic supertype). The chip appears only when onBasicOnlyChange is given. */
   basicOnly?: boolean
   onBasicOnlyChange?: (basicOnly: boolean) => void
+  /** The Tags button, shown at the right end of the filter row (collection Tag filter). */
+  tagControl?: ReactNode
 }
 
 /* ─── Main Component ────────────────────────────────────────────────── */
@@ -141,6 +143,7 @@ export function CollectionToolbar({
   sortContext = 'rollup',
   basicOnly = false,
   onBasicOnlyChange,
+  tagControl,
 }: CollectionToolbarProps) {
   // ─── Internal debounced search ─────────────────────────────────
   const [localSearch, setLocalSearch] = useState(searchQuery)
@@ -379,6 +382,7 @@ export function CollectionToolbar({
             Basic
           </button>
         )}
+        {tagControl}
         </div>
       </div>
     </div>

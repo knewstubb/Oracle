@@ -3,7 +3,7 @@ import type { DeckCardView } from '../../../../docs/oracle/contracts/claude-conn
 import type { CardFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
 import { fetchCardFacts, factsFor } from './card-facts'
-import { oracleIdsByPrinting, tagFields, tagNamesByOracleId, type TagFields } from './card-tags-tool'
+import { oracleIdsByPrinting, tagFields, tagNamesByOracleId, TAG_CODE_BY_NAME, TAG_NAME_BY_CODE } from './card-tags-tool'
 import { loadStrategyBrackets } from './bracket'
 import { loadDeckHealthView, loadDeckStrategy, type HealthLoader } from './deck-strategy-read'
 import { DECK_COLUMNS, deckStatusAndSleeved, toDeckSummary, type DeckRow } from './list-decks'
@@ -31,13 +31,19 @@ type DeckCardRow = {
   requested_finish: string | null
 }
 
-/** Deck rows carry slimmer facts than search results: no price (the ownership tool has prices), so a 100-card deck fits one answer. */
-export type DeckRowFacts = Omit<CardFacts, 'price'>
+/**
+ * Deck rows carry slimmer facts than search results, so a 100-card deck with Tags fits one answer: no price (the ownership
+ * tool has prices), and `available` is left out when true (it appears, as false, only when the card was not found).
+ */
+export type DeckRowFacts = Omit<CardFacts, 'price' | 'available'> & { available?: false }
 
 export function slimFacts(f: CardFacts): DeckRowFacts {
-  const { price: _price, ...rest } = f // eslint-disable-line @typescript-eslint/no-unused-vars
-  return rest
+  const { price: _price, available, ...rest } = f // eslint-disable-line @typescript-eslint/no-unused-vars
+  return available ? rest : { available: false, ...rest }
 }
+
+/** One card in a get_deck answer. `isCommander` is present only when true; `tags` holds short codes and is left out when the card has none. */
+type DeckItem = Omit<DeckCardView, 'isCommander'> & { facts: DeckRowFacts; isCommander?: true; tags?: string[]; tags_unavailable?: true }
 
 export function parseCategories(raw: string | null): string[] {
   if (!raw) return []
@@ -91,20 +97,22 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const oracleByPrinting = await oracleIdsByPrinting(ctx, page.map(printingOf).filter((x): x is string => !!x))
     const oracleIds = oracleByPrinting ? [...new Set(oracleByPrinting.values())] : []
     const tagsById = oracleByPrinting ? await tagNamesByOracleId(ctx, oracleIds) : null
-    const items: (DeckCardView & { facts: DeckRowFacts } & TagFields)[] = page.map((r) => {
+    const items: DeckItem[] = page.map((r) => {
       const copy = r.copy_id != null ? copyById.get(r.copy_id) : undefined
+      const tf = tagFields(tagsById, oracleByPrinting?.get(printingOf(r) ?? ''))
+      const codes = (tf.tags ?? []).map((n) => TAG_CODE_BY_NAME.get(n)).filter((c): c is string => !!c)
       return {
         facts: slimFacts(factsFor(facts, r.card_name, withRules)),
         slotId: r.id,
         name: r.card_name,
         quantity: r.quantity ?? 1,
         categories: parseCategories(r.categories).map((c) => cutText(c) ?? c),
-        isCommander: !!r.is_commander,
+        ...(r.is_commander ? { isCommander: true as const } : {}),
         ownership: ownership(r),
         sleeved: r.copy_id != null,
         printingId: copy?.printing_id ?? r.scryfall_id,
         finish: copy?.finish ?? r.requested_finish,
-        ...tagFields(tagsById, oracleByPrinting?.get(printingOf(r) ?? '')),
+        ...(tf.tags_unavailable ? { tags_unavailable: true as const } : codes.length ? { tags: codes } : {}),
       }
     })
     const strategy = await loadStrategyBrackets(ctx, [input.deck_id])
@@ -113,11 +121,15 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const health = await loadDeckHealthView(ctx, input.deck_id, loadHealth)
     const fit = fitRows(items, (kept) => {
       const meta = pageNote(total, offset, kept.length, kept.length < items.length)
+      // The code -> Tag name list, once per answer, only for the Tags used on the cards that are in it.
+      const used = new Set(kept.flatMap((i) => i.tags ?? []))
+      const tagNames = Object.fromEntries([...TAG_NAME_BY_CODE].filter(([code]) => used.has(code)))
       return {
         ok: true as const,
         deck,
         strategy: strategyView,
         health,
+        tagNames,
         mainboard: { ok: true as const, items: kept, total, returned: kept.length, offset, truncated: meta.truncated, ...(meta.note ? { note: meta.note } : {}) },
         maybeboardCount,
       }

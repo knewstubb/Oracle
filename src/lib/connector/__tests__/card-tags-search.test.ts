@@ -133,10 +133,11 @@ describe('get_deck Tags', () => {
     })
   it('each card carries its Tags, in one batched read; a card with no printing is marked, not shown as having none', async () => {
     const { db, queries } = deckDb()
-    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { items: { name: string; tags?: string[]; tags_unavailable?: boolean }[] } }
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { tagNames: Record<string, string>; mainboard: { items: { name: string; tags?: string[]; tags_unavailable?: boolean }[] } }
     const by = Object.fromEntries(r.mainboard.items.map((i) => [i.name, i]))
-    expect(by['Sol Ring'].tags).toEqual(['Ramp'])
-    expect(by['Forest'].tags).toEqual([])
+    expect(by['Sol Ring'].tags!.map((c) => r.tagNames[c])).toEqual(['Ramp'])
+    expect(by['Forest'].tags).toBeUndefined() // no Tags: the list is left out
+    expect(by['Forest'].tags_unavailable).toBeUndefined()
     expect(by['Mystery'].tags_unavailable).toBe(true)
     expect(queries.filter((q) => q.table === 'ref_card_tags').length).toBe(1)
   })

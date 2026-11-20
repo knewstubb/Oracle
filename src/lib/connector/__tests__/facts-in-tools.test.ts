@@ -4,7 +4,8 @@ import { getDeck, getDeckInput } from '../tools/get-deck'
 import { listDeckCardsByOwnership, listByOwnershipInput } from '../tools/list-deck-cards-by-ownership'
 import { byteLength, MAX_RESPONSE_BYTES } from '../limits'
 import { mockDb, type RecordedQuery } from './mock-db'
-import { clearCardTagCaches } from '../../card-tags-read'
+import { clearCardTagCaches, ALL_TAGS } from '../../card-tags-read'
+import { TAG_CODE_BY_NAME, TAG_NAME_BY_CODE } from '../tools/card-tags-tool'
 import { copyRow, resetIds, viewDb } from './view-db'
 
 const U = 'user-1'
@@ -121,14 +122,14 @@ describe('get_deck facts (CC-06c)', () => {
   })
 
   // Every card has its own printing id, a card identity, and two Tags, as a real deck does.
-  const deckWithTags = (names: string[], extra: (n: string) => Record<string, unknown> = () => ({})) => {
+  const deckWithTags = (names: string[], tagKeys: string[] = ['ramp', 'token_generator'], extra: (n: string) => Record<string, unknown> = () => ({})) => {
     const lib = Object.fromEntries(names.map((n) => [n, { name: n, type_line: 'Legendary Creature — Elf Druid', oracle_text: 'x'.repeat(500), mana_cost: '{2}{G}{G}', mana_value: 4, color_identity: 'G', commander_legal: true }]))
     return mockDb((q) => {
       if (q.table === 'decks') return { data: [{ ...DECK, card_count: names.length }] }
       if (q.table === 'deck_cards') return { data: names.map((n, i) => ({ ...slotRow(i + 1, n), categories: '["Creature","Ramp"]', scryfall_id: `12345678-1234-1234-1234-${String(i).padStart(12, '0')}`, ...extra(n) })) }
       if (q.table === 'ref_cards') return { data: inList(q).filter((n) => lib[n]).map((n) => lib[n]) }
       if (q.table === 'ref_printings' && q.columns === 'scryfall_id, oracle_id') return { data: inList(q).map((id) => ({ scryfall_id: id, oracle_id: `o-${id}` })) }
-      if (q.table === 'ref_card_tags') return { data: inList(q).flatMap((id) => [{ oracle_id: id, tag_key: 'ramp' }, { oracle_id: id, tag_key: 'token_generator' }]) }
+      if (q.table === 'ref_card_tags') return { data: inList(q).flatMap((id) => tagKeys.map((k) => ({ oracle_id: id, tag_key: k }))) }
       return { data: [] }
     })
   }
@@ -136,28 +137,47 @@ describe('get_deck facts (CC-06c)', () => {
     clearCardTagCaches()
     const names = Array.from({ length: 60 }, (_, i) => `Elvish Witness ${i}`)
     const { db, queries } = deckWithTags(names)
-    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; truncated: boolean; note?: string; items: { tags: string[] }[] } }
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { tagNames: Record<string, string>; mainboard: { returned: number; truncated: boolean; note?: string; items: { tags: string[] }[] } }
     expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
     expect(r.mainboard.returned).toBe(60)
     expect(r.mainboard.truncated).toBe(false)
     expect(JSON.stringify(r)).not.toContain('"price"')
-    expect(r.mainboard.items[0].tags).toEqual(['Ramp', 'Token generator'])
+    expect(r.mainboard.items[0].tags.map((c) => r.tagNames[c])).toEqual(['Ramp', 'Token generator'])
     // One batched Tag read for the whole page, not one per card.
     expect(queries.filter((q) => q.table === 'ref_card_tags').length).toBe(1)
     for (const q of queries.filter((x) => !x.table.startsWith('ref_'))) expect(q.filters.some((f) => f.op === 'eq' && f.args[0] === 'user_id' && f.args[1] === U), q.table).toBe(true)
   })
-  it('a 100-card deck with two Tags a card stays under the cap; if the cap is reached it says so and gives the next offset (never a silent short list)', async () => {
+  it('a realistic 100-card deck with several Tags a card (and a 99-card-plus-commander list) comes back whole in one page', async () => {
     clearCardTagCaches()
     const names = Array.from({ length: 100 }, (_, i) => `Elvish Witness ${i}`)
-    const { db } = deckWithTags(names)
+    const { db } = deckWithTags(names, ['ramp', 'token_generator', 'creature_enters_payoff', 'direct_damage', 'play_from_exile'])
     const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { mainboard: { returned: number; total: number; truncated: boolean; note?: string } }
     expect(byteLength(r)).toBeLessThanOrEqual(MAX_RESPONSE_BYTES)
     expect(r.mainboard.total).toBe(100)
-    expect(r.mainboard.returned).toBeGreaterThanOrEqual(85)
-    if (r.mainboard.returned < 100) {
-      expect(r.mainboard.truncated).toBe(true)
-      expect(r.mainboard.note).toContain(`offset ${r.mainboard.returned}`)
-    }
+    expect(r.mainboard.returned).toBe(100)
+    expect(r.mainboard.truncated).toBe(false)
+    expect(r.mainboard.note).toBeUndefined()
+  })
+  it('a deck bigger than a page (a 100-card deck plus a 60-card maybeboard) still pages and says more remain', async () => {
+    clearCardTagCaches()
+    const names = Array.from({ length: 160 }, (_, i) => `Elvish Witness ${i}`)
+    const { db } = deckWithTags(names, ['ramp', 'token_generator', 'creature_enters_payoff', 'direct_damage', 'play_from_exile'])
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1, limit: 150 }))) as never as { mainboard: { returned: number; total: number; truncated: boolean; note?: string } }
+    expect(r.mainboard.total).toBe(160)
+    expect(r.mainboard.returned).toBeLessThan(160)
+    expect(r.mainboard.truncated).toBe(true)
+    expect(r.mainboard.note).toContain(`offset ${r.mainboard.returned}`)
+    expect(r.mainboard.note).toMatch(/Showing \d+ of 160/)
+  })
+  it('the Tag code list resolves every code on the cards, and every one of the 40 Tags has its own code', async () => {
+    clearCardTagCaches()
+    const { db } = deckWithTags(['Elvish Witness 1', 'Elvish Witness 2'], ['ramp', 'token_generator', 'blink'])
+    const r = (await getDeck({ db, userId: U }, getDeckInput.parse({ deck_id: 1 }))) as never as { tagNames: Record<string, string>; mainboard: { items: { tags: string[] }[] } }
+    for (const i of r.mainboard.items) for (const c of i.tags) expect(r.tagNames[c], c).toBeTruthy()
+    expect(Object.values(r.tagNames).sort()).toEqual(['Blink', 'Ramp', 'Token generator'])
+    expect(TAG_CODE_BY_NAME.size).toBe(ALL_TAGS.length)
+    expect(new Set(TAG_CODE_BY_NAME.values()).size).toBe(ALL_TAGS.length)
+    for (const t of ALL_TAGS) expect(TAG_NAME_BY_CODE.get(TAG_CODE_BY_NAME.get(t.name)!)).toBe(t.name)
   })
   it('a failed Tag read marks the cards tags_unavailable and never shows an empty list', async () => {
     clearCardTagCaches()

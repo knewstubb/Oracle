@@ -31,6 +31,13 @@ export async function tagNamesByOracleId(ctx: ToolContext, oracleIds: string[]):
   return new Map([...r.byOracleId].map(([id, tags]) => [id, tags.map((t) => t.name)]))
 }
 
+/**
+ * Short Tag codes for get_deck: "t1" to "t40", by place in the Tag list. A code means something only together with the
+ * `tagNames` list in the same answer (code -> Tag name), so reordering the list can never mislead anyone.
+ */
+export const TAG_CODE_BY_NAME = new Map(ALL_TAGS.map((t, i) => [t.name, `t${i + 1}`]))
+export const TAG_NAME_BY_CODE = new Map([...TAG_CODE_BY_NAME].map(([name, code]) => [code, name]))
+
 const PRINTING_BATCH = 100
 /** oracle_id for each printing (scryfall_id), batched. Returns null when the read failed. */
 export async function oracleIdsByPrinting(ctx: ToolContext, printingIds: string[]): Promise<Map<string, string> | null> {

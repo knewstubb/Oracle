@@ -30,7 +30,7 @@ describe('registered tools', () => {
     const names = CONNECTOR_TOOLS.map((t) => t.name)
     expect(names).toEqual([
       'get_collection_summary', 'search_collection', 'list_decks', 'get_deck', 'get_deck_health', 'list_deck_cards_by_ownership', 'get_buying_list',
-      'add_cards_to_deck', 'remove_cards_from_deck', 'set_card_zone', 'set_card_category', 'create_deck', 'set_deck_setup', 'add_card_to_collection',
+      'add_cards_to_deck', 'remove_cards_from_deck', 'set_card_zone', 'set_card_category', 'create_deck', 'set_deck_setup', 'set_card_why', 'add_card_to_collection',
       'sleeve_free_copy', 'make_slot_original', 'create_proxy_for_slot', 'request_card_move', 'undo_change', 'get_change_status', 'list_recent_changes',
     ])
     expect(names.filter((n) => /delete|remove_deck|drop|clear/.test(n))).toEqual([])

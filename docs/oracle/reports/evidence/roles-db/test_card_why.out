@@ -1,0 +1,180 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== the live state: DB-1 to DB-5, CC-25, S3, S4, S5, tags and why-here applied
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118130000_cc25_trade_locations.draft.sql
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+-- apply 20261119120000_s5_strategy_replace.draft.sql
+-- apply 20261120100000_tags_fill_tag_tables.draft.sql
+-- apply 20261120110000_why_here_deck_cards.draft.sql
+== apply the card-why draft
+-- apply 20261120120000_card_why_claude_write.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ expire 
+--------
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== rollback refuses while a card_why log row exists
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-tags-why-rarity/supabase/drafts/20261120120000_card_why_claude_write.rollback.sql:11: ERROR:  cannot roll back: card_why entries exist in the change log
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261120120000_card_why_claude_write.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-tags-why-rarity/supabase/drafts/20261120120000_card_why_claude_write.rollback.sql:11: ERROR:  card_why is not applied
+== re-apply, then everything rolled back in reverse to the base
+-- apply 20261120120000_card_why_claude_write.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261120120000_card_why_claude_write.rollback.sql
+-- apply 20261120110000_why_here_deck_cards.rollback.sql
+-- apply 20261120100000_tags_fill_tag_tables.rollback.sql
+-- apply 20261119120000_s5_strategy_replace.rollback.sql
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+-- apply 20261118130000_cc25_trade_locations.rollback.sql
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                             name                                                                              | result |                                                                    detail                                                                    
+----+---------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | CW-01 applies: new function exists, service role only (anon and signed-in users cannot run it)                                                                | PASS   | 
+  2 | CW-10 Claude fills an empty Why: saved, filled true, one log row (before empty, after the text), Claude is the author                                         | PASS   | {"ok": true, "res": {"count": 1, "filled": true, "current": "Ramps into the big turn.", "outcome": "applied", "success": true, "group_id": "
+  3 | CW-11 the same text again changes nothing and logs nothing                                                                                                    | PASS   | 
+  4 | CW-12 changing a Why that has text: saved, filled false, previous text kept in the log, appears in recent changes with Undo allowed                           | PASS   | {"ok": true, "res": {"count": 1, "filled": false, "current": "Fixes colours.", "outcome": "applied", "success": true, "group_id": "e831c758-
+  5 | CW-20 the owner edited since Claude read it (why_base differs): refused why_changed, text unchanged                                                           | PASS   | 
+  6 | CW-21 201 characters, empty text, blank, and a line break are refused (bad_why)                                                                               | PASS   | 
+  7 | CW-22 exactly 200 characters accepted                                                                                                                         | PASS   | 
+  8 | CW-23 a slot in another deck, another user's slot, and an unknown slot are refused; a switched-off connection is refused                                      | PASS   | 
+  9 | CW-30 Claude undoes the change: the earlier text is back, a second undo is refused (already_undone)                                                           | PASS   | {"ok": true, "res": {"undone": 1, "success": true}}{"ok": true, "res": {"refused": {"code": "already_undone"}, "success": false}}
+ 10 | CW-31 the owner edited the line after Claude: Undo is refused (slot_changed) for Claude and for the owner, the reason shows in recent changes, text untouched | PASS   | {"ok": true, "res": {"refused": {"card": "Card 1", "code": "slot_changed", "deck": "Manual"}, "success": false}}
+ 11 | CW-32 another user cannot undo it; the owner can, and undoing a fill empties the line again (NULL)                                                            | PASS   | {"ok": false, "err": "change_not_found", "detail": "{}"}{"ok": true, "res": {"undone": 1, "success": true}}
+ 12 | CW-33 an undo older than 7 days is refused                                                                                                                    | PASS   | {"ok": true, "res": {"refused": {"code": "too_old"}, "success": false}}
+ 13 | CW-34 a removed slot blocks the undo (slot_gone), and recent changes still lists it                                                                           | PASS   | {"ok": true, "res": {"refused": {"card": "Card 3", "code": "slot_gone", "deck": "Manual"}, "success": false}}
+ 14 | CW-40 an old kind (add a card, then Claude undoes it) still works through the wrapped front doors                                                             | PASS   | 
+ 15 | CW-41 S5 still replaces the Strategy (earlier drafts unaffected)                                                                                              | PASS   | 
+ 16 | CW-42 a second signed-in user still cannot touch the first user's Why (no row visible)                                                                        | PASS   | 
+ 17 | CW-50 rollback refuses with card_why entries in the log and removes nothing                                                                                   | PASS   | 
+ 18 | CW-51 rollback with no card_why entries: the database equals the live state EXACTLY (functions, grants, constraints, tables)                                  | PASS   | ca29c4b862b82a550af0adaa16b040de vs ca29c4b862b82a550af0adaa16b040de
+ 19 | CW-52 re-applies after a rollback                                                                                                                             | PASS   | 
+ 20 | CW-60 card-why, why-here, tags, S5, S4, S3, CC-25 and DB-5 to DB-1 roll back in reverse and the database equals the cc15b base exactly                        | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+(20 rows)
+
+ passed | failed 
+--------+--------
+     20 |      0
+(1 row)
+

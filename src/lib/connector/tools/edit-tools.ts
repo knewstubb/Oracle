@@ -463,6 +463,51 @@ export async function setDeckSetup(ctx: EditContext, input: z.infer<typeof setDe
   }
 }
 
+export const WHY_MAX = 200
+export const setCardWhyInput = z.strictObject({
+  deck_id: deckId,
+  reason,
+  slot_id: z.number().int().positive().describe('The slotId of the card in get_deck.'),
+  name: z.string().trim().min(1).max(200).describe('The card name in that slot (checked so the wrong card is never touched).'),
+  why: z
+    .string()
+    .trim()
+    .min(1)
+    .max(WHY_MAX)
+    .refine((v) => !/[\r\n]/.test(v), { message: 'The Why is one line: no line breaks. Nothing was changed.' })
+    .describe(`One plain line, at most ${WHY_MAX} characters, saying why this card is in this deck (not what the card does in general: that is its Tags).`),
+})
+/** Does deck_cards have the Why column yet? False until the owner applies the stored-data update. */
+async function whyReady(ctx: EditContext): Promise<boolean> {
+  const r = await ctx.db.select('deck_cards', 'why_here').eq('user_id', ctx.userId).limit(1)
+  return !r.error
+}
+export async function setCardWhy(ctx: EditContext, input: z.infer<typeof setCardWhyInput>): Promise<ToolOutput> {
+  if (!(await whyReady(ctx))) {
+    return editError('why_not_ready', 'The Why line cannot be saved yet: Oracle\'s stored data has not been updated for it. Nothing was changed.')
+  }
+  const cur = await ctx.db.select('deck_cards', 'id, card_name, why_here').eq('user_id', ctx.userId).eq('deck_id', input.deck_id).eq('id', input.slot_id).limit(1)
+  if (cur.error) return editError('rpc_failed', 'Oracle could not read that card just now. Nothing was changed. Try again.', true)
+  const row = rows<{ id: number; card_name: string; why_here: string | null }>(cur)[0]
+  if (!row) return editError('slot_not_found', editErrorMessage('slot_not_found', {}))
+  if (row.card_name.trim().toLowerCase() !== input.name.trim().toLowerCase()) return editError('wrong_card', editErrorMessage('wrong_card', { card: input.name }))
+  // The database compares again with why_base, so a line the owner changed in between is never written over.
+  const r = await ctx.gateway.setCardWhy({ userId: ctx.userId, connectionId: ctx.connectionId, deckId: input.deck_id, slotId: input.slot_id, why: input.why, whyBase: row.why_here ?? '' })
+  if (!r.ok) return fail(r)
+  if (r.data.outcome === 'no_change' || !r.data.group_id) return { ok: true, status: 'no_change', count: 0, message: 'The Why was already that text. Nothing was changed.' }
+  const note = await recordReason(ctx, r.data.group_id, input.reason)
+  return {
+    ok: true,
+    status: 'applied',
+    group_id: r.data.group_id,
+    count: r.data.count,
+    filled: r.data.filled ?? false,
+    message: r.data.filled
+      ? 'Done. The Why was empty and is now filled. It shows in the deck\'s History, and the owner or Claude can undo it for 7 days, unless the owner edits the line first.'
+      : 'Done. This replaced a Why that was already there, so it is in the deck\'s History for the owner to see. The owner or Claude can undo it for 7 days, unless the owner edits the line first.',
+    ...(note ? { reason_note: note } : {}),
+  }
+}
 export async function undoChange(ctx: EditContext, input: z.infer<typeof undoInput>): Promise<ToolOutput> {
   const r = await ctx.gateway.undoAsClaude(ctx.userId, ctx.connectionId, input.group_id)
   if (!r.ok) return fail(r)

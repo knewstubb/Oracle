@@ -35,6 +35,8 @@ export function describeGroup(rows: ChangeLogRow[]): GroupSentence {
   const card = first.card_name
   const deck = first.deck_name ?? 'the deck'
   const many = n > 1
+  // card_why is newer than the contract's ChangeKind list (docs/oracle/contracts), so it is compared as text.
+  if ((first.kind as string) === 'card_why') return { summary: `Claude changed the Why on ${card} in ${deck}.`, consequence: null }
   switch (first.kind) {
     case 'deck_add':
       return many
@@ -281,6 +283,10 @@ export function editErrorMessage(code: string, d: Record<string, unknown>): stri
       return 'No change with that id in the owner\'s record. Nothing was changed.'
     case 'pending_not_found':
       return 'No request with that id from this connection.'
+    case 'bad_why':
+      return 'The Why must be one line of text, 1 to 200 characters, with no line breaks. Nothing was changed.'
+    case 'why_changed':
+      return `The Why on ${card} was changed by the owner after you read it. Read the deck again, then decide. Nothing was changed.`
     case 'category_reserved':
       return `The category ${typeof d.category === 'string' ? `"${d.category}" ` : ''}is reserved${card !== 'that card' ? ` (on ${card})` : ''}. "Maybeboard" is changed with set_card_zone, and "Commander" is only for a commander. Nothing was changed.`
     case 'slot_in_maybeboard':

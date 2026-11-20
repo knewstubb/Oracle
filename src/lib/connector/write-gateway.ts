@@ -3,7 +3,7 @@
 // side); the RPCs are granted to service_role only and re-check ownership of every row they touch.
 import { createAdminClient } from '@/lib/supabase'
 import { lookupByName, lookupByScryfallId } from '@/lib/card-lookup'
-import type { ConnectionRow, ReenableRpcResult, RevokeRpcResult, ChangeAction, ChangeLogRow, DeckCreateResult, DeckSetupResult, Gateway, GatewayResult, MovedSlot, PendingRow, SubmitOutcome, UndoResult } from './write-types'
+import type { ConnectionRow, ReenableRpcResult, RevokeRpcResult, ChangeAction, ChangeLogRow, CardWhyResult, DeckCreateResult, DeckSetupResult, Gateway, GatewayResult, MovedSlot, PendingRow, SubmitOutcome, UndoResult } from './write-types'
 
 type Admin = ReturnType<typeof createAdminClient>
 
@@ -93,6 +93,8 @@ export function createGateway(adminOverride?: Admin): Gateway {
       rpc<DeckCreateResult>(admin(), 'ai_create_deck', { p_user_id: userId, p_connection_id: connectionId, p_name: name, p_format: format, p_commander: commander }),
     setDeckSetup: ({ userId, connectionId, deckId, patch }) =>
       rpc<DeckSetupResult>(admin(), 'ai_set_deck_setup', { p_user_id: userId, p_connection_id: connectionId, p_deck_id: deckId, p_patch: patch }),
+    setCardWhy: ({ userId, connectionId, deckId, slotId, why, whyBase }) =>
+      rpc<CardWhyResult>(admin(), 'ai_set_card_why', { p_user_id: userId, p_connection_id: connectionId, p_deck_id: deckId, p_slot_id: slotId, p_why: why, p_why_base: whyBase }),
     async getPending(userId, connectionId, pendingId) {
       const r = await rpc<{ success: boolean; pending: PendingRow | null }>(admin(), 'ai_get_pending', { p_user_id: userId, p_connection_id: connectionId, p_pending_id: pendingId })
       return r.ok ? { ok: true, data: r.data?.pending ?? null } : r

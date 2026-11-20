@@ -29,6 +29,7 @@ export const CONNECTOR_WRITE_TOOLS = [
   'set_card_category',
   'create_deck',
   'set_deck_setup',
+  'set_card_why',
   'add_card_to_collection',
   'sleeve_free_copy',
   'make_slot_original',

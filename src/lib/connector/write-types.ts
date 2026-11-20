@@ -14,6 +14,8 @@ import type {
 import type { DeckCreateResult, DeckSetupResult } from '../../../docs/oracle/contracts/claude-connector-cc15-deck-create.types'
 
 export type { DeckCreateResult, DeckSetupResult }
+/** Claude writes one deck card's "Why it's here" line. `filled` is true when the line was empty before; `previous` and `current` are the old and new text. */
+export type CardWhyResult = { success: boolean; outcome: 'applied' | 'no_change'; group_id?: string; count: number; filled?: boolean; previous?: string | null; current?: string }
 /** A log row as the contract has it, plus the one-line reason Claude gave (DV-04). Null or missing on older changes and until the stored-data update is applied. */
 export type ChangeLogRow = ContractChangeLogRow & { claude_reason?: string | null }
 export type { ChangeAction, MovedSlot, PendingPreview, PendingReason, PendingStatus, SubmitOutcome, UndoRefusal, UndoResult }
@@ -77,6 +79,8 @@ export interface Gateway {
   createDeck(a: { userId: string; connectionId: string; name: string; format: string; commander: { card_name: string; scryfall_id: string; oracle_id: string; colour_identity: string } | null }): Promise<GatewayResult<DeckCreateResult>>
   /** CC-15, DV-02: commander, target bracket, summary, playgroup and Strategy text (added to, never replaced). `patch` holds only the keys the caller wants changed. */
   setDeckSetup(a: { userId: string; connectionId: string; deckId: number; patch: Record<string, unknown> }): Promise<GatewayResult<DeckSetupResult>>
+  /** Claude sets one deck card's Why (200 characters, one line). Always logged (History, Undo). `whyBase` is the text Claude read; a different text now is refused (why_changed). */
+  setCardWhy(a: { userId: string; connectionId: string; deckId: number; slotId: number; why: string; whyBase: string | null }): Promise<GatewayResult<CardWhyResult>>
   /** DV-04: store the reason for a change made by create deck or set deck setup (the others carry it inside the request). */
   recordReason(a: { userId: string; groupId: string; reason: string }): Promise<GatewayResult<{ success: boolean; stored: boolean }>>
   getPending(userId: string, connectionId: string, pendingId: string): Promise<GatewayResult<PendingRow | null>>

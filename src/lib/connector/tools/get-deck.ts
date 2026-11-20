@@ -4,6 +4,7 @@ import type { CardFacts } from '../../../../docs/oracle/contracts/connector-card
 import { DECK_CARDS_PAGE_MAX, fitRows, cutText } from '../limits'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { oracleIdsByPrinting, tagFields, tagNamesByOracleId, TAG_CODE_BY_NAME, TAG_NAME_BY_CODE } from './card-tags-tool'
+import { fetchPrintingFacts, printingFactFields, type PrintingFactFields } from './card-printing-facts'
 import { loadStrategyBrackets } from './bracket'
 import { loadDeckHealthView, loadDeckStrategy, type HealthLoader } from './deck-strategy-read'
 import { DECK_COLUMNS, deckStatusAndSleeved, toDeckSummary, type DeckRow } from './list-decks'
@@ -43,8 +44,24 @@ export function slimFacts(f: CardFacts): DeckRowFacts {
 }
 
 /** One card in a get_deck answer. `isCommander` is present only when true; `tags` holds short codes and is left out when the card has none. */
-type DeckItem = Omit<DeckCardView, 'isCommander'> & { facts: DeckRowFacts; isCommander?: true; tags?: string[]; tags_unavailable?: true }
+type DeckItem = Omit<DeckCardView, 'isCommander'> & { facts: DeckRowFacts; isCommander?: true; tags?: string[]; tags_unavailable?: true; why?: string } & PrintingFactFields
 
+/**
+ * The owner's "Why it's here" line for the cards on this page. The column is added by a separate approved change, so until it
+ * exists (or if the read fails) this returns an empty map and the answer simply has no `why` fields.
+ */
+async function loadWhy(ctx: ToolContext, deckId: number, slotIds: number[]): Promise<Map<number, string>> {
+  const out = new Map<number, string>()
+  if (slotIds.length === 0) return out
+  try {
+    const r = await ctx.db.select('deck_cards', 'id, why_here').eq('user_id', ctx.userId).eq('deck_id', deckId).in('id', slotIds)
+    if (r.error) return out
+    for (const row of rows<{ id: number; why_here: string | null }>(r)) if (row.why_here) out.set(row.id, row.why_here)
+  } catch {
+    /* Why is optional context: never fail the deck read for it */
+  }
+  return out
+}
 export function parseCategories(raw: string | null): string[] {
   if (!raw) return []
   try {
@@ -97,6 +114,9 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
     const oracleByPrinting = await oracleIdsByPrinting(ctx, page.map(printingOf).filter((x): x is string => !!x))
     const oracleIds = oracleByPrinting ? [...new Set(oracleByPrinting.values())] : []
     const tagsById = oracleByPrinting ? await tagNamesByOracleId(ctx, oracleIds) : null
+    // Rarity of the printing in use, and Pauper legality by any printing, in two batched reads for the page.
+    const printingFacts = await fetchPrintingFacts(ctx, page.map(printingOf).filter((x): x is string => !!x))
+    const whyBySlot = await loadWhy(ctx, input.deck_id, page.map((r) => r.id))
     const items: DeckItem[] = page.map((r) => {
       const copy = r.copy_id != null ? copyById.get(r.copy_id) : undefined
       const tf = tagFields(tagsById, oracleByPrinting?.get(printingOf(r) ?? ''))
@@ -112,6 +132,8 @@ export async function getDeck(ctx: ToolContext, input: z.infer<typeof getDeckInp
         sleeved: r.copy_id != null,
         printingId: copy?.printing_id ?? r.scryfall_id,
         finish: copy?.finish ?? r.requested_finish,
+        ...printingFactFields(printingFacts, printingOf(r)),
+        ...(whyBySlot.has(r.id) ? { why: whyBySlot.get(r.id) } : {}),
         ...(tf.tags_unavailable ? { tags_unavailable: true as const } : codes.length ? { tags: codes } : {}),
       }
     })

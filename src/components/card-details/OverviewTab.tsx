@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useId, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Plus, X } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
@@ -12,6 +13,7 @@ import type { CardDetails } from '@/lib/card-details/load'
 import type { DeckCard } from '@/components/CardGrid'
 import { SELECT, TAB_BODY } from './shared'
 import { OverviewFacts } from './OverviewFacts'
+import { deckOverviewOptions } from './useCardDetailsData'
 
 const UNDO_WINDOW_MS = 10_000
 /** Names that mean something else in a deck (not ordinary categories). */
@@ -215,6 +217,7 @@ function InThisDeck({ deckId, card, data, availableCategories, onSaveCategories,
 function WhyField({ deckId, cardId, initial }: { deckId: number; cardId: number; initial: string }) {
   const uid = useId()
   const online = useOnlineStatus()
+  const queryClient = useQueryClient()
   const auto = useAutosave<{ why: string }>({
     initial: { why: initial },
     online,
@@ -228,6 +231,8 @@ function WhyField({ deckId, cardId, initial }: { deckId: number; cardId: number;
           body: JSON.stringify({ why: text === '' ? null : text }),
         })
         if (!res.ok) return { ok: false, error: "Couldn't save. Your text is still here." }
+        // Keep the window's cached Overview in step, so closing and reopening the card shows the saved text.
+        queryClient.setQueryData(deckOverviewOptions(deckId, cardId).queryKey, (old) => (old ? { ...old, why: text === '' ? null : text } : old))
         return { ok: true }
       } catch {
         return { ok: false, error: "Couldn't save. Your text is still here." }

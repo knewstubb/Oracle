@@ -88,6 +88,7 @@ beforeEach(() => {
     fetchLog.push({ url: String(url), method, body })
     const u = String(url)
     if (u.includes('/details')) return detailsFails ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => detailsPart(u) }
+    if (u.endsWith('/why') && method === 'PUT' && !failWhy) details.why = (body as { why: string | null }).why
     if (u.endsWith('/why')) return failWhy ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({ ok: true }) }
     if (method === 'PATCH') return failPatch ? { ok: false, status: 500, json: async () => ({}) } : { ok: true, status: 200, json: async () => ({}) }
     if (u.includes('/move-here')) return { ok: true, status: 200, json: async () => ({ sourceDeckId: 9, sourceDeckName: 'Auntie Ool', sourceWasPlayable: true, undo: {} }) }
@@ -314,6 +315,19 @@ describe('card details modal (deck context)', () => {
       await waitFor(() => expect(within(win).getByText(/Saved at/)).toBeInTheDocument())
       const put = fetchLog.filter((f) => f.url.endsWith('/why') && f.method === 'PUT')
       expect(put[put.length - 1].body).toEqual({ why: 'Fast mana' })
+    })
+    it('shows the saved Why when the window is closed and opened again', async () => {
+      const user = userEvent.setup()
+      details.whyAvailable = true
+      details.why = null
+      renderHarness()
+      let win = await openWindow()
+      await user.type(within(win).getByRole('textbox', { name: /Why it's here/ }), 'Fast mana')
+      await user.click(within(win).getByRole('button', { name: 'Close card details' }))
+      await waitFor(() => expect(screen.queryByTestId('card-details')).not.toBeInTheDocument())
+      await waitFor(() => expect(fetchLog.some((f) => f.url.endsWith('/why') && f.method === 'PUT')).toBe(true), { timeout: 4000 })
+      win = await openWindow()
+      await waitFor(() => expect(within(win).getByRole('textbox', { name: /Why it's here/ })).toHaveValue('Fast mana'))
     })
     it('links to the Copies tab when the slot is Planned', async () => {
       const user = userEvent.setup()

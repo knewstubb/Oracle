@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 import { fakeClient, type FakeCall, type FakeResult } from '@/lib/card-details/fake-client'
 import { resetWhyColumnCache } from '@/lib/card-details/why-column'
+import { clearCardTagCaches } from '@/lib/card-tags-read'
 
 let handler: (c: FakeCall) => FakeResult
 vi.mock('@/lib/supabase', () => ({ createAdminClient: () => fakeClient((c) => handler(c)) }))
@@ -33,7 +34,7 @@ function happy(opts: { whyColumn: boolean; deckOwner?: boolean } = { whyColumn: 
       case 'ref_cards':
         return ok([{ name: 'Elvish Archdruid', oracle_text: 'Lord', type_line: 'Creature', mana_cost: '{1}{G}{G}', mana_value: 3, color_identity: 'G', power: '2', toughness: '2' }])
       case 'ref_card_tags':
-        return ok([{ tag_key: 'ramp' }])
+        return ok([{ oracle_id: 'o1', tag_key: 'ramp' }])
       case 'ref_tag_list':
         return ok([{ key: 'ramp', display_name: 'Ramp', kind: 'broad', display_order: 3 }])
       case 'user_cards':
@@ -50,7 +51,10 @@ function happy(opts: { whyColumn: boolean; deckOwner?: boolean } = { whyColumn: 
 }
 
 describe('GET /api/decks/[id]/cards/[cardId]/details', () => {
-  beforeEach(() => resetWhyColumnCache())
+  beforeEach(() => {
+    resetWhyColumnCache()
+    clearCardTagCaches()
+  })
 
   it('returns facts, tags, printings, copies, rulings and the Why line', async () => {
     handler = happy({ whyColumn: true })

@@ -30,7 +30,7 @@ export function fakeClient(resolve: (call: FakeCall) => FakeResult, log: FakeCal
       call.values = v
     })
     for (const f of ['eq', 'in', 'ilike', 'is']) chain(f, (col, val) => call.filters.push([f, col as string, val]))
-    for (const f of ['order', 'limit']) chain(f)
+    for (const f of ['order', 'limit', 'range']) chain(f)
     b.maybeSingle = () => {
       const r = run()
       const d = Array.isArray(r.data) ? (r.data[0] ?? null) : r.data

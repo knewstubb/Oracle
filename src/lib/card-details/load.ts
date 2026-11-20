@@ -7,11 +7,16 @@ import { computeDeckReadiness } from '@/lib/deck-readiness'
 import { isCountableCard } from '@/lib/deck-list-data'
 import { deckTargetFor } from '@/lib/format-config'
 import type { MoveHereDeckState } from '@/lib/move-here'
-import { getTagsForOracleId, type TagChip } from './card-tags-read'
+import { getCardTags, supabaseTagReader } from '@/lib/card-tags-read'
 import { shapePrintings, ownedKey, type PrintingFinishRow, type PrintingRow } from './printings'
 import { shapeCopies, type CopyRow, type CopyView, type DeckInfo } from './copies'
 import { whyColumnAvailable } from './why-column'
 
+export interface TagChip {
+  key: string
+  displayName: string
+  kind: 'broad' | 'mechanic'
+}
 export interface CardFacts {
   name: string
   oracleText: string | null
@@ -150,7 +155,9 @@ export async function loadCardDetails(supabase: Client, userId: string, deckId: 
   let commanderLegality: string | null = null
 
   if (oracleId) {
-    tags = await getTagsForOracleId(supabase, oracleId)
+    const tagRead = await getCardTags(supabaseTagReader(supabase), [oracleId])
+    if (tagRead.status === 'error') fail('tags lookup', { message: 'tag read failed' })
+    tags = (tagRead.byOracleId.get(oracleId) ?? []).map((t) => ({ key: t.key, displayName: t.name, kind: t.kind }))
 
     const { data: printingRows, error: pErr } = await supabase
       .from('ref_printings')

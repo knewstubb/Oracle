@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. The owner applies it (SQL editor), after reading the report. Needs owner approval.
+-- APPLIED to live 2026-11-20 by the owner.
 -- Task: card tags, Why and rarity for Claude. Claude writes the one-line "Why it's here" on a deck card. Author: Developer, 2026-11-20.
 -- Report: docs/oracle/reports/2026-11-20-developer-card-tags-why-rarity.md
 -- Rehearsal: docs/oracle/reports/evidence/roles-db/test_card_why.sh (throwaway local Postgres; never the hosted project).

@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. The owner applies it (SQL editor), after reading the report. Needs owner approval (D3, 2026-11-20).
+-- APPLIED to live 2026-11-20 by the owner.
 -- Task: card details modal, slice 1 ("Why it's here" line on a deck card). Author: Developer, 2026-11-20.
 -- Report: docs/oracle/reports/2026-11-20-developer-card-details-modal-slice-1.md
 -- Rehearsal: docs/oracle/reports/evidence/roles-db/test_why.sh and test_chain.sh (throwaway local Postgres; never the hosted project).

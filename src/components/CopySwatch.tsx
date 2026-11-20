@@ -22,7 +22,7 @@ export function hatchBackground(color: string): string {
 const LABELS: Record<CopySwatchKind, string> = {
   original: 'Original',
   proxy: 'Proxy',
-  other_deck: 'In another deck',
+  other_deck: 'In other decks',
   open: 'Open',
   basics: 'Basics',
   unowned: 'Unowned',

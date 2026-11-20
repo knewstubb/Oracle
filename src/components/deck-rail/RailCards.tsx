@@ -6,6 +6,7 @@ import { cardStatusesQueryOptions } from '@/lib/deck-card-statuses-query'
 import { cardCountView } from '@/lib/deck-rail-stats'
 import { formatPrice } from '@/lib/collection-printing-utils'
 import { FOCUS_RING } from '@/components/deck-strategy/focus'
+import { hatchBackground } from '@/components/CopySwatch'
 
 interface StatusCounts {
   original: number
@@ -69,7 +70,7 @@ export function RailCards({ deckId, totalCards, deckSize, hasCompanion, totalVal
           {over > 0 && (
             <div
               className="h-full flex-1"
-              style={{ background: 'repeating-linear-gradient(45deg, var(--signal-warning) 0 3px, transparent 3px 6px)' }}
+              style={{ background: hatchBackground('var(--signal-warning)') }}
             />
           )}
         </div>

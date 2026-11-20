@@ -42,6 +42,8 @@ export interface CardDetails {
   printings: PrintingFinishRow[]
   copies: CopyView[]
   rulings: Ruling[]
+  /** ref_printings.legality_commander of the card (same on every printing), or null when unknown. */
+  commanderLegality: string | null
   whyAvailable: boolean
   why: string | null
 }
@@ -145,13 +147,14 @@ export async function loadCardDetails(supabase: Client, userId: string, deckId: 
   let printings: PrintingFinishRow[] = []
   let copies: CopyView[] = []
   let rulings: Ruling[] = []
+  let commanderLegality: string | null = null
 
   if (oracleId) {
     tags = await getTagsForOracleId(supabase, oracleId)
 
     const { data: printingRows, error: pErr } = await supabase
       .from('ref_printings')
-      .select('scryfall_id, set_code, set_name, collector_number, rarity, finishes, price_usd, price_usd_foil, released_at, image_uri_small, image_uri_normal')
+      .select('scryfall_id, set_code, set_name, collector_number, rarity, finishes, price_usd, price_usd_foil, released_at, image_uri_small, image_uri_normal, legality_commander')
       .eq('oracle_id', oracleId)
     if (pErr) fail('printings lookup', pErr)
 
@@ -185,6 +188,7 @@ export async function loadCardDetails(supabase: Client, userId: string, deckId: 
       owned.set(k, (owned.get(k) ?? 0) + 1)
     }
     const printingRowsTyped = (printingRows ?? []) as PrintingRow[]
+    commanderLegality = ((printingRows ?? []) as Array<{ legality_commander?: string | null }>).find((p) => p.legality_commander)?.legality_commander ?? null
     printings = shapePrintings(printingRowsTyped, { owned, slotScryfallId: slot.scryfall_id ?? null })
 
     const printingLookup = new Map(printingRowsTyped.map((p) => [p.scryfall_id, { setCode: p.set_code, collectorNumber: p.collector_number }]))
@@ -213,6 +217,7 @@ export async function loadCardDetails(supabase: Client, userId: string, deckId: 
     printings,
     copies,
     rulings,
+    commanderLegality,
     whyAvailable,
     why: whyAvailable ? ((slot as { why_here?: string | null }).why_here ?? null) : null,
   }

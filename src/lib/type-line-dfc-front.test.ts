@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { hasCardType, parseTypeLine, primaryType } from './type-line'
+import { allCardTypes, hasCardType, parseTypeLine, primaryType } from './type-line'
 import { countDeckTypes } from './deck-health'
 import { classifyCard } from './rating-engine'
-import { cardWindowTypes } from './card-window-roles'
 
 // Owner rule 2026-11-18: double-faced cards use the FRONT face type line; Land still comes first.
 const CASES: Array<[string, string]> = [
@@ -45,7 +44,7 @@ describe('double-faced cards group by the front face', () => {
     expect(classifyCard({ ...card, typeLine: 'Instant // Land' } as never)).toContain('counterspell')
   })
 
-  it('card window still lists the types of both faces', () => {
-    expect(cardWindowTypes('Legendary Artifact // Legendary Artifact Land').cardTypes).toEqual(['Artifact', 'Land'])
+  it('the card-type list still includes the types of both faces', () => {
+    expect(allCardTypes(parseTypeLine('Legendary Artifact // Legendary Artifact Land'))).toEqual(['Artifact', 'Land'])
   })
 })

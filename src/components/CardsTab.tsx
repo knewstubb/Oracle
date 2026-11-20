@@ -24,7 +24,7 @@ import { isBasicLand, isGenericSlot, isGenericSleeved, getBasicLandDefaultScryfa
 import { AddCardSearch } from '@/components/AddCardSearch'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { CardGroupSection } from '@/components/CardGroupSection'
-import { CardWindowProvider } from '@/components/CardWindow'
+import { CardDetailsProvider } from '@/components/card-details/CardDetailsProvider'
 import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { isCompanion } from '@/lib/command-zone'
 import { CommandZoneSlots } from '@/components/CommandZoneSlots'
@@ -619,7 +619,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
   // ── Render ───────────────────────────────────────────────────────────────────
 
   return (
-    <CardWindowProvider
+    <CardDetailsProvider
       deckId={deckId}
       cards={cards}
       statusMap={statusMap}
@@ -915,7 +915,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
         </div>
       </div>
     </div>
-    </CardWindowProvider>
+    </CardDetailsProvider>
   )
 }
 

@@ -1,35 +1,65 @@
 # Report: card-details-modal-slice-1
 Role: Developer
-Status: PARTIAL
+Status: DONE
 Task as received: Card details modal slice 1 (shared shell plus deck context, plus the GATE 2 draft for "Why it's here"). Report started in FEAT-001; later FEATs fill the remaining sections.
 
 ## Summary for the owner
-(To be completed at the end of the slice.)
+The card details window on the deck's Cards tab is now the new design: a left rail with the card picture, status and three facts, and four tabs (Overview, Printings, Copies, Rulings). It is 1080 by 600 on a desktop with each tab scrolling on its own, and a full-screen sheet on a phone. The old Roles section is gone from the window. Deck health numbers are untouched. You need to approve the "Why it's here" line (below) before it appears in the window.
 
-Draft for approval so far: one optional 200-character "Why it's here" line per deck card. It adds one empty column, touches no existing data, and is undone with the rollback file (refused while any Why text exists). Nothing has been applied.
+**Why it's here, for approval.** It adds one optional line of up to 200 characters to each card in a deck. It touches no existing data and is undone with the rollback file, which refuses while any Why text exists. Nothing has been applied; until you approve and it is applied, the Why box stays hidden.
 
 ## Changed files
-- supabase/drafts/20261120110000_why_here_deck_cards.draft.sql — adds deck_cards.why_here (nullable, 200-character cap); not applied
-- supabase/drafts/20261120110000_why_here_deck_cards.rollback.sql — undo; refuses while any Why text exists
-- docs/oracle/reports/evidence/roles-db/test_why.sh, test_why.out — throwaway-database rehearsal (20 PASS, 0 FAIL)
-- docs/oracle/reports/evidence/roles-db/test_chain.sh, test_chain.out — why draft applied last, rolled back first (19 PASS, 0 FAIL)
-- docs/oracle/reports/evidence/roles-db/README.md — rows for the new test
+- supabase/drafts/20261120110000_why_here_deck_cards.{draft,rollback}.sql — Why column draft and undo; not applied
+- docs/oracle/reports/evidence/roles-db/test_why.sh, test_chain.sh (+ .out, README) — throwaway-database rehearsal (20 and 19 PASS, 0 FAIL)
+- src/lib/card-details/* , src/app/api/decks/[id]/cards/[cardId]/{details,why}/route.ts, PATCH `slotOnly` guard — server layer (FEAT-002); load.ts now also returns the card's Commander legality
+- src/components/CopySwatch.tsx — shared swatch (solid Original, hatched Proxy, grey in another deck, hollow Open) and the hatch
+- src/components/deck-rail/RailCards.tsx — now imports the hatch from CopySwatch; looks the same
+- src/components/card-details/* — modal shell, provider, Overview, Printings, Copies, Rulings, tests
+- src/components/CardsTab.tsx, CardGroupSection.tsx — use the new provider and hook
+- src/lib/type-line-dfc-front.test.ts — one assertion now uses the shared type-line parser (it imported a deleted helper)
+- docs/oracle/reports/evidence/card-details-modal/ — screenshots, capture.mjs, harness page
+
+## Removed vs kept
+- Removed: CardWindow.tsx and its test; card-window-roles(.test).ts; card-window-stored-roles(.test, -server).ts; the roles route (route and test) under api/decks/[id]/cards/[cardId]/roles. The only other importer found was type-line-dfc-front.test.ts (fixed).
+- Kept: card-roles.ts, deck-health.ts, the roles database tables, drafts and RPC wrappers, in-app chat code. Deck health still reads the text classifier.
+
+## Flags for the owner
+- Words: all owner-visible words are in src/lib/card-details/labels.ts (Planned, In deck, Open, Original, Proxy, Claimed, Sleeve here, Move here). "Not sleeved" became Planned; "Free" became Open; "Sleeved · Playable deck" became "In {deck} · Playable".
+- "Swap in" is not built. The vocabulary has no "swap" and there is no existing route that replaces the copy in a filled slot (assign refuses a filled slot). An Open copy on a filled slot shows "Open · replaces the copy now in this slot" with no button. A new atomic route would be needed; say if you want it.
+- Move here: when the source deck is Playable, the first click shows an inline note with Confirm and Cancel; other sources move on one click (small change from spec section 19).
+- Printing radios are disabled with a note when the slot has a copy; the details route and the modal's PATCH (`slotOnly`) refuse a printing change on a sleeved slot.
+- Tags heading is "Tags" and read-only; owner add/remove tags is not built (decision D1). "No Tags for this card yet." shows when none.
+- Rulings come from ref_rulings (77,961 rows, seeded once, no refresh job): new rulings will be missing until a refresh job exists.
+- Hatch moved into CopySwatch; the grey swatch uses --status-partial (the existing token --status-owned is too dark for 3:1).
+- Save line reads "Saved at HH:MM" (the shared SaveStatus), not just "Saved".
+- Edge: the first category list is always visible; "Also in" allows 4 chips (5 total).
+
+## Notes for later
+- Tags read path: src/lib/card-details/card-tags-read.ts is local. After card-tags-display merges, switch to the shared read path.
+- "Add to buying list" is hidden for slice 3 (explore).
+- Claude writing Why later should go through the change log with a reason.
+- Rail "EDHREC decks" row is explore only.
 
 ## New decisions made (need owner confirmation)
 - 200 characters for the Why line (spec's example).
-(More to be added by later FEATs.)
+- Swap in left out (above); Move here two-step for Playable sources; no ruling refresh job; hatch moved.
 
 ## Assumptions
-- The throwaway base has no row security on deck_cards, so test_why.sh adds the live policy as a stand-in (own-row policy, no anon access, as in migration 20261116100000) before taking its baseline.
+- The throwaway base has no row security on deck_cards, so test_why.sh adds the live policy as a stand-in before taking its baseline.
+- The saved Playwright session belongs to the test user (no decks), so the browser check used a temporary page with fixture answers (see Verification).
 
 ## Challenges to locked decisions
-- none so far
+- none
 
 ## Open questions
-- none so far
+- Approve the Why draft? Want "Swap in" built as a new route?
 
 ## Verification
-- `./run.sh test_why`, `test_chain`, `test_db1` to `test_db5`, `test_s3`, `test_s4`, `test_s5`, `test_tags` in docs/oracle/reports/evidence/roles-db — all 0 FAIL (test_tags: 20 PASS without the optional Part B job inputs; the saved test_tags.out is unchanged)
+- npx vitest run src/components src/lib src/app/api/decks — all pass except ImportIntentFlow "built: checks the collection…" (fails the same without these changes; env-flag test)
+- npm test — 346 files passed; same single ImportIntentFlow failure
+- npm run typecheck — only the 4 known AddToPicklist.test.tsx errors
+- npm run lint — only the known PicklistV2.tsx error
+- Browser: capture.mjs (headless Chromium, 1280 and 390 wide, fixture data in a temporary page, removed afterwards): modal exactly 1080x600 on all four tabs; Printings, Copies and Rulings scroll inside; 390 wide fills the screen; 0 console errors. Real Yedora not opened in the browser: the saved session is the test user. Yedora health numbers (Lands 37, Ramp 18, Card Advantage 6, Targeted Removal 6, Board Wipes 0, Game Plan 34) rest on no change to deck-health code and its passing tests.
 
 ## Contradictions between the spec and the codebase
 

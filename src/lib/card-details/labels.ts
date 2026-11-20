@@ -26,6 +26,14 @@ export const CARD_DETAILS_LABELS = {
   noTags: 'No Tags for this card yet.',
   noRulings: 'No rulings for this card.',
   tagsHeading: 'Tags',
+  // Modal chrome and notes
+  removeFromDeck: 'Remove from deck',
+  printingFollowsCopy: 'This slot has a copy in it, so its printing follows that copy. To use another printing, sleeve a different copy from the Copies tab.',
+  printingFootnote: "Picking a printing you own doesn't sleeve it. Do that from Copies.",
+  slotPlannedNote: 'This slot has no copy yet. Sleeve an Open one, or move one from another deck.',
+  planHint: 'Sleeve a copy in the Copies tab',
+  rulingsFootnote: "Rulings belong to the card, so they're the same in every printing and every view.",
+  moveFootnote: 'Moving a copy out of a Playable deck leaves that slot Planned, so the deck drops to Assembling.',
 } as const
 
 export type CopyState = 'in_this_deck' | 'open' | 'claimed' | 'proxy_elsewhere' | 'missing'

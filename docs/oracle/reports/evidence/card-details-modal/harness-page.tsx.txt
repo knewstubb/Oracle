@@ -1,0 +1,29 @@
+'use client'
+// Temporary page for the browser check (copied to src/app/zz-harness/page.tsx by capture.mjs's README step, then deleted).
+import { CardDetailsProvider, useCardDetails } from '@/components/card-details/CardDetailsProvider'
+import type { DeckCard } from '@/components/CardGrid'
+
+const CARD = {
+  id: 1, deck_id: 4, card_name: 'Elvish Archdruid', quantity: 1, categories: '["Ramp","Lords"]',
+  scryfall_id: '8a2c0dc1-3d3a-4c8a-b2a5-2d5b3d4d6a11', set_code: 'm14', tags: '', is_commander: false,
+} as unknown as DeckCard
+
+function Opener() {
+  const api = useCardDetails()
+  return <button data-testid="card-name-button" onClick={() => api?.open(1, 'Elvish Archdruid')}>Elvish Archdruid</button>
+}
+
+export default function Page() {
+  return (
+    <CardDetailsProvider
+      deckId={4}
+      cards={[CARD]}
+      statusMap={new Map([[1, 'available']])}
+      lifecycleMap={new Map([[1, 'planned']])}
+      availableCategories={['Ramp', 'Lords', 'Draw']}
+      onSaveCategories={async () => {}}
+    >
+      <Opener />
+    </CardDetailsProvider>
+  )
+}

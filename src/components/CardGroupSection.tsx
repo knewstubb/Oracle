@@ -35,7 +35,7 @@ import { CardSlotBadge } from '@/components/CardSlotBadge'
 import { MovedSlotNote, useMovedSlots } from '@/components/connector/MovedSlotNote'
 import { CategoryTagEditor } from '@/components/CategoryTagEditor'
 import { MobileCardPreview } from '@/components/MobileCardPreview'
-import { useCardWindow } from '@/components/CardWindow'
+import { useCardDetails } from '@/components/card-details/CardDetailsProvider'
 import { parseCategoriesCapped, MAX_ADDITIONAL_CATEGORIES } from '@/lib/categoryUtils'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
 import { useIsMobile } from '@/hooks/useIsMobile'
@@ -273,7 +273,7 @@ function UnifiedCardRow({
   const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false)
   const queryClient = useQueryClient()
   const isMobile = useIsMobile()
-  const cardWindow = useCardWindow()
+  const cardWindow = useCardDetails()
   const movedSlot = useMovedSlots(deckId).get(card.id)
 
   const { triggerProps } = useCardHoverPreview({

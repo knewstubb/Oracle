@@ -75,6 +75,7 @@ Each word has one place. Older words for these ideas are retired in new document
 - **Allow-list start: closed.** Agreed: start with the 40 Tags (13 broad plus 27 mechanic).
 - **The two weak Tags (Fixing, Stax / tax): closed.** Agreed, as ordinary Tags with no "incomplete" label. The owner wants an AI pass across all cards to check the Tags and clean up errors (section 9A). This replaces the earlier AI fallback limited to your collection and EDHREC candidates.
 - **Refreshing Scryfall's Tag data: closed.** Agreed: refresh just before the Tags are filled in, as its own approval.
+- **Fill from the current Scryfall copy, no refresh now: closed (owner, 2026-11-20, later the same day).** "Lets just use the current tags and we will do the pass at a later date. Can you update all the cards with the Oracle tags." This replaces the line above: the Tags are filled for every Commander-legal card from the Scryfall copy already on disk (dated 7 August 2026), with no refresh first and no AI pass. The refresh and the AI pass (section 9A) are both deferred to a later date, each still its own approval. About 630 newer cards get no Tags until the refresh.
 
 **Still open:**
 1. **Card with no Tag after Scryfall, the rule and the AI pass.** Recommend: show none, never guess in the app.
@@ -114,5 +115,6 @@ Each word has one place. Older words for these ideas are retired in new document
 
 ## 12. Next gates
 Owner approves brief (including the five AI pass questions). Then, each its own approval: Scryfall Tag refresh; Architect mapping draft for the 40 Tags and update of the pipeline contract; stored-data drafts and throwaway rehearsal; Tag fill; AI test run of about 100 cards; full AI pass with a cost ceiling. Designer (Gate 3), sliced build (order proposed: after the Strategy window), Tester, Scribe.
+**Update 2026-11-20 (owner decision above):** the gates "Scryfall Tag refresh" and "AI test run / full AI pass" are deferred to a later date. The next steps are: approve the stored-data draft (rehearsed on a throwaway copy), apply it, run the Tag fill from the current Scryfall copy for all Commander-legal cards, then Designer Gate 3 for showing Tags.
 
 For Brad (plain words): this proposes 40 read-only Tags on every card (what it does in any deck), an AI check across all cards to find and clean up Tag errors, a Tag filter for you and for Claude, and an optional one-line Why plus a Keep flag on each card in a deck.

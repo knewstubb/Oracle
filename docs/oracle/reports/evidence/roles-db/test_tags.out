@@ -1,0 +1,279 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== the live state: DB-1 to DB-5, CC-25, S3, S4 and S5 applied
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118130000_cc25_trade_locations.draft.sql
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+-- apply 20261119120000_s5_strategy_replace.draft.sql
+== apply the tags draft
+-- apply 20261120100000_tags_fill_tag_tables.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/tags-fill/supabase/drafts/20261120100000_tags_fill_tag_tables.draft.sql:25: ERROR:  tags_fill already applied (ref_tag_list or ref_card_tags exists)
+ chk 
+-----
+ 
+(1 row)
+
+== the earlier drafts still work with the tags draft applied
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== rollback refuses while rows exist, then works with the explicit override, exact restore
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/tags-fill/supabase/drafts/20261120100000_tags_fill_tag_tables.rollback.sql:12: ERROR:  cannot roll back: ref_card_tags holds rows (undo the fill runs first, or set oracle.rollback_allow_data_loss = 'yes' in this session)
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261120100000_tags_fill_tag_tables.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/tags-fill/supabase/drafts/20261120100000_tags_fill_tag_tables.rollback.sql:12: ERROR:  tags_fill is not applied
+== re-apply, fill a few rows, roll back with the override
+-- apply 20261120100000_tags_fill_tag_tables.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+== Part B: the real fill job against this throwaway database
+-- apply 20261120100000_tags_fill_tag_tables.draft.sql
+-- dry run
+◇ injected env (0) from .env.local // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+Target: throwaway Postgres 127.0.0.1:55434
+Scryfall tag copy dated: 2026-08-07
+Rows that would be written: 50473
+
+Tag                                        Kind        Cards  Collection
+Targeted removal                           broad        4873         395
+Card draw                                  broad        4048         439
+Ramp                                       broad        2136         326
+Recursion                                  broad        2130         197
+Card selection                             broad        1614         174
+Protection                                 broad        1261         106
+Tutor                                      broad        1114         153
+Fixing                                     broad        1056         279
+Board wipe                                 broad         904          73
+Hand disruption                            broad         655          24
+Stax / tax                                 broad         643          61
+Counterspell                               broad         520          70
+Graveyard hate                             broad         408          38
+Direct damage or life loss to opponents    mechanic     2573         218
++1/+1 counter maker                        mechanic     2491         278
+Lifegain                                   mechanic     2468         251
+Token generator                            mechanic     1750         210
+Play from exile (impulse)                  mechanic     1674         167
+Anthem / team pump                         mechanic     1599         213
+Death trigger                              mechanic     1533         163
+Mana sink                                  mechanic     1504         124
+Sacrifice outlet                           mechanic     1400         136
+Discard outlet                             mechanic     1242          91
+Counters payoff                            mechanic     1234         141
+Cast trigger                               mechanic     1157         120
+Graveyard payoff                           mechanic     1030          77
+Artifact payoff                            mechanic     1028         110
+Self-mill                                  mechanic      986         123
+Copy / clone                               mechanic      918          69
+Tapper                                     mechanic      652          32
+Steal / gain control                       mechanic      608          30
+Creature-enters payoff                     mechanic      589         103
+Spellslinger payoff                        mechanic      531          56
+Mill opponents                             mechanic      435          26
+Group hug                                  mechanic      399          21
+Free cast / cheat into play                mechanic      371          34
+Cost reducer                               mechanic      297          38
+Landfall                                   mechanic      270          50
+Treasure generator                         mechanic      191          19
+Blink                                      mechanic      181          17
+
+All Commander-legal cards: 32643 cards, 25558 with at least one Tag (78.3%), 7085 with none
+Collection: 2878 cards, 2562 with at least one Tag (89%), 316 with none
+
+Dry run: nothing was written.
+-- real run 1
+
+Run id: f1000000-0000-4000-8000-000000000001
+Rows planned: 50473. New rows written: 50473. Rows in ref_card_tags now: 50473
+To undo this run:  npx tsx scripts/fill-card-tags.ts --undo-run f1000000-0000-4000-8000-000000000001
+-- real run 2 (must change nothing)
+
+Run id: f1000000-0000-4000-8000-000000000002
+Rows planned: 50473. New rows written: 0. Rows in ref_card_tags now: 50473
+To undo this run:  npx tsx scripts/fill-card-tags.ts --undo-run f1000000-0000-4000-8000-000000000002
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+-- undo run 2 (nothing to remove)
+Undo run f1000000-0000-4000-8000-000000000002: removed 0 rows. Rows left in ref_card_tags: 50473
+ chk 
+-----
+ 
+(1 row)
+
+-- undo run 1
+Undo run f1000000-0000-4000-8000-000000000001: removed 50473 rows. Rows left in ref_card_tags: 0
+ chk 
+-----
+ 
+(1 row)
+
+== roll back S5 and every earlier draft in reverse; the database equals the cc15b base
+-- apply 20261120100000_tags_fill_tag_tables.draft.sql
+-- apply 20261120100000_tags_fill_tag_tables.rollback.sql
+-- apply 20261119120000_s5_strategy_replace.rollback.sql
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+-- apply 20261118130000_cc25_trade_locations.rollback.sql
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                                         name                                                                                          | result |                                                                    detail                                                                    
+----+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+----------------------------------------------------------------------------------------------------------------------------------------------
+  1 | G-01 applies: 40 Tags (13 broad, 27 mechanic), display order 1 to 40, no card rows yet                                                                                                | PASS   | 
+  2 | G-02 nothing existing is touched: the data of every earlier feature table is identical (t.snap)                                                                                       | PASS   | 
+  3 | G-03 no existing function (body or grants), constraint or trigger changed: functions and the constraints of every other table are identical to before; the new tables have no trigger | PASS   | 
+  4 | G-04 row security is on (not forced) for both tables; one read policy each, for signed-in users only                                                                                  | PASS   | 
+  5 | G-05 a signed-in user reads all 3 card rows and all 40 Tags, and cannot insert, update or delete either table                                                                         | PASS   | permission denied for table ref_card_tags | permission denied for table ref_card_tags | permission denied for table ref_card_tags | permissi
+  6 | G-06 the anonymous role cannot read either table                                                                                                                                      | PASS   | permission denied for table ref_card_tags | permission denied for table ref_tag_list
+  7 | G-07 the service role holds select, insert, update and delete on both tables (on the real platform it also bypasses row security; this stand-in role does not)                        | PASS   | 
+  8 | G-10 an unknown Tag key is refused                                                                                                                                                    | PASS   | insert or update on table "ref_card_tags" violates foreign key constraint "ref_card_tags_tag_key_fkey"
+  9 | G-11 a source outside scryfall / rule / ai / owner_correction is refused; each of the four is accepted                                                                                | PASS   | 
+ 10 | G-12 the same card, Tag and source twice is refused; the same card and Tag from a different source is a different row (room for a later AI pass)                                      | PASS   | 
+ 11 | G-13 a missing run id or an id that is not a uuid is refused (every row belongs to a run)                                                                                             | PASS   | 
+ 12 | G-14 Tag list rules: key must be snake_case, order unique, at least one Scryfall tag, kind broad or mechanic                                                                          | PASS   | 
+ 13 | G-15 removing one run removes exactly that run's rows                                                                                                                                 | PASS   | 
+ 14 | G-16 a second apply is refused and changes nothing                                                                                                                                    | PASS   | 
+ 15 | G-20 S5 replace works (the earlier chain is unaffected)                                                                                                                               | PASS   | 
+ 16 | G-21 an old kind (add a card, then Claude undoes it) still works                                                                                                                      | PASS   | 
+ 17 | G-30 rollback refuses while ref_card_tags holds rows and removes nothing                                                                                                              | PASS   | 
+ 18 | G-31 rollback with the tables empty: both tables gone and the database equals the live state EXACTLY (fingerprint), earlier data unchanged                                            | PASS   | 48a266e29b2724d995d75d2727d583c1 vs 48a266e29b2724d995d75d2727d583c1
+ 19 | G-32 re-applied after a rollback; the override rollback removes rows and tables; the fingerprint equals the live state again                                                          | PASS   | 
+ 20 | H-01 the dry run wrote nothing: before run 1 the table was empty (run 1 wrote exactly the planned 50473 rows)                                                                         | PASS   | 
+ 21 | H-02 a second run wrote 0 new rows and the table is identical to after run 1 (idempotent)                                                                                             | PASS   | 
+ 22 | H-03 all rows are source scryfall, keyed by a card (oracle_id) that is Commander-legal, and every Tag key is in the Tag list                                                          | PASS   | 
+ 23 | H-04 the banned test card got no Tag                                                                                                                                                  | PASS   | 
+ 24 | H-05 undoing run 2 removed 0 rows (run 1 owns every row)                                                                                                                              | PASS   | 
+ 25 | H-06 undoing run 1 returns the table to empty                                                                                                                                         | PASS   | 
+ 26 | G-40 the tags draft, S5, S4, S3, CC-25 and DB-5 to DB-1 roll back in reverse and the database equals the cc15b base exactly                                                           | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+(26 rows)
+
+ passed | failed 
+--------+--------
+     26 |      0
+(1 row)
+

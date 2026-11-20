@@ -88,7 +88,12 @@ const ALLOWED_FINISHES: string[] = ['nonfoil', 'foil', 'etched']
  * language lives on the copy only.
  *
  * Body: { scryfall_id?: string, set_code?: string,
- *         finish?: 'nonfoil' | 'foil' | 'etched', language?: string }
+ *         finish?: 'nonfoil' | 'foil' | 'etched', language?: string, slotOnly?: boolean }
+ *
+ * slotOnly (opt-in, used by the card details modal): the change is only the slot's intended printing. When the
+ * slot already has a sleeved copy, a printing change is refused (409) and nothing is changed, so changing a
+ * printing never rewrites which physical card is attached. Without slotOnly the old behaviour is unchanged
+ * (the edit-instance dialog in CardGroupSection still mirrors the printing onto the sleeved copy).
  */
 export async function PATCH(
   request: NextRequest,
@@ -151,6 +156,13 @@ export async function PATCH(
   if (typeof finish === 'string') copyUpdate.finish = finish
   if (typeof language === 'string') copyUpdate.language = language.toLowerCase()
   if (typeof body.scryfall_id === 'string') copyUpdate.printing_id = body.scryfall_id
+  const printingChange = 'scryfall_id' in body || 'set_code' in body || finish !== undefined || language !== undefined
+  if (body.slotOnly === true && copyId != null && printingChange) {
+    return Response.json(
+      { error: 'This slot has a copy in it, so its printing follows that copy.', code: 'slot_has_copy' },
+      { status: 409 }
+    )
+  }
   if (language !== undefined && copyId == null) {
     return Response.json(
       { error: 'Language can only be changed once a copy is assigned to this card' },

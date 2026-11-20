@@ -1,0 +1,40 @@
+/**
+ * Every owner-visible word in the card details modal, in one place (plan item 7).
+ * Words follow docs/oracle/specs/vocabulary.md and the allocation terminology convention:
+ * states Planned / In deck / Open / Original / Proxy / Claimed / Unowned; actions Sleeve / Release / Reassign.
+ * To rename a word, change it here only.
+ */
+export const CARD_DETAILS_LABELS = {
+  // Slot state (rail badge)
+  planned: 'Planned',
+  inDeck: 'In deck',
+  // Copy state (Copies tab)
+  open: 'Open',
+  original: 'Original',
+  proxy: 'Proxy',
+  claimed: 'Claimed',
+  unowned: 'Unowned',
+  missing: 'Missing',
+  inThisDeck: 'In this deck',
+  // Actions
+  sleeveHere: 'Sleeve here',
+  moveHere: 'Move here',
+  /** Spec said "Swap in"; the convention has no "swap", so it is Sleeve here with a line under it. */
+  swapIn: 'Sleeve here',
+  swapInNote: 'replaces the copy now in this slot',
+  // Empty and quiet lines
+  noTags: 'No Tags for this card yet.',
+  noRulings: 'No rulings for this card.',
+  tagsHeading: 'Tags',
+} as const
+
+export type CopyState = 'in_this_deck' | 'open' | 'claimed' | 'proxy_elsewhere' | 'missing'
+
+/** "In Auntie Ool · Playable" (spec said "Sleeved · Playable deck"). */
+export function inDeckLabel(deckName: string, deckStateLabel: string | null): string {
+  return deckStateLabel ? `In ${deckName} · ${deckStateLabel}` : `In ${deckName}`
+}
+
+export function deckStateLabel(state: 'brewing' | 'assembling' | 'playable'): string {
+  return state === 'playable' ? 'Playable' : state === 'assembling' ? 'Assembling' : 'Brewing'
+}

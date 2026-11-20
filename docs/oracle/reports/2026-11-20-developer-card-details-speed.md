@@ -94,7 +94,7 @@ None. In the baseline each database call took 200 to 330 ms, almost entirely net
 ## Verification
 - `npx vitest run` (full, three runs) — 1 known failure each run (ImportIntentFlow env flag test). One run also showed 1 unrelated timing flake in each of the arrow-key tab test and the upgrade-engine property test under load; both pass when run alone and in the other runs. Test count: 4,435 passed, 46 skipped.
 - `npx tsc --noEmit` — only the 4 known AddToPicklist errors.
-- `npx eslint src` — 1 error (the known PicklistV2 one), no new warnings in changed files beyond ones already there.
+- `npx eslint src` — 1 error (the known PicklistV2 one), no new errors.
 - New tests: window at once with list data and placeholder (`CardDetails.test.tsx`); placeholder in a tab while its section is pending, counts after; each part asked for once however many tabs are visited; hover then click reads the Overview once; failed section stays in its own tab (`CardDetails.test.tsx`); collection window at once, rulings after the main part, once (`CollectionCardDetails.test.tsx`); one read per table, one copies query, server cache, part answers and 404/400/500 (route and load tests).
 - Live-data check (read-only GETs, signed in): old code on :3000 against new code on :3100, both contexts, identical content.
 - Measurements: production build (`npx next build`, about 17 s) on :3100, dev on :3200. Both servers stopped. The owner's dev server on :3000 from the main checkout was not touched and still answers. The sign-in cookie file used by the kit was deleted. No writes: the scripts only sign in, click a card name, press Escape and make GET requests.

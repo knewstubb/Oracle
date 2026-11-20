@@ -60,10 +60,10 @@
 (1 row)
 
 == rollbacks out of order must refuse
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
-psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strategy-window/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261118120000_roles_db1_card_roles.rollback.sql:18: ERROR:  roll back roles_db2 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261118120100_roles_db2_change_kinds.rollback.sql:17: ERROR:  roll back roles_db5, roles_db4 and roles_db3 first
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261118120200_roles_db3_deck_card_jobs.rollback.sql:19: ERROR:  roll back roles_db6 first (job links need jobs)
+psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261118120400_roles_db5_health_targets.rollback.sql:19: ERROR:  roll back roles_db6 first (its front doors sit on top of DB-5's)
  chk 
 -----
  
@@ -152,6 +152,26 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strat
  
 (1 row)
 
+== the why-here draft (20261120110000) on top of all six: applied last, rolled back first, then everything applied again
+-- apply 20261120110000_why_here_deck_cards.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+== why-here rolled back first (DB-6 to DB-1 stay applied); then DB-1 to DB-6 cannot be rolled back before it
+ chk 
+-----
+ 
+(1 row)
+
+== every draft applied again after that: all six, then why-here
+-- apply 20261120110000_why_here_deck_cards.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
 
 ######## RESULTS ########
  n  |                                                                            name                                                                            | result |                                                                    detail                                                                    
@@ -172,10 +192,13 @@ psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/slice-1-strat
  14 | C-24 applied as 1, 2, 4, 3, 5, 6: an items request works too                                                                                               | PASS   | 
  15 | C-21 rolled back as 6, 5, 3, 4, 2, 1: the fingerprint again equals the one before DB-1                                                                     | PASS   | 
  16 | C-22 re-applied after a full rollback: a role+job request applies                                                                                          | PASS   | 
-(16 rows)
+ 17 | C-30 why-here applied last on top of all six: a why saves, 201 characters is refused, and a role+job request still applies                                 | PASS   | 
+ 18 | C-31 why-here rolled back first: the column is gone and the database equals the state with all six applied, exactly                                        | PASS   | b9aa44397e12773295dc910a85777f5b vs b9aa44397e12773295dc910a85777f5b
+ 19 | C-32 why-here applies again after a rollback, with all six in place                                                                                        | PASS   | 
+(19 rows)
 
  passed | failed 
 --------+--------
-     16 |      0
+     19 |      0
 (1 row)
 

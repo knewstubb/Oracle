@@ -1,0 +1,178 @@
+== cluster: PostgreSQL 17.12 (Homebrew) on aarch64-apple-darwin25.6.0, compiled by Apple clang version 21.0.0 (clang-2100.4.1.1), 64-bit port 55434 (throwaway, deleted at end)
+-- apply 00_base.sql
+-- apply 20261116130000_connector_connections.sql
+-- apply 20261116150000_ai_change_log_and_pending.sql
+-- apply 20261116150100_ai_connector_edit_rpcs.sql
+-- apply 20261116150200_ai_undo_blocker_make_original_fix.sql
+-- apply 20261116150300_ai_list_recent_changes_zone_to.sql
+-- apply 20261116190000_ai_deck_category.sql
+-- apply 20261117100000_cc13_loosen_limits.sql
+-- apply 20261023170100_set_deck_command_zone.sql
+-- apply 20261117120000_ai_change_log_allow_deck_delete.sql
+-- apply 20261117200000_cc15a_new_change_kinds.sql
+-- apply 20261117200100_cc15b_deck_create_setup.sql
+-- apply 01_seed.sql
+== the live state: DB-1 to DB-5, CC-25, S3, S4, S5 and the tags draft applied
+-- apply 20261118120000_roles_db1_card_roles.draft.sql
+-- apply 20261118120100_roles_db2_change_kinds.draft.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.draft.sql
+-- apply 20261118120300_roles_db4_strategy_points.draft.sql
+-- apply 20261118120400_roles_db5_health_targets.draft.sql
+-- apply 20261118130000_cc25_trade_locations.draft.sql
+-- apply 20261119100000_s3_strategy_window_fields.draft.sql
+-- apply 20261119110000_s4_claude_change_reason.draft.sql
+-- apply 20261119120000_s5_strategy_replace.draft.sql
+-- apply 20261120100000_tags_fill_tag_tables.draft.sql
+== apply the why draft
+-- apply 20261120110000_why_here_deck_cards.draft.sql
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261120110000_why_here_deck_cards.draft.sql:19: ERROR:  why_here already applied (deck_cards.why_here exists)
+ chk 
+-----
+ 
+(1 row)
+
+== the earlier drafts still work with the why draft applied
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+ chk 
+-----
+ 
+(1 row)
+
+== rollback refuses while a why exists, then works after clearing, exact restore
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261120110000_why_here_deck_cards.rollback.sql:14: ERROR:  cannot roll back: a deck card has a why_here text (clear them first, or set oracle.rollback_allow_data_loss = 'yes' in this session)
+ chk 
+-----
+ 
+(1 row)
+
+-- apply 20261120110000_why_here_deck_cards.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261120110000_why_here_deck_cards.rollback.sql:14: ERROR:  why_here is not applied
+== re-apply, write a why, roll back with the override
+-- apply 20261120110000_why_here_deck_cards.draft.sql
+   (expected) psql:/Users/bradknewstubb/Developer/Personal/oracle_app/.worktrees/card-details-modal/supabase/drafts/20261120110000_why_here_deck_cards.rollback.sql:14: ERROR:  cannot roll back: a deck card has a why_here text (clear them first, or set oracle.rollback_allow_data_loss = 'yes' in this session)
+ chk 
+-----
+ 
+(1 row)
+
+== roll back the tags draft, S5 and every earlier draft in reverse; the database equals the cc15b base
+-- apply 20261120110000_why_here_deck_cards.draft.sql
+-- apply 20261120110000_why_here_deck_cards.rollback.sql
+-- apply 20261120100000_tags_fill_tag_tables.rollback.sql
+-- apply 20261119120000_s5_strategy_replace.rollback.sql
+-- apply 20261119100000_s3_strategy_window_fields.rollback.sql
+-- apply 20261118130000_cc25_trade_locations.rollback.sql
+-- apply 20261118120400_roles_db5_health_targets.rollback.sql
+-- apply 20261118120300_roles_db4_strategy_points.rollback.sql
+-- apply 20261118120200_roles_db3_deck_card_jobs.rollback.sql
+-- apply 20261118120100_roles_db2_change_kinds.rollback.sql
+ chk 
+-----
+ 
+(1 row)
+
+
+######## RESULTS ########
+ n  |                                                                                                name                                                                                                | result |                                                          detail                                                          
+----+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------+--------+--------------------------------------------------------------------------------------------------------------------------
+  1 | W-01 applies: deck_cards.why_here exists, type text, nullable, no default                                                                                                                          | PASS   | 
+  2 | W-02 no existing row changed: the row count and the data of every other column are identical, and every row has why_here NULL                                                                      | PASS   | 
+  3 | W-03 no function (body or grants), no policy, no row-security setting and no table grant changed; the only new constraint is the 200-character one                                                 | PASS   | 
+  4 | W-04 the new column is not in any other table                                                                                                                                                      | PASS   | 
+  5 | W-10 exactly 200 characters is accepted, also 1 character, an empty string and NULL                                                                                                                | PASS   | 
+  6 | W-11 201 characters is refused, on update and on insert                                                                                                                                            | PASS   | 
+  7 | W-12 200 characters counts characters, not bytes (200 two-byte characters are accepted, 201 refused)                                                                                               | PASS   | 
+  8 | W-13 a new card added without a why gets NULL                                                                                                                                                      | PASS   | 
+  9 | W-20 a second signed-in user sees only their own why (1 row), none of the first user's cards, updates 0 of the first user's rows, can update their own, and cannot insert a row for the first user | PASS   | 1 | 0 | 0 | 1 | new row violates row-level security policy for table "deck_cards"
+ 10 | W-21 the first user's why was not changed by the second user                                                                                                                                       | PASS   | 
+ 11 | W-22 the anonymous role can neither read nor write the column                                                                                                                                      | PASS   | permission denied for table deck_cards | permission denied for table deck_cards | permission denied for table deck_cards
+ 12 | W-23 the service role (the app's route) can read and write the column                                                                                                                              | PASS   | 
+ 13 | W-24 a second apply is refused and changes nothing                                                                                                                                                 | PASS   | 
+ 14 | W-30 S5 replace works (the earlier chain is unaffected)                                                                                                                                            | PASS   | 
+ 15 | W-31 an old kind (add a card, then Claude undoes it) still works                                                                                                                                   | PASS   | 
+ 16 | W-32 a card with a why can be removed through the live removal routine (the row goes, nothing else)                                                                                                | PASS   | 
+ 17 | W-40 rollback refuses while a deck card has a why and removes nothing                                                                                                                              | PASS   | 
+ 18 | W-41 rollback with every why cleared: column and constraint gone and the database equals the live state EXACTLY (fingerprint, functions, constraints, policies, row security, grants)              | PASS   | b324c9be6464d9f67ed33b7fa5d322ab vs b324c9be6464d9f67ed33b7fa5d322ab
+ 19 | W-42 re-applied after a rollback; the override rollback removes the column; the fingerprint equals the live state again                                                                            | PASS   | 
+ 20 | W-50 the why draft, tags, S5, S4, S3, CC-25 and DB-5 to DB-1 roll back in reverse and the database equals the cc15b base exactly                                                                   | PASS   | 8797325131d8a83a9c6de0822dc1a46d vs 8797325131d8a83a9c6de0822dc1a46d
+(20 rows)
+
+ passed | failed 
+--------+--------
+     20 |      0
+(1 row)
+

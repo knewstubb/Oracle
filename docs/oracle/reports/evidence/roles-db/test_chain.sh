@@ -59,4 +59,18 @@ for d in 20261118120000_roles_db1_card_roles 20261118120100_roles_db2_change_kin
 $P <<'SQL'
 SELECT t.chk('C-22 re-applied after a full rollback: a role+job request applies', t.sub('card_label', t.lbl(100, t.cd(100,'Card 4', ARRAY['ramp'], NULL, '{"name":"Flex"}')))#>>'{res,outcome}' = 'applied', '');
 SQL
+echo "== the why-here draft (20261120110000) on top of all six: applied last, rolled back first, then everything applied again"
+$P -c "INSERT INTO t.keep VALUES ('fp6', t.fp())"
+f $D/20261120110000_why_here_deck_cards.draft.sql
+$P <<'SQL'
+SELECT t.chk('C-30 why-here applied last on top of all six: a why saves, 201 characters is refused, and a role+job request still applies', t.try($q$UPDATE deck_cards SET why_here = repeat('a', 200) WHERE id = (SELECT min(id) FROM deck_cards)$q$) = 'ok'
+  AND t.try($q$UPDATE deck_cards SET why_here = repeat('a', 201) WHERE id = (SELECT min(id) FROM deck_cards)$q$) LIKE '%deck_cards_why_here_max_200%'
+  AND t.sub('card_label', t.lbl(100, t.cd(100,'Card 5', ARRAY['ramp'], NULL, '{"name":"Last"}')))#>>'{res,outcome}' = 'applied', '');
+SQL
+echo "== why-here rolled back first (DB-6 to DB-1 stay applied); then DB-1 to DB-6 cannot be rolled back before it"
+$P -f $D/20261120110000_why_here_deck_cards.rollback.sql
+$P -c "SELECT t.chk('C-31 why-here rolled back first: the column is gone and the database equals the state with all six applied, exactly', NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'deck_cards' AND column_name = 'why_here') AND t.fp() = (SELECT v FROM t.keep WHERE k = 'fp6'), t.fp() || ' vs ' || (SELECT v FROM t.keep WHERE k = 'fp6'))"
+echo "== every draft applied again after that: all six, then why-here"
+f $D/20261120110000_why_here_deck_cards.draft.sql
+$P -c "SELECT t.chk('C-32 why-here applies again after a rollback, with all six in place', EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'deck_cards' AND column_name = 'why_here'), '')"
 $P -f $HERE/results.sql

@@ -58,10 +58,10 @@ function MessageBubble({ message, variant = 'debrief' }: { message: ChatMessage;
           isUser
             ? isBrew
               ? 'bg-[rgba(55,138,221,0.1)] border-[0.5px] border-[rgba(55,138,221,0.2)] rounded-lg'
-              : 'bg-[rgba(29,158,117,0.12)] border-[0.5px] border-[rgba(29,158,117,0.4)] rounded-lg'
+              : 'bg-[rgba(113,56,204,0.12)] border-[0.5px] border-[rgba(113,56,204,0.4)] rounded-lg'
             : isBrew
               ? 'bg-[rgba(255,255,255,0.06)] border-l-2 border-l-[rgba(55,138,221,0.4)]'
-              : 'bg-[rgba(255,255,255,0.06)] border-l-2 border-l-[rgba(29,158,117,0.4)]'
+              : 'bg-[rgba(255,255,255,0.06)] border-l-2 border-l-[rgba(113,56,204,0.4)]'
         )}
       >
         {renderMessageContent(message.content)}
@@ -76,14 +76,14 @@ function MessageBubble({ message, variant = 'debrief' }: { message: ChatMessage;
 
 function ThinkingIndicator({ variant = 'debrief' }: { variant?: 'debrief' | 'brew' }) {
   const isBrew = variant === 'brew'
-  const dotColor = isBrew ? '#378ADD' : '#1D9E75'
+  const dotColor = isBrew ? '#378ADD' : 'var(--accent-primary)'
 
   return (
     <div className="flex flex-col gap-1 items-start">
       <span className="text-[length:var(--fs-xs)] text-muted-foreground">Oracle</span>
       <div className={cn(
         'inline-flex items-center gap-2 rounded-lg px-3 py-2.5 bg-[rgba(255,255,255,0.06)] border-l-2',
-        isBrew ? 'border-l-[rgba(55,138,221,0.4)]' : 'border-l-[rgba(29,158,117,0.4)]'
+        isBrew ? 'border-l-[rgba(55,138,221,0.4)]' : 'border-l-[rgba(113,56,204,0.4)]'
       )}>
         <div className="flex gap-1">
           <span className="size-1.5 rounded-full animate-pulse" style={{ backgroundColor: dotColor, animationDelay: '0ms' }} />
@@ -153,7 +153,7 @@ function ChatInput({
         rows={1}
         className={cn(
           'flex-1 resize-none bg-[rgba(255,255,255,0.05)] text-[length:var(--fs-md)] text-foreground placeholder:text-[rgba(255,255,255,0.2)] outline-none min-h-[38px] max-h-[80px] py-2.5 px-3.5 rounded-lg border-[0.5px] border-[rgba(255,255,255,0.1)] transition-colors disabled:opacity-50 disabled:cursor-not-allowed',
-          isBrew ? 'focus:border-[rgba(55,138,221,0.4)]' : 'focus:border-[rgba(29,158,117,0.4)]'
+          isBrew ? 'focus:border-[rgba(55,138,221,0.4)]' : 'focus:border-[rgba(113,56,204,0.4)]'
         )}
         aria-label="Chat message input"
       />
@@ -164,7 +164,7 @@ function ChatInput({
         aria-label="Send message"
         className={cn(
           'flex items-center justify-center w-[34px] h-[34px] rounded-md text-white transition-opacity disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-90',
-          isBrew ? 'bg-[#378ADD]' : 'bg-[var(--color-teal)]'
+          isBrew ? 'bg-[#378ADD]' : 'bg-[var(--accent-primary)]'
         )}
       >
         <ArrowUp className="size-4" />

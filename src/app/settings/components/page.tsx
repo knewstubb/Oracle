@@ -127,8 +127,12 @@ function TokensSection() {
 
         <h3 className="text-[length:var(--fs-md)] font-medium text-[var(--text-secondary)] mb-3">Primary &amp; semantic</h3>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-5 mb-4">
-          <EditableColorSwatch name="primary" cssVar="--accent-primary" defaultHex="#1D9E75" />
+          <EditableColorSwatch name="primary" cssVar="--accent-primary" defaultHex="#7138CC" />
+          <EditableColorSwatch name="primary text (on dark)" cssVar="--accent-primary-text" defaultHex="#A57CE0" />
           <EditableColorSwatch name="success" cssVar="--signal-success" defaultHex="#1D9E75" />
+          {[50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950].map((n) => (
+            <EditableColorSwatch key={n} name={`brand-${n}`} cssVar={`--brand-${n}`} defaultHex={BRAND_SCALE[n]} />
+          ))}
           <EditableColorSwatch name="warning" cssVar="--signal-warning" defaultHex="#EF9F27" />
           <EditableColorSwatch name="destructive" cssVar="--signal-destructive" defaultHex="#DC2626" />
           <EditableColorSwatch name="critical (state)" cssVar="--signal-critical" defaultHex="#E24B4A" />
@@ -270,7 +274,7 @@ function ButtonsSection() {
         <div className="flex flex-wrap gap-3">
           <Button>Normal</Button>
           <Button disabled>Disabled</Button>
-          <Button variant="outline" style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}>
+          <Button variant="outline" style={{ color: 'var(--accent-primary-text)', borderColor: 'var(--accent-primary)' }}>
             Teal outline (action)
           </Button>
         </div>
@@ -328,7 +332,7 @@ function BadgesSection() {
         <div className="flex flex-wrap gap-3">
           <span
             className="rounded-full px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium leading-none"
-            style={{ background: 'rgba(29, 158, 117, 0.15)', color: 'var(--accent-primary)' }}
+            style={{ background: 'rgba(113, 56, 204, 0.18)', color: 'var(--accent-primary-text)' }}
           >
             Proxy
           </span>
@@ -450,8 +454,8 @@ function StatusSection() {
       <div>
         <h2 className="text-[length:var(--fs-lg)] font-medium text-[var(--text-primary)] mb-4">Dot styles</h2>
         <div className="grid grid-cols-5 gap-6">
-          <DotExplainer label="Original" desc="Solid fill" dotStyle="solid" color="var(--accent-primary)" />
-          <DotExplainer label="Proxy" desc="Dashed border" dotStyle="dashed" color="var(--accent-primary)" />
+          <DotExplainer label="Original" desc="Solid fill" dotStyle="solid" color="var(--signal-success)" />
+          <DotExplainer label="Proxy" desc="Dashed border" dotStyle="dashed" color="var(--signal-success)" />
           <DotExplainer label="Open" desc="Half fill" dotStyle="half" color="var(--signal-warning)" />
           <DotExplainer label="In Decks" desc="Cross mark" dotStyle="crossed" color="var(--status-over)" />
           <DotExplainer label="Unowned" desc="Empty ring" dotStyle="empty" color="var(--signal-critical)" />
@@ -832,7 +836,7 @@ function CardsSection() {
           <div>
             <p className="font-medium text-[var(--text-secondary)] mb-1">Status borders</p>
             <ul className="space-y-0.5">
-              <li><span style={{ color: 'var(--accent-primary)' }}>Green:</span> Ready (100% resolved)</li>
+              <li><span style={{ color: 'var(--signal-success)' }}>Green:</span> Ready (100% resolved)</li>
               <li><span style={{ color: 'var(--signal-warning)' }}>Amber:</span> Needs sleeve / Overcount + glow</li>
               <li><span style={{ color: 'var(--signal-critical)' }}>Red:</span> Unowned slots + glow</li>
               <li><span style={{ color: '#8F51D5' }}>Purple:</span> Brewing (solid)</li>
@@ -858,6 +862,7 @@ function CardsSection() {
 // Helpers
 // ---------------------------------------------------------------------------
 
+const BRAND_SCALE: Record<number, string> = { 50: '#F5F0FD', 100: '#EBE1FA', 200: '#D9C7F4', 300: '#C2A5EC', 400: '#A57CE0', 500: '#8C5AD6', 600: '#7138CC', 700: '#5B2CA8', 800: '#462283', 900: '#331963', 950: '#1F0F3D' }
 function EditableColorSwatch({ name, cssVar, defaultHex }: { name: string; cssVar: string; defaultHex: string }) {
   const [color, setColor] = useState(defaultHex)
   const [editing, setEditing] = useState(false)
@@ -928,7 +933,7 @@ function TypographySample({ size, label, value }: { size: string; label: string;
 
 function FilterChipExample({ label, active, variant = 'accent' }: { label: string; active: boolean; variant?: 'accent' | 'critical' | 'blue' }) {
   const colors = {
-    accent: { border: 'rgba(29,158,117,0.4)', bg: 'rgba(29,158,117,0.1)', text: '#1D9E75' },
+    accent: { border: 'rgba(113,56,204,0.45)', bg: 'rgba(113,56,204,0.12)', text: 'var(--accent-primary-text)' },
     critical: { border: 'rgba(228,75,74,0.4)', bg: 'rgba(228,75,74,0.1)', text: 'var(--signal-critical)' },
     blue: { border: 'rgba(107,138,255,0.4)', bg: 'rgba(107,138,255,0.1)', text: '#6B8AFF' },
   }

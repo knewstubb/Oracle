@@ -146,7 +146,7 @@ export function CommanderCard({
           'w-full flex items-center gap-3 p-2 rounded-lg text-left',
           'bg-zinc-800/60 border transition-all',
           selected
-            ? 'border-emerald-500 bg-emerald-500/10'
+            ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
             : 'border-zinc-700/50 hover:border-zinc-600',
           'hover:bg-zinc-700/60'
         )}
@@ -231,7 +231,7 @@ export function CommanderCard({
         'hover:-translate-y-1 hover:[box-shadow:0px_4px_8px_3px_rgba(0,0,0,0.4),0px_1px_3px_rgba(0,0,0,0.5)]',
         'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
-        selected && 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-zinc-950'
+        selected && 'ring-2 ring-[var(--accent-primary)] ring-offset-2 ring-offset-zinc-950'
       )}
       style={{
         backgroundColor: '#1A1A1A',
@@ -272,7 +272,7 @@ export function CommanderCard({
           'opacity-0 group-hover:opacity-100 transition-opacity',
           'flex items-end justify-center pb-3'
         )}>
-          <span className="text-xs font-medium text-emerald-400">
+          <span className="text-xs font-medium text-[var(--accent-primary-text)]">
             Select Commander
           </span>
         </div>

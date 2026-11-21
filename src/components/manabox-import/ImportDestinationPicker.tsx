@@ -254,13 +254,13 @@ export function ImportDestinationPicker({ value, onChange, places, onRetry, copy
                       }}
                       className={cn(
                         'flex min-h-8 cursor-pointer items-center gap-2 px-3 py-1.5 text-[length:var(--fs-sm)] outline-none hover:bg-[var(--bg-hover,rgba(255,255,255,0.06))] focus-visible:bg-[var(--bg-hover,rgba(255,255,255,0.06))] max-sm:min-h-12',
-                        selected && 'bg-[rgba(29,158,117,0.12)]'
+                        selected && 'bg-[rgba(113,56,204,0.12)]'
                       )}
                     >
                       <GroupIcon group={o.group} />
                       <span className="min-w-0 flex-1 truncate">{o.name}</span>
                       <span className="shrink-0 text-[length:var(--fs-xs)] text-muted-foreground">{o.hint}</span>
-                      {selected && <Check className="size-4 shrink-0 text-[var(--accent-primary)]" aria-hidden="true" />}
+                      {selected && <Check className="size-4 shrink-0 text-[var(--accent-primary-text)]" aria-hidden="true" />}
                     </div>
                   )
                 })}

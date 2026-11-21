@@ -194,8 +194,8 @@ function BuildChip({
       onClick={onSelect}
       className="flex items-center gap-2 px-3 py-1.5 rounded-md text-[length:var(--fs-sm)] transition-colors"
       style={{
-        background: isSelected ? 'rgba(29,158,117,0.15)' : 'rgba(255,255,255,0.03)',
-        border: isSelected ? '1px solid rgba(29,158,117,0.4)' : '1px solid rgba(255,255,255,0.06)',
+        background: isSelected ? 'rgba(113,56,204,0.15)' : 'rgba(255,255,255,0.03)',
+        border: isSelected ? '1px solid rgba(113,56,204,0.4)' : '1px solid rgba(255,255,255,0.06)',
         color: isSelected ? '#1D9E75' : 'inherit',
       }}
     >
@@ -219,7 +219,7 @@ function InsightSummary({ insight }: { insight: CommanderInsight }) {
       }}
     >
       <div className="flex items-start gap-2">
-        <Icon className="size-4 mt-0.5 shrink-0" style={{ color: '#1D9E75' }} />
+        <Icon className="size-4 mt-0.5 shrink-0" style={{ color: 'var(--accent-primary-text)' }} />
         <div className="flex-1 min-w-0">
           <p className="text-[length:var(--fs-md)] leading-relaxed">
             {insight.content}
@@ -260,14 +260,14 @@ function CommanderSummarySection({ summary }: { summary: string }) {
     <div
       className="rounded-lg overflow-hidden"
       style={{
-        background: 'rgba(29,158,117,0.03)',
-        border: '1px solid rgba(29,158,117,0.12)',
+        background: 'rgba(113,56,204,0.03)',
+        border: '1px solid rgba(113,56,204,0.12)',
       }}
     >
       <div className="px-4 py-3">
         <div className="flex items-center gap-2 mb-2">
-          <BookOpen className="size-4" style={{ color: '#1D9E75' }} />
-          <span className="text-[length:var(--fs-sm)] font-medium" style={{ color: '#1D9E75' }}>
+          <BookOpen className="size-4" style={{ color: 'var(--accent-primary-text)' }} />
+          <span className="text-[length:var(--fs-sm)] font-medium" style={{ color: 'var(--accent-primary-text)' }}>
             Commander Overview
           </span>
         </div>
@@ -282,7 +282,7 @@ function CommanderSummarySection({ summary }: { summary: string }) {
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="mt-2 text-[length:var(--fs-sm)] font-medium hover:underline"
-            style={{ color: '#1D9E75' }}
+            style={{ color: 'var(--accent-primary-text)' }}
           >
             {isExpanded ? 'Show less' : 'Read more...'}
           </button>
@@ -397,8 +397,8 @@ export function CommanderOverview({
         <div
           className="rounded-lg px-4 py-3"
           style={{
-            background: 'rgba(29,158,117,0.05)',
-            border: '1px solid rgba(29,158,117,0.15)',
+            background: 'rgba(113,56,204,0.05)',
+            border: '1px solid rgba(113,56,204,0.15)',
           }}
         >
           <p className="text-[length:var(--fs-md)] leading-relaxed">

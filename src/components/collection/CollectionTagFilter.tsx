@@ -122,7 +122,7 @@ export function CollectionTagFilter({ selectedTags, onTagsChange, tagsMatch, onT
         )}
         style={{
           border: count > 0 ? `1px solid ${GREEN}` : '0.5px solid rgba(255,255,255,0.2)',
-          background: count > 0 ? 'rgba(29,158,117,0.12)' : undefined,
+          background: count > 0 ? 'rgba(113,56,204,0.12)' : undefined,
           color: count > 0 ? '#5fd9ad' : undefined,
         }}
       >
@@ -179,7 +179,7 @@ export function CollectionTagFilter({ selectedTags, onTagsChange, tagsMatch, onT
                     className={cn('inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-[length:var(--fs-sm)]', tagsMatch === m && 'font-semibold')}
                     style={{
                       border: tagsMatch === m ? `1px solid ${GREEN}` : '0.5px solid rgba(255,255,255,0.25)',
-                      background: tagsMatch === m ? 'rgba(29,158,117,0.15)' : undefined,
+                      background: tagsMatch === m ? 'rgba(113,56,204,0.15)' : undefined,
                     }}
                   >
                     {tagsMatch === m && <Check className="size-3.5" aria-hidden="true" />}
@@ -245,7 +245,7 @@ function TagGroup({
             key={t.key}
             className={cn('flex min-h-12 cursor-pointer items-center gap-3 rounded-md px-2 text-[length:var(--fs-sm)] hover:bg-[rgba(255,255,255,0.06)] sm:min-h-11', on && 'font-semibold')}
           >
-            <input type="checkbox" checked={on} onChange={() => onToggle(t.key)} className="size-[22px] shrink-0 accent-[#1D9E75]" />
+            <input type="checkbox" checked={on} onChange={() => onToggle(t.key)} className="size-[22px] shrink-0 accent-[var(--accent-primary)]" />
             <span>{t.name}</span>
           </label>
         )

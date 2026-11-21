@@ -139,7 +139,7 @@ function InsightCard({ insight, isFirst, selectedBuildLabel }: InsightCardProps)
         !isGeneric && 'border-l-2'
       )}
       style={{
-        background: isGeneric ? 'rgba(255,255,255,0.02)' : 'rgba(29,158,117,0.05)',
+        background: isGeneric ? 'rgba(255,255,255,0.02)' : 'rgba(113,56,204,0.05)',
         border: isGeneric ? '0.5px solid rgba(255,255,255,0.04)' : undefined,
         borderLeftColor: !isGeneric ? '#1D9E75' : undefined,
       }}
@@ -149,7 +149,7 @@ function InsightCard({ insight, isFirst, selectedBuildLabel }: InsightCardProps)
         <div className="flex items-center gap-1.5 mb-1.5">
           <Badge
             className="text-[9px] px-1.5 py-0"
-            style={{ background: 'rgba(29,158,117,0.15)', color: '#1D9E75' }}
+            style={{ background: 'rgba(113,56,204,0.15)', color: 'var(--accent-primary-text)' }}
           >
             {buildLabel}
           </Badge>
@@ -237,7 +237,7 @@ function InsightTabs({ types, selectedType, onSelect, insightsByType, selectedBu
             className={cn(
               'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[length:var(--fs-sm)] transition-colors',
               isSelected
-                ? 'bg-[#1D9E75]/15 text-[#1D9E75]'
+                ? 'bg-[var(--accent-primary)]/15 text-[var(--accent-primary-text)]'
                 : 'bg-white/[0.03] text-muted-foreground hover:bg-white/[0.06] hover:text-foreground'
             )}
           >
@@ -247,8 +247,8 @@ function InsightTabs({ types, selectedType, onSelect, insightsByType, selectedBu
               <span
                 className="ml-1 text-[10px] px-1 rounded"
                 style={{
-                  background: isSelected ? 'rgba(29,158,117,0.2)' : 'rgba(29,158,117,0.1)',
-                  color: '#1D9E75',
+                  background: isSelected ? 'rgba(113,56,204,0.2)' : 'rgba(113,56,204,0.1)',
+                  color: 'var(--accent-primary-text)',
                 }}
               >
                 {buildCount}
@@ -368,7 +368,7 @@ export function StrategyGuide({
       
       {/* Section header */}
       <div className="flex items-center gap-2">
-        <selectedConfig.icon className="size-4" style={{ color: '#1D9E75' }} />
+        <selectedConfig.icon className="size-4" style={{ color: 'var(--accent-primary-text)' }} />
         <span className="text-[length:var(--fs-md)] font-medium">{selectedConfig.label}</span>
         {selectedConfig.description && (
           <span className="text-[length:var(--fs-sm)] text-muted-foreground">
@@ -382,7 +382,7 @@ export function StrategyGuide({
         <span>
           {selectedInsights.length} insight{selectedInsights.length !== 1 ? 's' : ''}
           {selectedBuildLabel && buildSpecificCount > 0 && (
-            <> — <span style={{ color: '#1D9E75' }}>{buildSpecificCount} for {selectedBuildLabel}</span></>
+            <> — <span style={{ color: 'var(--accent-primary-text)' }}>{buildSpecificCount} for {selectedBuildLabel}</span></>
           )}
           {genericCount > 0 && buildSpecificCount > 0 && (
             <>, {genericCount} general</>

@@ -133,7 +133,7 @@ export default function StoragePage() {
               <button
                 type="button"
                 onClick={() => setShowManage(!showManage)}
-                className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-default)] p-4 text-muted-foreground transition-all hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary)]"
+                className="flex flex-col items-center justify-center rounded-xl border border-dashed border-[var(--border-default)] p-4 text-muted-foreground transition-all hover:border-[var(--accent-primary)] hover:text-[var(--accent-primary-text)]"
               >
                 {showManage ? <Settings2 className="size-5" /> : <Plus className="size-5" />}
                 <span className="mt-2 text-[length:var(--fs-sm)] font-medium">

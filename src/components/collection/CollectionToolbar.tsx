@@ -313,9 +313,9 @@ export function CollectionToolbar({
             type="button"
             className={cn(
               'p-[5px] text-[13px]',
-              viewMode === 'list' ? 'text-[#1D9E75]' : 'text-[rgba(255,255,255,0.25)]'
+              viewMode === 'list' ? 'text-[var(--accent-primary-text)]' : 'text-[rgba(255,255,255,0.25)]'
             )}
-            style={viewMode === 'list' ? { background: 'rgba(29,158,117,0.15)' } : undefined}
+            style={viewMode === 'list' ? { background: 'rgba(113,56,204,0.15)' } : undefined}
             onClick={() => handleViewModeChange('list')}
             aria-label="List view"
             aria-pressed={viewMode === 'list'}
@@ -326,9 +326,9 @@ export function CollectionToolbar({
             type="button"
             className={cn(
               'p-[5px] text-[13px]',
-              viewMode === 'grid' ? 'text-[#1D9E75]' : 'text-[rgba(255,255,255,0.25)]'
+              viewMode === 'grid' ? 'text-[var(--accent-primary-text)]' : 'text-[rgba(255,255,255,0.25)]'
             )}
-            style={viewMode === 'grid' ? { background: 'rgba(29,158,117,0.15)' } : undefined}
+            style={viewMode === 'grid' ? { background: 'rgba(113,56,204,0.15)' } : undefined}
             onClick={() => handleViewModeChange('grid')}
             aria-label="Grid view"
             aria-pressed={viewMode === 'grid'}
@@ -366,14 +366,14 @@ export function CollectionToolbar({
             className={cn(
               'shrink-0 rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
               basicOnly
-                ? 'text-[#1D9E75]'
+                ? 'text-[var(--accent-primary-text)]'
                 : 'text-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[rgba(255,255,255,0.5)]'
             )}
             style={{
               border: basicOnly
-                ? '0.5px solid rgba(29,158,117,0.4)'
+                ? '0.5px solid rgba(113,56,204,0.4)'
                 : '0.5px solid rgba(255,255,255,0.1)',
-              background: basicOnly ? 'rgba(29,158,117,0.1)' : undefined,
+              background: basicOnly ? 'rgba(113,56,204,0.1)' : undefined,
             }}
             aria-label={`Basic${basicOnly ? ' (active)' : ''}`}
             aria-pressed={basicOnly}
@@ -484,7 +484,7 @@ function ColorIdentityFilter({
           className={cn(
             'px-2 py-[3px] transition-colors',
             mode === 'exact'
-              ? 'bg-[rgba(29,158,117,0.15)] text-[#1D9E75]'
+              ? 'bg-[rgba(113,56,204,0.15)] text-[var(--accent-primary-text)]'
               : 'text-[rgba(255,255,255,0.3)] hover:text-[rgba(255,255,255,0.5)]'
           )}
         >
@@ -498,7 +498,7 @@ function ColorIdentityFilter({
           className={cn(
             'px-2 py-[3px] transition-colors',
             mode === 'includes'
-              ? 'bg-[rgba(29,158,117,0.15)] text-[#1D9E75]'
+              ? 'bg-[rgba(113,56,204,0.15)] text-[var(--accent-primary-text)]'
               : 'text-[rgba(255,255,255,0.3)] hover:text-[rgba(255,255,255,0.5)]'
           )}
         >
@@ -543,12 +543,12 @@ function StatusFilterControl({
             className={cn(
               'rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
               isActive
-                ? 'border-[rgba(29,158,117,0.4)] bg-[rgba(29,158,117,0.1)] text-[#1D9E75]'
+                ? 'border-[rgba(113,56,204,0.4)] bg-[rgba(113,56,204,0.1)] text-[var(--accent-primary-text)]'
                 : 'text-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[rgba(255,255,255,0.5)]'
             )}
             style={{
               border: isActive
-                ? '0.5px solid rgba(29,158,117,0.4)'
+                ? '0.5px solid rgba(113,56,204,0.4)'
                 : '0.5px solid rgba(255,255,255,0.1)',
             }}
             aria-label={`${option.label}${isActive ? ' (active)' : ''}`}

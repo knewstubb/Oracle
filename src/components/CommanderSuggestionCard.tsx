@@ -66,7 +66,7 @@ export function CommanderSuggestionCard({
         className={cn(
           'inline-flex items-center gap-2 px-2 py-1.5 rounded-lg',
           'bg-zinc-800/60 border border-zinc-700/50',
-          'hover:bg-zinc-700/60 hover:border-emerald-500/40',
+          'hover:bg-zinc-700/60 hover:border-[var(--accent-primary)]/40',
           'transition-all cursor-pointer text-left'
         )}
       >
@@ -90,7 +90,7 @@ export function CommanderSuggestionCard({
         {/* Name */}
         <span className={cn(
           'text-sm font-medium truncate max-w-[140px]',
-          isHovered ? 'text-emerald-400' : 'text-zinc-200'
+          isHovered ? 'text-[var(--accent-primary-text)]' : 'text-zinc-200'
         )}>
           {commanderName}
         </span>
@@ -98,7 +98,7 @@ export function CommanderSuggestionCard({
         {/* Start indicator */}
         <Plus className={cn(
           'w-4 h-4 shrink-0 transition-colors',
-          isHovered ? 'text-emerald-400' : 'text-zinc-500'
+          isHovered ? 'text-[var(--accent-primary-text)]' : 'text-zinc-500'
         )} />
       </button>
     )
@@ -112,7 +112,7 @@ export function CommanderSuggestionCard({
       className={cn(
         'relative w-[140px] rounded-lg overflow-hidden',
         'bg-zinc-900 border border-zinc-700/50',
-        'hover:border-emerald-500/50 transition-all',
+        'hover:border-[var(--accent-primary)]/50 transition-all',
         'group cursor-pointer'
       )}
       onClick={handleStartDeck}
@@ -141,7 +141,7 @@ export function CommanderSuggestionCard({
           'flex items-end justify-center pb-3',
           'opacity-0 group-hover:opacity-100 transition-opacity'
         )}>
-          <span className="text-xs font-medium text-emerald-400 flex items-center gap-1">
+          <span className="text-xs font-medium text-[var(--accent-primary-text)] flex items-center gap-1">
             <Plus className="w-3 h-3" />
             Start Deck
           </span>

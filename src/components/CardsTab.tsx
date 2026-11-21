@@ -756,7 +756,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
 
       {/* ─── Selection Toolbar (appears when cards are selected) ──────────── */}
       {selectedCardIds.size > 0 && (
-        <div className="shrink-0 border-b px-4 py-2" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--accent-primary-muted, rgba(29, 158, 117, 0.08))' }}>
+        <div className="shrink-0 border-b px-4 py-2" style={{ borderColor: 'var(--border-default)', backgroundColor: 'var(--accent-primary-muted, rgba(113,56,204,0.08))' }}>
           <div className="mx-auto flex max-w-[var(--content-max-width)] items-center gap-3">
             <span className="text-[length:var(--fs-sm)] font-medium">
               {selectedCardIds.size} card{selectedCardIds.size !== 1 ? 's' : ''} selected
@@ -1511,7 +1511,7 @@ function GridCardAction({
         background: isDestructive
           ? 'rgba(226,75,74,0.2)'
           : isPrimary
-            ? 'rgba(29,158,117,0.2)'
+            ? 'rgba(113,56,204,0.2)'
             : 'rgba(255,255,255,0.1)',
         color: isDestructive
           ? '#E24B4A'
@@ -1522,7 +1522,7 @@ function GridCardAction({
           isDestructive
             ? 'rgba(226,75,74,0.4)'
             : isPrimary
-              ? 'rgba(29,158,117,0.4)'
+              ? 'rgba(113,56,204,0.4)'
               : 'rgba(255,255,255,0.2)'
         }`,
       }}
@@ -1771,7 +1771,7 @@ function AutoCategorizeButton({ cards, deckId }: AutoCategorizeButtonProps) {
                                   className={cn(
                                     'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-xs)] font-medium transition-colors hover:ring-1',
                                     idx === 0
-                                      ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)] hover:ring-[var(--accent-primary)]'
+                                      ? 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary-text)] hover:ring-[var(--accent-primary)]'
                                       : 'bg-white/5 text-muted-foreground hover:text-foreground hover:ring-white/20'
                                   )}
                                 >

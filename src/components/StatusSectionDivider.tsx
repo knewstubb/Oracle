@@ -12,7 +12,7 @@ interface StatusSectionDividerProps {
 const LABEL_CONFIG: Record<string, { icon: React.ReactNode; color: string }> = {
   'Active': {
     icon: <Check className="size-4" />,
-    color: 'var(--accent-primary)',
+    color: 'var(--accent-primary-text)',
   },
   'Inactive': {
     icon: <Archive className="size-4" />,

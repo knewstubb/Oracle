@@ -48,7 +48,7 @@ function getSessionIcon(sessionType: SessionType) {
     case 'exploration':
       return <Compass className="w-3.5 h-3.5 text-amber-400" />
     case 'deck':
-      return <Layers className="w-3.5 h-3.5 text-emerald-400" />
+      return <Layers className="w-3.5 h-3.5 text-[var(--accent-primary-text)]" />
     default:
       return <MessageSquare className="w-3.5 h-3.5 text-zinc-400" />
   }
@@ -139,7 +139,7 @@ export function SessionHistoryPanel() {
           className={cn(
             'flex-1 px-3 py-2 text-xs font-medium transition-colors',
             activeTab === 'decks'
-              ? 'text-emerald-400 border-b-2 border-emerald-400'
+              ? 'text-[var(--accent-primary-text)] border-b-2 border-[var(--accent-primary-text)]'
               : 'text-zinc-500 hover:text-zinc-300'
           )}
         >

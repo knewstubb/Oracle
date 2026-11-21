@@ -604,9 +604,9 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         onClick={onRetry}
         className="rounded-md px-3 py-1.5 text-[length:var(--fs-sm)] transition-colors"
         style={{
-          background: 'rgba(29,158,117,0.12)',
-          color: '#1D9E75',
-          border: '0.5px solid rgba(29,158,117,0.3)',
+          background: 'rgba(113,56,204,0.12)',
+          color: 'var(--accent-primary-text)',
+          border: '0.5px solid rgba(113,56,204,0.3)',
         }}
       >
         Retry

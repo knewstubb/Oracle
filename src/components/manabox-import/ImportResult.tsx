@@ -94,7 +94,7 @@ export function ImportResult({
       <div className="flex min-h-0 flex-1 overflow-auto">
         <div className="m-auto flex w-full max-w-[460px] flex-col gap-4">
           <div role="status" className="flex flex-col items-center gap-1.5 text-center">
-            <span className="mb-1 grid size-[52px] place-items-center rounded-full bg-[rgba(29,158,117,0.16)] text-[var(--accent-primary)]">
+            <span className="mb-1 grid size-[52px] place-items-center rounded-full bg-[rgba(113,56,204,0.16)] text-[var(--accent-primary-text)]">
               <Check className="size-7" strokeWidth={2.2} aria-hidden="true" />
             </span>
             <h3 className="text-[length:var(--fs-xl,20px)] font-medium">{headline}</h3>
@@ -247,7 +247,7 @@ export function ImportResultLine({
       {hasIssue ? (
         <TriangleAlert className="size-4 shrink-0 text-[var(--signal-warning)]" aria-hidden="true" />
       ) : (
-        <Check className="size-4 shrink-0 text-[var(--accent-primary)]" aria-hidden="true" />
+        <Check className="size-4 shrink-0 text-[var(--accent-primary-text)]" aria-hidden="true" />
       )}
       <span className="min-w-0 flex-1 truncate">
         <strong>Imported</strong>

@@ -75,7 +75,7 @@ describe('DeckTile', () => {
     renderWithProviders(<DeckTile {...defaultProps} format="commander" cardCount={100} sleevedCount={100} status="playable" />)
     const count = screen.getByText('100/100')
     expect(count).toBeInTheDocument()
-    expect(count).toHaveStyle({ color: 'var(--accent-primary)' })
+    expect(count).toHaveStyle({ color: 'var(--signal-success)' })
     expect(screen.queryByText(/sleeved/)).not.toBeInTheDocument()
   })
 
@@ -162,7 +162,7 @@ describe('DeckTile', () => {
     const badge = screen.getByLabelText('Playable')
     expect(badge).toHaveAttribute('title', 'Playable')
     expect(badge.querySelector('svg')).toHaveClass('lucide-check')
-    expect(badge.style.backgroundColor).toBe('var(--accent-primary)')
+    expect(badge.style.backgroundColor).toBe('var(--signal-success)')
   })
   it('shows exactly one status badge', () => {
     renderWithProviders(<DeckTile {...defaultProps} status="assembling" />)

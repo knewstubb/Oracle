@@ -255,8 +255,8 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
           <div className="mb-8 text-center">
             <div className="mb-6 flex justify-center">
               <div className="relative">
-                <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-emerald-500/20 to-teal-500/20 blur-xl" />
-                <ForgeIcon className="relative h-16 w-16 text-emerald-400" />
+                <div className="absolute -inset-4 rounded-full bg-gradient-to-r from-[var(--brand-600)]/20 to-[var(--brand-400)]/20 blur-xl" />
+                <ForgeIcon className="relative h-16 w-16 text-[var(--accent-primary-text)]" />
               </div>
             </div>
             <h1 className="mb-2 text-2xl font-medium text-white">The Forge</h1>
@@ -267,7 +267,7 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
 
           {/* Centered input */}
           <div className="w-full max-w-[600px]">
-            <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-lg shadow-black/20 transition-all focus-within:border-emerald-500/50 focus-within:shadow-emerald-500/5">
+            <div className="relative rounded-2xl border border-zinc-800 bg-zinc-900/50 shadow-lg shadow-black/20 transition-all focus-within:border-[var(--accent-primary)]/50 focus-within:shadow-[var(--accent-primary)]/5">
               <textarea
                 ref={textareaRef}
                 value={inputValue}
@@ -287,7 +287,7 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
                 <button
                   onClick={handleSend}
                   disabled={isStreaming || !inputValue.trim()}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-black transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-primary)] text-white transition-all hover:bg-[var(--accent-primary-hover)] disabled:opacity-30 disabled:cursor-not-allowed"
                   aria-label="Send message"
                 >
                   <ArrowUpIcon />
@@ -359,7 +359,7 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
       {/* Input area — fixed at bottom */}
       <div className="flex-none border-t border-zinc-800/50 bg-[#0a0a0a] px-6 py-4">
         <div className="mx-auto max-w-[700px]">
-          <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 transition-all focus-within:border-emerald-500/50">
+          <div className="flex items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 transition-all focus-within:border-[var(--accent-primary)]/50">
             <input
               ref={inputRef}
               type="text"
@@ -373,7 +373,7 @@ export function BrewChatView({ messages, onSend, isStreaming, activeTools, deckN
             <button
               onClick={handleSend}
               disabled={isStreaming || !inputValue.trim()}
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500 text-black transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed"
+              className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--accent-primary)] text-white transition-all hover:bg-[var(--accent-primary-hover)] disabled:opacity-30 disabled:cursor-not-allowed"
               aria-label="Send message"
             >
               <ArrowUpIcon />
@@ -437,9 +437,9 @@ function ThinkingIndicator() {
   return (
     <div className="flex items-center gap-3 text-[13px] text-zinc-500">
       <div className="flex gap-1">
-        <span className="size-2 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '0ms' }} />
-        <span className="size-2 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '150ms' }} />
-        <span className="size-2 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '300ms' }} />
+        <span className="size-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '0ms' }} />
+        <span className="size-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '150ms' }} />
+        <span className="size-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '300ms' }} />
       </div>
       <span>Thinking...</span>
     </div>
@@ -450,9 +450,9 @@ function ToolStatusIndicator({ tools }: { tools: ToolStatus[] }) {
   return (
     <div className="flex items-center gap-3 text-[13px] text-zinc-500">
       <div className="flex gap-1">
-        <span className="size-2 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '0ms' }} />
-        <span className="size-2 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '150ms' }} />
-        <span className="size-2 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '300ms' }} />
+        <span className="size-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '0ms' }} />
+        <span className="size-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '150ms' }} />
+        <span className="size-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '300ms' }} />
       </div>
       <span>
         {tools.length === 1

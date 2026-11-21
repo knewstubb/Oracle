@@ -81,8 +81,8 @@ export function RecommendationCard({
         {/* Add Section */}
         <div className="px-4 py-3">
           <div className="flex items-center gap-1.5 mb-1.5">
-            <Plus className="size-3.5 shrink-0" style={{ color: '#1D9E75' }} aria-hidden="true" />
-            <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: '#1D9E75' }}>
+            <Plus className="size-3.5 shrink-0" style={{ color: 'var(--accent-primary-text)' }} aria-hidden="true" />
+            <span className="text-[11px] font-medium uppercase tracking-wide" style={{ color: 'var(--accent-primary-text)' }}>
               Add
             </span>
           </div>
@@ -108,7 +108,7 @@ export function RecommendationCard({
             onClick={() => onAction('applied')}
             disabled={isLoading}
             className="text-white"
-            style={{ backgroundColor: '#1D9E75' }}
+            style={{ backgroundColor: 'var(--accent-primary)' }}
             aria-label="Make this change"
           >
             <Check className="size-3.5" aria-hidden="true" />

@@ -774,8 +774,8 @@ function SourcePickerScreen({
           onClick={() => setSource('archidekt')}
           className={`flex flex-col items-center gap-3 rounded-xl border-2 px-4 py-6 text-center transition-all ${
             source === 'archidekt'
-              ? 'border-teal-400 bg-teal-400/10'
-              : 'border-[var(--border-default)] hover:border-teal-400/50'
+              ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+              : 'border-[var(--border-default)] hover:border-[var(--accent-primary)]/50'
           }`}
         >
           <div className="flex size-12 items-center justify-center rounded-lg bg-white/10 text-xl font-bold">
@@ -792,8 +792,8 @@ function SourcePickerScreen({
           onClick={() => setSource('moxfield')}
           className={`flex flex-col items-center gap-3 rounded-xl border-2 px-4 py-6 text-center transition-all ${
             source === 'moxfield'
-              ? 'border-teal-400 bg-teal-400/10'
-              : 'border-[var(--border-default)] hover:border-teal-400/50'
+              ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10'
+              : 'border-[var(--border-default)] hover:border-[var(--accent-primary)]/50'
           }`}
         >
           <div className="flex size-12 items-center justify-center rounded-lg bg-white/10 text-xl font-bold">

@@ -28,7 +28,7 @@ const STATUS_CONFIG: Record<DeckStatus, { label: string; color: string; bg: stri
   },
   in_rotation: {
     label: 'Active',
-    color: 'var(--accent-primary)',
+    color: 'var(--accent-primary-text)',
     bg: 'var(--accent-primary-bg)',
     activeRing: 'ring-[var(--accent-primary)]/40',
   },

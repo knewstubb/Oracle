@@ -74,9 +74,9 @@ describe('import modal layout (spec import-modal-redesign §3)', () => {
     expect(discard).not.toContain('overlayClassName')
   })
 
-  it('#13 primary buttons use dark text #08150F globally', () => {
+  it('#13 primary buttons use white text #FFFFFF globally', () => {
     const css = fs.readFileSync(path.join(process.cwd(), 'src/app/globals.css'), 'utf8')
-    expect(css).toMatch(/\.dark \{[\s\S]*--primary-foreground: #08150F/)
+    expect(css).toMatch(/\.dark \{[\s\S]*--primary-foreground: #FFFFFF/)
   })
 
   it('ignore-basics covers the five basics and Wastes only', () => {

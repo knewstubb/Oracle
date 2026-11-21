@@ -62,7 +62,7 @@ const COLOUR_ORDER = ['W', 'U', 'B', 'R', 'G']
 export const STATUS_BADGE: Record<DeckStatus, { label: string; colour: string }> = {
   brewing: { label: 'Brewing', colour: '#8F51D5' },
   assembling: { label: 'Assembling', colour: 'var(--signal-warning)' },
-  playable: { label: 'Playable', colour: 'var(--accent-primary)' },
+  playable: { label: 'Playable', colour: 'var(--signal-success)' },
 }
 
 export function StatusIcon({ status }: { status: DeckStatus }) {
@@ -237,7 +237,7 @@ export function DeckTile({
           {/* Card count: neutral grey, green when the deck is Playable */}
           <p
             className="mt-2 truncate whitespace-nowrap text-[12px] leading-[15px]"
-            style={{ color: isPlayable ? 'var(--accent-primary)' : '#808080' }}
+            style={{ color: isPlayable ? 'var(--signal-success)' : '#808080' }}
           >
             {countText}{sleevedText}
           </p>

@@ -228,7 +228,7 @@ function StorageDetail() {
                       ? '2px dashed var(--accent-primary)'
                       : '1px solid var(--border-default)',
                     boxShadow: copy.isProxy
-                      ? '0 0 12px rgba(29, 158, 117, 0.6), 0 0 4px rgba(29, 158, 117, 0.3)'
+                      ? '0 0 12px rgba(113,56,204,0.6), 0 0 4px rgba(113,56,204,0.3)'
                       : undefined,
                   }}
                 >
@@ -298,7 +298,7 @@ function StorageDetail() {
                     {copy.isProxy && (
                       <span
                         className="ml-2 inline-block rounded-full px-1.5 py-0.5 text-[length:var(--fs-xs)] font-medium"
-                        style={{ background: 'rgba(29,158,117,0.15)', color: 'var(--accent-primary)' }}
+                        style={{ background: 'rgba(113,56,204,0.15)', color: 'var(--accent-primary-text)' }}
                       >
                         Proxy
                       </span>

@@ -306,7 +306,7 @@ function PrintingCard({
           {printing.prices?.usd && ` · $${printing.prices.usd}`}
         </span>
         {location && (
-          <span className="block truncate text-[length:var(--fs-xs)] text-[var(--accent-primary)]">
+          <span className="block truncate text-[length:var(--fs-xs)] text-[var(--accent-primary-text)]">
             {location}
           </span>
         )}

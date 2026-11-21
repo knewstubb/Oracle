@@ -51,6 +51,27 @@
   --mana-red: #D4836A;
   --mana-green: #7BC4A0;
 
+  /* ─── Brand scale (purple, base #7138CC = 600) ───────────────────────
+   * Purple overlaps least with the WUBRG pips. Use these for anything that is
+   * "the brand": buttons, active states, focus rings, links, chart series.
+   *   600  base: fills, buttons, rings (white text on it is 6.7:1)
+   *   500  hover fill on dark, chart series 1
+   *   400  text and icons on the dark canvas (AA)
+   *   300  lighter text, selected chart bar
+   *   200-50 light-theme tints and backgrounds
+   *   700-950 pressed states, light-theme text, deep backgrounds
+   * ═══════════════════════════════════════════════════════════════════ */
+  --brand-50: #F5F0FD;
+  --brand-100: #EBE1FA;
+  --brand-200: #D9C7F4;
+  --brand-300: #C2A5EC;
+  --brand-400: #A57CE0;
+  --brand-500: #8C5AD6;
+  --brand-600: #7138CC;
+  --brand-700: #5B2CA8;
+  --brand-800: #462283;
+  --brand-900: #331963;
+  --brand-950: #1F0F3D;
   /* ─── Deck rail (shared tokens; values mirrored in src/lib/ui-tokens.ts) ─ */
   --surface-card: rgba(26, 26, 30, 0.5);
   --text-muted: var(--text-secondary);
@@ -62,8 +83,8 @@
   --mana-fill-g: #3DAA6D;
   --mana-fill-c: #9AA0A6;
   --mana-fill-multi: #A78BFA;
-  --curve-teal: #2BA5A0;
-  --curve-teal-selected: #5FD6CF;
+  --curve-brand: var(--brand-500);
+  --curve-brand-selected: var(--brand-300);
   --swatch-original: #C9CFCB;
   --swatch-other-decks: #6E7571;
   --swatch-unowned: var(--warn-amber);
@@ -130,9 +151,12 @@
   --text-secondary: #9C9CA3;
   --text-primary: #E8E8EA;
 
-  /* Accent → shadcn primary */
-  --accent-primary: #1D9E75;
-  --accent-primary-bg: rgba(29, 158, 117, 0.15);
+  /* Accent → shadcn primary (brand purple) */
+  --accent-primary: var(--brand-600);
+  --accent-primary-hover: var(--brand-500);
+  --accent-primary-text: var(--brand-400); /* purple text and icons on the dark canvas */
+  --accent-primary-bg: rgba(113, 56, 204, 0.18);
+  --accent-primary-border: rgba(113, 56, 204, 0.45);
 
   /* Signals → shadcn semantic */
   --signal-success: #1D9E75;

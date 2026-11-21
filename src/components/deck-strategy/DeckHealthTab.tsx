@@ -335,7 +335,7 @@ function CategoryRow(props: {
       ) : c.proposed ? (
         <span className="flex flex-wrap items-center gap-2">
           <span className="text-[length:var(--fs-sm)]">Claude proposes {c.proposed.min}&ndash;{c.proposed.max}</span>
-          <button type="button" aria-label={`Confirm ${c.name} proposal`} onClick={props.onConfirm} className={cn(BTN, 'gap-1 bg-[var(--accent-primary)] text-black', FOCUS_RING)}>
+          <button type="button" aria-label={`Confirm ${c.name} proposal`} onClick={props.onConfirm} className={cn(BTN, 'gap-1 bg-[var(--accent-primary)] text-white', FOCUS_RING)}>
             <Check className="size-4" aria-hidden="true" />
             Confirm
           </button>
@@ -346,7 +346,7 @@ function CategoryRow(props: {
       ) : (
         <span className="flex items-center gap-2">
           <span className="text-[length:var(--fs-sm)] text-muted-foreground">No target</span>
-          <button type="button" aria-label={`Set target for ${c.name}`} onClick={props.onSetTarget} className={cn(BTN, 'px-2 text-[length:var(--fs-sm)]', FOCUS_RING)} style={{ color: 'var(--accent-primary)' }}>
+          <button type="button" aria-label={`Set target for ${c.name}`} onClick={props.onSetTarget} className={cn(BTN, 'px-2 text-[length:var(--fs-sm)]', FOCUS_RING)} style={{ color: 'var(--accent-primary-text)' }}>
             Set target
           </button>
         </span>

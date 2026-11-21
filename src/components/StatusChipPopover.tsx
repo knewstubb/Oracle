@@ -373,7 +373,7 @@ function PopoverBody({
             className="w-full justify-start"
             disabled={isPending}
             onClick={() => onReplaceWithOriginal(freeOriginals[0].physicalCopyId)}
-            style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+            style={{ color: 'var(--accent-primary-text)', borderColor: 'var(--accent-primary)' }}
           >
             Replace with original
           </Button>
@@ -608,7 +608,7 @@ function CopyRow({
           onClick={onPrimary}
           disabled={isPending}
           className="shrink-0"
-          style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+          style={{ color: 'var(--accent-primary-text)', borderColor: 'var(--accent-primary)' }}
         >
           {primaryLabel}
         </Button>

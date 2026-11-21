@@ -180,7 +180,7 @@ export function CardHoverLink({
       // Use ownership-based color (including 'unknown' blue for loading state)
       return ownershipColor.text
     }
-    return '#2dd4a8' // Default teal for cards without ownership lookup
+    return 'var(--accent-primary-text)' // Default brand purple for cards without ownership lookup
   }
   
   const textColor = getTextColor()
@@ -366,7 +366,7 @@ export function PartnerHoverLink({
       // Use ownership-based color (including 'unknown' blue for loading state)
       return ownershipColor.text
     }
-    return '#2dd4a8' // Default teal
+    return 'var(--accent-primary-text)' // Default brand purple
   }
   
   const textColor = getTextColor()

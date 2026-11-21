@@ -49,7 +49,7 @@ export function ImportSummary({ rows, kind, defaults, copyEdits, unmatchedCount 
             type="button"
             id="import-show-hidden-notes"
             onClick={onShowHidden}
-            className="cursor-pointer rounded-sm text-[var(--accent-primary)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]"
+            className="cursor-pointer rounded-sm text-[var(--accent-primary-text)] underline-offset-2 hover:underline focus-visible:outline-2 focus-visible:outline-[var(--accent-primary)]"
           >
             Show hidden notes ({hiddenCount})
           </button>

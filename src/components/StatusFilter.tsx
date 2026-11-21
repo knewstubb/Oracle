@@ -13,9 +13,9 @@ const CHIP_CONFIG: Record<DeckStatus, { label: string; color: string; bg: string
   },
   in_rotation: {
     label: 'Active',
-    color: 'var(--accent-primary)',
+    color: 'var(--accent-primary-text)',
     bg: 'var(--accent-primary-bg)',
-    borderColor: 'rgba(29, 158, 117, 0.4)',
+    borderColor: 'rgba(113,56,204,0.4)',
   },
 }
 

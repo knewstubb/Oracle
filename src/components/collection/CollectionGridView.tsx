@@ -197,7 +197,7 @@ function CardGridTile({
         type="button"
         onClick={handleToggle}
         disabled={loadingExpand}
-        className="relative w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1D9E75] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f]"
+        className="relative w-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-primary-text)] focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f0f]"
         aria-expanded={expanded}
         aria-label={`${row.cardName} — tap to ${expanded ? 'collapse' : 'expand'} printing details`}
       >

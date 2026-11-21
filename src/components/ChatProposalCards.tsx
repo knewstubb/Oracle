@@ -142,7 +142,7 @@ export function ChatProposalCards({ group, onDeckChanged }: { group: ProposalGro
           type="button"
           disabled={anySending}
           onClick={() => confirm(readyIds)}
-          className="w-full rounded-lg border border-emerald-500/30 bg-emerald-500/15 px-3 py-2 text-sm font-medium text-emerald-400 transition-colors hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-lg border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/15 px-3 py-2 text-sm font-medium text-[var(--accent-primary-text)] transition-colors hover:bg-[var(--accent-primary)]/25 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Add all ({readyIds.length})
         </button>
@@ -173,8 +173,8 @@ export function ChatProposalCards({ group, onDeckChanged }: { group: ProposalGro
                         onClick={() => confirm([p.proposalId])}
                         aria-label={`Add ${p.cardName} to ${deckName}`}
                         className={cn(
-                          'flex items-center gap-1 rounded-md border border-emerald-500/30 bg-emerald-500/15 px-2 py-1 text-xs font-medium text-emerald-400 transition-colors',
-                          'hover:bg-emerald-500/25 disabled:cursor-not-allowed disabled:opacity-50'
+                          'flex items-center gap-1 rounded-md border border-[var(--accent-primary)]/30 bg-[var(--accent-primary)]/15 px-2 py-1 text-xs font-medium text-[var(--accent-primary-text)] transition-colors',
+                          'hover:bg-[var(--accent-primary)]/25 disabled:cursor-not-allowed disabled:opacity-50'
                         )}
                       >
                         <Plus className="h-3 w-3" aria-hidden />
@@ -189,7 +189,7 @@ export function ChatProposalCards({ group, onDeckChanged }: { group: ProposalGro
                   )}
                   {(row.kind === 'added' || row.kind === 'undoing') && (
                     <>
-                      <span className="flex items-center gap-1 text-xs font-medium text-emerald-400">
+                      <span className="flex items-center gap-1 text-xs font-medium text-[var(--accent-primary-text)]">
                         <Check className="h-3 w-3" aria-hidden /> Added
                       </span>
                       {soloUndo && (

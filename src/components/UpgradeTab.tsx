@@ -283,7 +283,7 @@ function Toolbar({
             style={{
               background:
                 sortMode === opt.value
-                  ? 'rgba(29,158,117,0.15)'
+                  ? 'rgba(113,56,204,0.15)'
                   : 'transparent',
               color: sortMode === opt.value ? '#1D9E75' : 'rgba(255,255,255,0.5)',
             }}
@@ -339,10 +339,10 @@ function FilterChipButton({
       onClick={onClick}
       className="rounded-full px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors"
       style={{
-        background: active ? 'rgba(29,158,117,0.15)' : 'rgba(255,255,255,0.04)',
+        background: active ? 'rgba(113,56,204,0.15)' : 'rgba(255,255,255,0.04)',
         color: active ? '#1D9E75' : 'rgba(255,255,255,0.5)',
         border: active
-          ? '0.5px solid rgba(29,158,117,0.4)'
+          ? '0.5px solid rgba(113,56,204,0.4)'
           : '0.5px solid rgba(255,255,255,0.1)',
       }}
       aria-pressed={active}
@@ -421,12 +421,12 @@ function UpgradeCard({
               style={{
                 width: 16,
                 height: 16,
-                background: 'rgba(29,158,117,0.15)',
+                background: 'rgba(113,56,204,0.15)',
               }}
             >
-              <Check className="h-2.5 w-2.5 text-[#1D9E75]" />
+              <Check className="h-2.5 w-2.5 text-[var(--accent-primary-text)]" />
             </span>
-            <span className="text-[length:var(--fs-xs)] font-medium text-[#1D9E75] uppercase">
+            <span className="text-[length:var(--fs-xs)] font-medium text-[var(--accent-primary-text)] uppercase">
               Add
             </span>
           </div>
@@ -473,7 +473,7 @@ function UpgradeCard({
           onClick={onMakeChange}
           disabled={isMutating}
           className="text-[length:var(--fs-sm)] text-white hover:opacity-90"
-          style={{ background: '#1D9E75' }}
+          style={{ background: 'var(--accent-primary)' }}
         >
           <Check className="mr-1 h-3 w-3" />
           Make change
@@ -518,7 +518,7 @@ function ImpactBar({ value }: { value: number }) {
         className="h-full rounded-full"
         style={{
           width: `${clamped}%`,
-          background: '#1D9E75',
+          background: 'var(--accent-primary)',
         }}
       />
     </div>

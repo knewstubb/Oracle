@@ -81,7 +81,7 @@ export function DeckPickerPopover({
               disabled={disabled}
               className="shrink-0"
               style={{
-                color: 'var(--accent-primary)',
+                color: 'var(--accent-primary-text)',
                 borderColor: 'var(--accent-primary)',
               }}
             >

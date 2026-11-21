@@ -22,7 +22,7 @@ export function ImportWorking({ title, detail, fileName, processed, total, unit,
   return (
     <div role="status" className="flex flex-col items-center gap-3.5 text-center">
       <LoaderCircle
-        className="size-9 animate-spin text-[var(--accent-primary)] motion-reduce:animate-none"
+        className="size-9 animate-spin text-[var(--accent-primary-text)] motion-reduce:animate-none"
         aria-hidden="true"
       />
       <span className="text-[length:var(--fs-lg)] font-medium">{title}</span>

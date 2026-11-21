@@ -58,13 +58,13 @@ describe('DeckListTab', () => {
       expect(emptyStates.length).toBeGreaterThanOrEqual(1)
     })
 
-    it('applies teal gradient accent to win conditions section', () => {
+    it('applies brand gradient accent to win conditions section', () => {
       const cards = [
         makeCard({ card_name: 'Thassa\'s Oracle', primary_category: 'Win Condition' }),
       ]
       const { container } = render(<DeckListTab {...defaultProps} cards={cards} />)
       // The pinned section for Win Conditions should have teal border
-      const tealSection = container.querySelector('.border-l-teal-400\\/40')
+      const tealSection = container.querySelector('.border-l-\\[var\\(--brand-400\\)\\]\\/40')
       expect(tealSection).toBeInTheDocument()
     })
   })

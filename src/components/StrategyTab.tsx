@@ -393,7 +393,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
               <Badge
                 variant="secondary"
                 className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
+                style={{ background: 'rgba(113,56,204,0.1)', color: 'var(--accent-primary-text)' }}
               >
                 {selectedBuild.deckCount.toLocaleString()} decks
               </Badge>
@@ -419,7 +419,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
                 size="sm"
                 variant="ghost"
                 className="text-[length:var(--fs-sm)]"
-                style={{ color: '#1D9E75' }}
+                style={{ color: 'var(--accent-primary-text)' }}
               >
                 <Plus className="h-3 w-3 mr-1" />
                 Add category
@@ -454,7 +454,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
                 >
                   {/* Drag handle or lock icon */}
                   {cat.isCore ? (
-                    <Lock className="h-3.5 w-3.5 shrink-0" style={{ color: 'rgba(29,158,117,0.6)' }} />
+                    <Lock className="h-3.5 w-3.5 shrink-0" style={{ color: 'rgba(113,56,204,0.6)' }} />
                   ) : (
                     <GripVertical className="h-3.5 w-3.5 shrink-0 text-muted-foreground cursor-grab" />
                   )}
@@ -484,7 +484,7 @@ export function StrategyTab({ deckId, deckType, commanderName, commanderId, buil
                     <Badge
                       variant="secondary"
                       className="text-[length:var(--fs-xs)] px-1.5 py-0"
-                      style={{ background: 'rgba(29,158,117,0.1)', color: '#1D9E75' }}
+                      style={{ background: 'rgba(113,56,204,0.1)', color: 'var(--accent-primary-text)' }}
                     >
                       Core
                     </Badge>

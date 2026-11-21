@@ -151,14 +151,14 @@ export function RollupListPane({
           className={cn(
             'rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
             basicLandFilter
-              ? 'text-[#1D9E75]'
+              ? 'text-[var(--accent-primary-text)]'
               : 'text-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[rgba(255,255,255,0.5)]'
           )}
           style={{
             border: basicLandFilter
-              ? '0.5px solid rgba(29,158,117,0.4)'
+              ? '0.5px solid rgba(113,56,204,0.4)'
               : '0.5px solid rgba(255,255,255,0.1)',
-            background: basicLandFilter ? 'rgba(29,158,117,0.1)' : undefined,
+            background: basicLandFilter ? 'rgba(113,56,204,0.1)' : undefined,
           }}
           aria-pressed={basicLandFilter}
           title={basicLandFilter ? 'Show basic lands' : 'Hide basic lands'}
@@ -173,14 +173,14 @@ export function RollupListPane({
           className={cn(
             'rounded-full px-2.5 py-[4px] text-[11px] transition-colors',
             allocatedFilter
-              ? 'text-[#1D9E75]'
+              ? 'text-[var(--accent-primary-text)]'
               : 'text-[rgba(255,255,255,0.35)] hover:bg-[rgba(255,255,255,0.05)] hover:text-[rgba(255,255,255,0.5)]'
           )}
           style={{
             border: allocatedFilter
-              ? '0.5px solid rgba(29,158,117,0.4)'
+              ? '0.5px solid rgba(113,56,204,0.4)'
               : '0.5px solid rgba(255,255,255,0.1)',
-            background: allocatedFilter ? 'rgba(29,158,117,0.1)' : undefined,
+            background: allocatedFilter ? 'rgba(113,56,204,0.1)' : undefined,
           }}
           aria-pressed={allocatedFilter}
           title={allocatedFilter ? 'Show all cards' : 'Show only allocated cards'}

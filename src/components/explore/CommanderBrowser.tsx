@@ -140,7 +140,7 @@ export function CommanderBrowser() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className={cn(
               'pl-10 bg-surface border-border',
-              'focus:border-emerald-500/50 focus:ring-emerald-500/20'
+              'focus:border-[var(--accent-primary)]/50 focus:ring-[var(--accent-primary)]/20'
             )}
           />
         </div>
@@ -171,7 +171,7 @@ export function CommanderBrowser() {
       {createDeckMutation.isPending && (
         <div className={`fixed inset-0 z-50 ${OVERLAY_BACKDROP} flex items-center justify-center`}>
           <div className="bg-surface border border-border rounded-xl p-6 flex items-center gap-4">
-            <Loader2 className="w-6 h-6 animate-spin text-emerald-400" />
+            <Loader2 className="w-6 h-6 animate-spin text-[var(--accent-primary-text)]" />
             <span className="text-foreground">Creating your deck...</span>
           </div>
         </div>

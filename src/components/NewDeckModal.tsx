@@ -213,7 +213,7 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
                     disabled={!formatConfig.brewEnabled}
                     className="flex items-start gap-3 rounded-lg border border-[var(--border-default)] px-4 py-4 text-left transition-colors hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary-bg)] disabled:opacity-40 disabled:pointer-events-none"
                   >
-                    <Sparkles className="size-5 shrink-0 mt-0.5 text-[var(--accent-primary)]" />
+                    <Sparkles className="size-5 shrink-0 mt-0.5 text-[var(--accent-primary-text)]" />
                     <div>
                       <span className="block text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
                         Help me find one

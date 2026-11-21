@@ -71,13 +71,13 @@ export function SuggestedCommanders({ commanders }: SuggestedCommandersProps) {
     <section
       className={cn(
         'rounded-xl p-4 mb-6',
-        'bg-emerald-500/10 border border-emerald-500/30'
+        'bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/30'
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-emerald-400" />
+          <Sparkles className="w-4 h-4 text-[var(--accent-primary-text)]" />
           <h2 className="text-sm font-medium text-foreground">
             Oracle Suggestions
           </h2>
@@ -127,7 +127,7 @@ function CommanderSuggestionCard({ commander, onCommit }: CommanderSuggestionCar
       className={cn(
         'flex gap-3 p-3 rounded-lg min-w-[280px] max-w-[320px]',
         'bg-surface border border-border',
-        'hover:border-emerald-500/50 transition-colors'
+        'hover:border-[var(--accent-primary)]/50 transition-colors'
       )}
     >
       {/* Card Image */}
@@ -164,8 +164,8 @@ function CommanderSuggestionCard({ commander, onCommit }: CommanderSuggestionCar
           onClick={onCommit}
           className={cn(
             'mt-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md',
-            'bg-emerald-500 text-white text-xs font-medium',
-            'hover:bg-emerald-600 transition-colors',
+            'bg-[var(--accent-primary)] text-white text-xs font-medium',
+            'hover:bg-[var(--brand-700)] transition-colors',
             'self-start'
           )}
         >

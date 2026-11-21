@@ -501,7 +501,7 @@ const TYPE_STYLE: Record<string, { label: string; selected: string }> = {
   original: {
     label: "Original",
     selected:
-      "bg-[rgba(29,158,117,0.18)] shadow-[inset_0_0_0_1px_var(--accent-primary)] text-foreground",
+      "bg-[rgba(113,56,204,0.18)] shadow-[inset_0_0_0_1px_var(--accent-primary)] text-foreground",
   },
   proxy: {
     label: "Proxy",
@@ -560,7 +560,7 @@ export function TypeToggle<T extends string = ImportCopyType>({
           >
             {type === "original" && (
               <Check
-                className="size-3 text-[var(--accent-primary)]"
+                className="size-3 text-[var(--accent-primary-text)]"
                 aria-hidden="true"
               />
             )}

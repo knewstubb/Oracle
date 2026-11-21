@@ -121,7 +121,7 @@ export function BuildSelector({ deckId, onBuildChange }: BuildSelectorProps) {
       const buildName = formatBuildName(data.detectedBuild.archetype, data.detectedBuild.theme)
       toast(
         <div className="flex items-center gap-2">
-          <Sparkles className="size-4 text-[var(--accent-primary)]" />
+          <Sparkles className="size-4 text-[var(--accent-primary-text)]" />
           <span>This deck looks like a <strong>{buildName}</strong> build ({data.detectedBuild.score}% match)</span>
         </div>,
         {
@@ -183,7 +183,7 @@ export function BuildSelector({ deckId, onBuildChange }: BuildSelectorProps) {
         {data.detectedBuild && !data.currentBuildId && (
           <DropdownMenuGroup>
             <DropdownMenuLabel className="flex items-center gap-1.5">
-              <Sparkles className="size-3.5 text-[var(--accent-primary)]" />
+              <Sparkles className="size-3.5 text-[var(--accent-primary-text)]" />
               Suggested
             </DropdownMenuLabel>
             <DropdownMenuItem

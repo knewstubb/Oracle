@@ -596,7 +596,7 @@ export function OracleSidebar() {
         )}
 
       <div data-testid="oracle-input-row" className="shrink-0 border-t border-zinc-800/60 px-3 py-3">
-        <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-emerald-500/50 focus-within:bg-zinc-900/80">
+        <div className="flex items-end gap-2 rounded-lg border border-zinc-700/60 bg-zinc-900/60 px-2.5 py-1.5 transition-all focus-within:border-[var(--accent-primary)]/50 focus-within:bg-zinc-900/80">
             <textarea
               ref={inputRef}
               value={inputValue}
@@ -622,7 +622,7 @@ export function OracleSidebar() {
             <button
               onClick={handleSend}
               disabled={isStreaming || !inputValue.trim()}
-              className="flex items-center justify-center w-7 h-7 rounded-md bg-emerald-500 text-black transition-all hover:bg-emerald-400 disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
+              className="flex items-center justify-center w-7 h-7 rounded-md bg-[var(--accent-primary)] text-white transition-all hover:bg-[var(--accent-primary-hover)] disabled:opacity-30 disabled:cursor-not-allowed shrink-0"
               aria-label="Send message"
             >
               <ArrowUpIcon />
@@ -750,13 +750,13 @@ function MessageBubble({
       {/* Streaming indicator — shows while text is still arriving */}
       {isStreaming && message.content.length > 0 && (
         <span className="inline-flex items-center gap-1 ml-1 text-zinc-500">
-          <span className="w-1 h-1 rounded-full animate-pulse bg-emerald-400" />
+          <span className="w-1 h-1 rounded-full animate-pulse bg-[var(--accent-primary-text)]" />
         </span>
       )}
       {/* Done indicator — shows when streaming completes (message has content and not streaming) */}
       {!isStreaming && message.content.length > 0 && !message.navigatePrompt && commanderSuggestions.length === 0 && (
         <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-zinc-800/50">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          <span className="w-1.5 h-1.5 rounded-full bg-[var(--accent-primary)]" />
           <span className="text-xs text-zinc-500">Done</span>
         </div>
       )}
@@ -776,7 +776,7 @@ function MessageBubble({
             'mt-3 flex items-center gap-2 w-full px-3 py-2.5 rounded-lg',
             message.navigatePrompt.commanderName
               ? 'bg-amber-500/15 border border-amber-500/30 text-amber-400 hover:bg-amber-500/25 hover:border-amber-500/50'
-              : 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/25 hover:border-emerald-500/50',
+              : 'bg-[var(--accent-primary)]/15 border border-[var(--accent-primary)]/30 text-[var(--accent-primary-text)] hover:bg-[var(--accent-primary)]/25 hover:border-[var(--accent-primary)]/50',
             'transition-all text-sm font-medium'
           )}
         >
@@ -801,9 +801,9 @@ function LoadingState() {
   return (
     <div className="flex flex-col items-center justify-center h-32 gap-2">
       <div className="flex gap-1">
-        <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400/60" style={{ animationDelay: '0ms' }} />
-        <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400/60" style={{ animationDelay: '150ms' }} />
-        <span className="w-2 h-2 rounded-full animate-pulse bg-emerald-400/60" style={{ animationDelay: '300ms' }} />
+        <span className="w-2 h-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]/60" style={{ animationDelay: '0ms' }} />
+        <span className="w-2 h-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]/60" style={{ animationDelay: '150ms' }} />
+        <span className="w-2 h-2 rounded-full animate-pulse bg-[var(--accent-primary-text)]/60" style={{ animationDelay: '300ms' }} />
       </div>
       <span className="text-xs text-zinc-500">Loading conversation...</span>
     </div>
@@ -822,12 +822,12 @@ function EmptyState({ context, onSuggestionClick }: { context: OracleContext; on
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
       <div className={cn(
         'w-10 h-10 rounded-full flex items-center justify-center mb-3',
-        isExploration ? 'bg-amber-500/15' : 'bg-emerald-500/15'
+        isExploration ? 'bg-amber-500/15' : 'bg-[var(--accent-primary)]/15'
       )}>
         {isExploration ? (
           <Compass className={cn('w-5 h-5', 'text-amber-400')} />
         ) : (
-          <MessageSquare className="w-5 h-5 text-emerald-400" />
+          <MessageSquare className="w-5 h-5 text-[var(--accent-primary-text)]" />
         )}
       </div>
       <h3 className="text-sm font-medium text-zinc-100 mb-1">
@@ -911,9 +911,9 @@ function ThinkingIndicator() {
   return (
     <div className="flex items-center gap-2 text-sm text-zinc-500">
       <div className="flex gap-1">
-        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '0ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '150ms' }} />
-        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-emerald-400" style={{ animationDelay: '300ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '0ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '150ms' }} />
+        <span className="w-1.5 h-1.5 rounded-full animate-pulse bg-[var(--accent-primary-text)]" style={{ animationDelay: '300ms' }} />
       </div>
       <span>Thinking...</span>
     </div>

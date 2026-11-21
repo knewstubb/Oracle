@@ -29,7 +29,7 @@ const CONFIG: Record<DeckStatus, { label: string; icon: string; colorClass: stri
   in_rotation: {
     label: 'Active',
     icon: 'check_circle',
-    colorClass: 'text-[var(--accent-primary)]',
+    colorClass: 'text-[var(--accent-primary-text)]',
     bgClass: 'bg-[var(--accent-primary-bg)]',
   },
 }

@@ -74,8 +74,8 @@ function ExploreHoldingState() {
         'bg-surface rounded-xl border border-dashed border-border'
       )}
     >
-      <div className="w-12 h-12 rounded-full bg-emerald-500/15 flex items-center justify-center mb-4">
-        <Sparkles className="w-6 h-6 text-emerald-400 opacity-60" />
+      <div className="w-12 h-12 rounded-full bg-[var(--accent-primary)]/15 flex items-center justify-center mb-4">
+        <Sparkles className="w-6 h-6 text-[var(--accent-primary-text)] opacity-60" />
       </div>
       
       <h2 className="text-lg font-medium text-foreground mb-2">
@@ -90,8 +90,8 @@ function ExploreHoldingState() {
           onClick={open}
           className={cn(
             'inline-flex items-center gap-2 px-4 py-2 rounded-lg',
-            'bg-emerald-500 text-white font-medium text-sm',
-            'hover:bg-emerald-600 transition-colors'
+            'bg-[var(--accent-primary)] text-white font-medium text-sm',
+            'hover:bg-[var(--brand-700)] transition-colors'
           )}
         >
           <Sparkles className="w-4 h-4" />

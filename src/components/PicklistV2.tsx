@@ -361,8 +361,8 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                           disabled={isPending}
                           onClick={() => handlePlaced(card, candidate)}
                           aria-label={`Placed: ${card.cardName}`}
-                          className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all"
-                          style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
+                          className="hover:bg-[rgba(113,56,204,0.15)] hover:scale-105 transition-all"
+                          style={{ color: 'rgba(113,56,204,0.7)', borderColor: 'rgba(113,56,204,0.5)' }}
                         >
                           Placed
                         </Button>
@@ -481,7 +481,7 @@ export function PicklistV2({ deckId }: PicklistV2Props) {
                       variant="outline"
                       disabled={isPending}
                       onClick={() => handleProxy(card)}
-                      className="hover:bg-[rgba(29,158,117,0.15)] hover:scale-105 transition-all" style={{ color: 'var(--accent-primary)', borderColor: 'var(--accent-primary)' }}
+                      className="hover:bg-[rgba(113,56,204,0.15)] hover:scale-105 transition-all" style={{ color: 'var(--accent-primary-text)', borderColor: 'var(--accent-primary)' }}
                     >
                       Proxy
                     </Button>
@@ -650,8 +650,8 @@ function ItemSection({
                       disabled={busy || item.deckCardsId === null}
                       onClick={() => onTick('placed', card, item.copyId, meta)}
                       aria-label={`Placed: ${item.cardName}`}
-                      className="hover:bg-[rgba(29,158,117,0.15)] transition-all"
-                      style={{ color: 'rgba(29,158,117,0.7)', borderColor: 'rgba(29,158,117,0.5)' }}
+                      className="hover:bg-[rgba(113,56,204,0.15)] transition-all"
+                      style={{ color: 'rgba(113,56,204,0.7)', borderColor: 'rgba(113,56,204,0.5)' }}
                     >
                       Placed
                     </Button>

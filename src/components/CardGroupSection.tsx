@@ -1763,7 +1763,7 @@ function CategorySuggestionsDialog({
                         inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[length:var(--fs-xs)] font-medium
                         transition-all border
                         ${activePrimary === suggestion.category
-                          ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                          ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/10 text-[var(--accent-primary-text)]'
                           : 'border-[var(--border-default)] hover:border-[var(--border-subtle)] hover:bg-white/5'
                         }
                       `}

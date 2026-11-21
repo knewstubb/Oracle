@@ -1100,7 +1100,7 @@ export default function BrewModePage() {
           >
             ←
           </button>
-          <h1 className="ml-4 text-[14px] font-medium text-emerald-400">
+          <h1 className="ml-4 text-[14px] font-medium text-[var(--accent-primary-text)]">
             {messages.length > 0 && messages[0].role === 'user' 
               ? inferDeckName(messages[0].content)
               : 'New Brew'}

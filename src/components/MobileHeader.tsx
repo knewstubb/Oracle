@@ -133,7 +133,7 @@ export function MobileHeader() {
                         className={cn(
                           'flex items-center gap-3 rounded-lg px-3 py-2.5 text-[length:var(--fs-md)] font-medium transition-colors',
                           active
-                            ? 'bg-[var(--accent-primary-bg)] text-[var(--accent-primary)]'
+                            ? 'bg-[var(--accent-primary-bg)] text-[var(--accent-primary-text)]'
                             : 'text-muted-foreground hover:bg-white/[0.04] hover:text-foreground'
                         )}
                       >

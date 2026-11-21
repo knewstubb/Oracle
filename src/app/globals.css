@@ -36,7 +36,7 @@
   --color-secondary: var(--secondary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary: var(--primary);
-  --color-primary-text: #4DCB9F;
+  --color-primary-text: var(--accent-primary-text);
   --color-success: var(--success);
   --color-warning: var(--warning);
   --color-proxy: var(--proxy);
@@ -61,9 +61,9 @@
   --card-foreground: oklch(0.18 0.01 250);
   --popover: oklch(0.995 0.002 90);
   --popover-foreground: oklch(0.18 0.01 250);
-  /* Teal primary from the styleguide */
-  --primary: oklch(0.45 0.1 195);
-  --primary-foreground: oklch(0.99 0 0);
+  /* Brand purple #7138CC */
+  --primary: var(--brand-600);
+  --primary-foreground: #FFFFFF;
   --success: oklch(0.60 0.15 155);
   --warning: oklch(0.75 0.15 70);
   --proxy: oklch(0.65 0.27 320);
@@ -76,22 +76,22 @@
   --destructive: oklch(0.55 0.22 25);
   --border: oklch(0.88 0.005 90);
   --input: oklch(0.88 0.005 90);
-  --ring: oklch(0.45 0.1 195);
-  --chart-1: oklch(0.45 0.1 195);
-  --chart-2: oklch(0.55 0.08 195);
-  --chart-3: oklch(0.65 0.06 195);
-  --chart-4: oklch(0.75 0.04 195);
-  --chart-5: oklch(0.85 0.02 195);
+  --ring: var(--brand-600);
+  --chart-1: var(--brand-700);
+  --chart-2: var(--brand-600);
+  --chart-3: var(--brand-400);
+  --chart-4: var(--brand-300);
+  --chart-5: var(--brand-200);
   /* Larger radius for softer feel */
   --radius: 0.75rem;
   --sidebar: oklch(0.98 0.003 90);
   --sidebar-foreground: oklch(0.18 0.01 250);
-  --sidebar-primary: oklch(0.45 0.1 195);
+  --sidebar-primary: var(--brand-600);
   --sidebar-primary-foreground: oklch(0.99 0 0);
   --sidebar-accent: oklch(0.94 0.005 90);
   --sidebar-accent-foreground: oklch(0.25 0.01 250);
   --sidebar-border: oklch(0.88 0.005 90);
-  --sidebar-ring: oklch(0.45 0.1 195);
+  --sidebar-ring: var(--brand-600);
 }
 
 .dark {
@@ -105,10 +105,10 @@
 
   /* Primary = accent-primary */
   --primary: var(--accent-primary);
-  --primary-foreground: #08150F; /* dark text on the green primary: 5.5:1 (white is 3.4:1) */
+  --primary-foreground: #FFFFFF; /* white on #7138CC is 6.7:1 */
 
   /* Semantic states */
-  --success: var(--accent-primary);
+  --success: var(--signal-success); /* success stays green, it is not a brand colour */
   --warning: var(--signal-warning);
   --proxy: var(--status-proxy);
   --destructive: var(--signal-critical);
@@ -124,14 +124,14 @@
   /* Borders & Input */
   --border: var(--border-default);
   --input: var(--border-default);
-  --ring: var(--accent-primary);
+  --ring: var(--accent-primary-text);
 
-  /* Charts — gradient from accent-primary at different opacities */
-  --chart-1: var(--accent-primary);
-  --chart-2: rgba(29, 158, 117, 0.8);
-  --chart-3: rgba(29, 158, 117, 0.6);
-  --chart-4: rgba(29, 158, 117, 0.4);
-  --chart-5: rgba(29, 158, 117, 0.2);
+  /* Charts — brand purple shades (never pip colours) */
+  --chart-1: var(--brand-500);
+  --chart-2: var(--brand-400);
+  --chart-3: var(--brand-300);
+  --chart-4: var(--brand-200);
+  --chart-5: var(--brand-100);
 
   /* Sidebar */
   --sidebar: var(--bg-canvas);
@@ -141,7 +141,7 @@
   --sidebar-accent: var(--bg-surface-hover);
   --sidebar-accent-foreground: var(--text-primary);
   --sidebar-border: var(--border-default);
-  --sidebar-ring: var(--accent-primary);
+  --sidebar-ring: var(--accent-primary-text);
 
   /* Radius */
   --radius: 0.75rem;
@@ -215,7 +215,7 @@
   button:focus-visible,
   select:focus-visible,
   [role="button"]:focus-visible {
-    outline: 2px solid var(--accent-primary);
+    outline: 2px solid var(--accent-primary-text);
     outline-offset: 1px;
   }
 }

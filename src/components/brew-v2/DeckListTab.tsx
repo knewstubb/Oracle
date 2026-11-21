@@ -181,17 +181,17 @@ function PinnedSection({
 }: PinnedSectionProps) {
   const gradientStyle =
     accent === 'teal'
-      ? 'from-[rgba(45,212,191,0.08)] to-transparent'
+      ? 'from-[rgba(113,56,204,0.12)] to-transparent'
       : 'from-[rgba(245,158,11,0.08)] to-transparent'
 
   const borderColor =
     accent === 'teal'
-      ? 'border-l-teal-400/40'
+      ? 'border-l-[var(--brand-400)]/40'
       : 'border-l-amber-400/40'
 
   const titleColor =
     accent === 'teal'
-      ? 'text-teal-300/80'
+      ? 'text-[var(--brand-300)]/80'
       : 'text-amber-300/80'
 
   return (

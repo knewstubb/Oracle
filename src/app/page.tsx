@@ -430,7 +430,7 @@ function DecksSection({ decks, folders }: { decks: Deck[]; folders: DeckFolder[]
           <button
             type="button"
             onClick={() => setSelectedFolderId(null)}
-            className="mb-2 text-[length:var(--fs-xs)] text-[var(--accent-primary)] hover:underline"
+            className="mb-2 text-[length:var(--fs-xs)] text-[var(--accent-primary-text)] hover:underline"
           >
             ← Show all decks
           </button>

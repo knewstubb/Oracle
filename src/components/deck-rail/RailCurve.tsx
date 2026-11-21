@@ -1,8 +1,8 @@
 'use client'
-// Mana curve: seven teal bars (mana value 1 to 7+, lands excluded). Click a bar to see its colour breakdown under the chart.
+// Mana curve: seven brand-purple bars (mana value 1 to 7+, lands excluded). Click a bar to see its colour breakdown under the chart.
 // Clicking the same bar again, or pressing Escape, closes the panel.
 import { useState } from 'react'
-import { MANA_FILL_VARS, CURVE_TEAL_SELECTED_VAR, CURVE_TEAL_VAR, MULTI_FILL_VAR } from '@/lib/ui-tokens'
+import { MANA_FILL_VARS, CURVE_BRAND_SELECTED_VAR, CURVE_BRAND_VAR, MULTI_FILL_VAR } from '@/lib/ui-tokens'
 import { avgManaValue, curvePanel, manaCurveBuckets, type RailCard } from '@/lib/deck-rail-stats'
 import { FOCUS_RING } from '@/components/deck-strategy/focus'
 import { cn } from '@/lib/utils'
@@ -49,7 +49,7 @@ export function RailCurve({ cards }: { cards: RailCard[] }) {
               <span
                 aria-hidden="true"
                 className="block w-6 rounded-[2px]"
-                style={{ height: `${Math.min(64, count * 1.65)}px`, minHeight: count > 0 ? 2 : 0, background: `var(${on ? CURVE_TEAL_SELECTED_VAR : CURVE_TEAL_VAR})` }}
+                style={{ height: `${Math.min(64, count * 1.65)}px`, minHeight: count > 0 ? 2 : 0, background: `var(${on ? CURVE_BRAND_SELECTED_VAR : CURVE_BRAND_VAR})` }}
               />
               <span className={cn('text-[10px] text-[var(--text-secondary)]', on && 'font-semibold text-[var(--text-primary)]')} aria-hidden="true">{mvLabel(mv)}</span>
             </button>

@@ -141,7 +141,7 @@ function InsightCard({ insight, isFirst, selectedBuildLabel }: InsightCardProps)
       style={{
         background: isGeneric ? 'rgba(255,255,255,0.02)' : 'rgba(113,56,204,0.05)',
         border: isGeneric ? '0.5px solid rgba(255,255,255,0.04)' : undefined,
-        borderLeftColor: !isGeneric ? '#1D9E75' : undefined,
+        borderLeftColor: !isGeneric ? 'var(--accent-primary)' : undefined,
       }}
     >
       {/* Build badge if not generic */}

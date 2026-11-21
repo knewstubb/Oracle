@@ -196,7 +196,7 @@ function BuildChip({
       style={{
         background: isSelected ? 'rgba(113,56,204,0.15)' : 'rgba(255,255,255,0.03)',
         border: isSelected ? '1px solid rgba(113,56,204,0.4)' : '1px solid rgba(255,255,255,0.06)',
-        color: isSelected ? '#1D9E75' : 'inherit',
+        color: isSelected ? 'var(--accent-primary-text)' : 'inherit',
       }}
     >
       <span className="font-medium">{formatBuildLabel(build)}</span>

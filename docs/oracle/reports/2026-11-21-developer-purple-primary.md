@@ -42,3 +42,11 @@ The main colour of the app is now purple (#7138CC) instead of green. Buttons, th
 - npm run lint: src has 1 pre-existing error (storage link in PicklistV2), unchanged
 - vitest --run: src tests pass; upgrade-engine.property failed once in the full run and passed alone and on the unmodified tree (flaky); failures under .worktrees/mana-colours belong to another worktree
 - Playwright screenshots in docs/oracle/reports/2026-11-21-developer-purple-primary/: home-dark, collection-dark, deck-dark, import-cards-dark, import-deck-dark, home-light
+
+## Review round 2 fixes
+- UpgradeTab active sort/filter pills, CommanderOverview selected build button: text now uses the brand text token.
+- CollectionTagFilter: active Tags chip border, match toggle border and Done button now use brand tokens; Done text is white; count text uses the brand text token.
+- StrategyGuide: left border on guide cards uses the brand token.
+- Browser theme colour (mobile address bar) is now #7138CC.
+- Deliberately still green (semantic): Upgrade list status dot for included entries, analysis scores, owned/Playable, price gain, success dots.
+- Verification: tsc 4 baseline errors (AddToPicklist.test); lint 12 baseline errors; vitest excluding .worktrees: 4570 pass, 1 known flaky (upgrade-engine property test).

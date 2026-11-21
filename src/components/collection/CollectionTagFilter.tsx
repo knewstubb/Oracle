@@ -11,7 +11,7 @@ import { Check, ChevronDown, Tag as TagIcon } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ALL_TAGS, type TagMatch } from '@/lib/card-tags-read'
 
-const GREEN = '#1D9E75'
+const BRAND = 'var(--accent-primary)'
 const BROAD = ALL_TAGS.filter((t) => t.kind === 'broad')
 const MECHANIC = ALL_TAGS.filter((t) => t.kind === 'mechanic')
 
@@ -121,9 +121,9 @@ export function CollectionTagFilter({ selectedTags, onTagsChange, tagsMatch, onT
           count > 0 ? 'font-semibold' : 'text-[rgba(255,255,255,0.6)] hover:bg-[rgba(255,255,255,0.05)]'
         )}
         style={{
-          border: count > 0 ? `1px solid ${GREEN}` : '0.5px solid rgba(255,255,255,0.2)',
+          border: count > 0 ? `1px solid ${BRAND}` : '0.5px solid rgba(255,255,255,0.2)',
           background: count > 0 ? 'rgba(113,56,204,0.12)' : undefined,
-          color: count > 0 ? '#5fd9ad' : undefined,
+          color: count > 0 ? 'var(--accent-primary-text)' : undefined,
         }}
       >
         <TagIcon className="size-4" aria-hidden="true" />
@@ -178,7 +178,7 @@ export function CollectionTagFilter({ selectedTags, onTagsChange, tagsMatch, onT
                     onClick={() => onTagsMatchChange(m)}
                     className={cn('inline-flex min-h-11 items-center gap-1 rounded-full px-3 text-[length:var(--fs-sm)]', tagsMatch === m && 'font-semibold')}
                     style={{
-                      border: tagsMatch === m ? `1px solid ${GREEN}` : '0.5px solid rgba(255,255,255,0.25)',
+                      border: tagsMatch === m ? `1px solid ${BRAND}` : '0.5px solid rgba(255,255,255,0.25)',
                       background: tagsMatch === m ? 'rgba(113,56,204,0.15)' : undefined,
                     }}
                   >
@@ -205,8 +205,8 @@ export function CollectionTagFilter({ selectedTags, onTagsChange, tagsMatch, onT
               <button
                 type="button"
                 onClick={close}
-                className="min-h-11 rounded-md px-4 text-[length:var(--fs-sm)] font-semibold text-black"
-                style={{ background: GREEN }}
+                className="min-h-11 rounded-md px-4 text-[length:var(--fs-sm)] font-semibold text-white"
+                style={{ background: BRAND }}
               >
                 Done
               </button>

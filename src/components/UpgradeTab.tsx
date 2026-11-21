@@ -285,7 +285,7 @@ function Toolbar({
                 sortMode === opt.value
                   ? 'rgba(113,56,204,0.15)'
                   : 'transparent',
-              color: sortMode === opt.value ? '#1D9E75' : 'rgba(255,255,255,0.5)',
+              color: sortMode === opt.value ? 'var(--accent-primary-text)' : 'rgba(255,255,255,0.5)',
             }}
             aria-pressed={sortMode === opt.value}
           >
@@ -340,7 +340,7 @@ function FilterChipButton({
       className="rounded-full px-3 py-1 text-[length:var(--fs-sm)] font-medium transition-colors"
       style={{
         background: active ? 'rgba(113,56,204,0.15)' : 'rgba(255,255,255,0.04)',
-        color: active ? '#1D9E75' : 'rgba(255,255,255,0.5)',
+        color: active ? 'var(--accent-primary-text)' : 'rgba(255,255,255,0.5)',
         border: active
           ? '0.5px solid rgba(113,56,204,0.4)'
           : '0.5px solid rgba(255,255,255,0.1)',

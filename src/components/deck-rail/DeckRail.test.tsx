@@ -62,7 +62,7 @@ describe('DeckRail', () => {
     const aside = screen.getByRole('complementary', { name: 'Deck summary' })
     expect(screen.getByRole('heading', { level: 1, name: 'Yedora, the Explorer' })).toBeInTheDocument()
     const headings = within(aside).getAllByRole('heading').map((h) => h.textContent)
-    expect(headings).toEqual(['Yedora, the Explorer', 'Cards', 'Deck health', 'Mana curve', 'Mana production'])
+    expect(headings).toEqual(['Yedora, the Explorer', 'Cards', 'Deck health', 'Mana curve', 'Mana production', 'Mana by turn'])
     const slot = screen.getByTestId('strategy-slot')
     expect(screen.getByTestId('rail-commander').compareDocumentPosition(screen.getByRole('heading', { name: 'Cards' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Cards' }).compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -358,7 +358,7 @@ describe('DeckRail', () => {
   })
   it('puts a shared section label style on every rail section', () => {
     renderRail(yedora())
-    for (const name of ['Deck health', 'Mana curve', 'Mana production']) {
+    for (const name of ['Deck health', 'Mana curve', 'Mana production', 'Mana by turn']) {
       expect(screen.getByRole('heading', { name }).className).toMatch(/text-\[10px\].*uppercase/)
     }
     expect(screen.queryByText(/Salt/)).toBeNull() // salt now lives in the Strategy block

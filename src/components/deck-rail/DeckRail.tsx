@@ -11,6 +11,7 @@ import { RailCards } from './RailCards'
 import { RailHealth } from './RailHealth'
 import { RailCurve } from './RailCurve'
 import { RailProduction } from './RailProduction'
+import { RailManaByTurn } from './RailManaByTurn'
 
 export interface DeckRailProps {
   deck: {
@@ -99,6 +100,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
           <RailHealth deckId={deck.id} cards={cards} />
           <RailCurve cards={cards} />
           <RailProduction cards={cards} colourIdentity={deck.colour_identity} library={Math.max(0, totalCards - commanders.length)} />
+          <RailManaByTurn cards={cards} commanders={commanderNames} />
         </div>
       </div>
     </aside>

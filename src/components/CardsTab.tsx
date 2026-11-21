@@ -629,7 +629,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
     >
     <div className="flex h-full flex-col">
       {/* ─── Toolbar ──────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-b px-4 py-3" style={{ borderColor: 'var(--border-default)' }}>
+      <div className="shrink-0 border-b px-4 py-3 @[800px]:px-0" style={{ borderColor: 'var(--border-default)' }}>
         <div className="mx-auto flex flex-wrap max-w-[var(--content-max-width)] items-center gap-2 md:gap-3">
           {/* Tab mode segmented control */}
           {/* Search input */}
@@ -794,7 +794,7 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
       )}
 
       {/* ─── View Content Area ─────────────────────────────────────────── */}
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4 @[800px]:px-0">
         <div className="mx-auto max-w-[var(--content-max-width)]">
           {tabMode === 'picklist' ? (
             <PicklistV2 deckId={deckId} />

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { curveBarHeight } from './RailCurve'
 import { render, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { readFileSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -266,6 +267,17 @@ describe('DeckRail', () => {
     bars.forEach((b) => expect(b).toHaveAttribute('aria-pressed', 'false'))
     expect(screen.queryByTestId('curve-panel')).toBeNull()
     expect(screen.getByTestId('avg-mv')).toHaveTextContent('Avg CMC 1.0')
+  })
+  it('curve: tallest bar is 50px, others proportional, zero has no bar, non-zero is at least 2px', () => {
+    expect(curveBarHeight(8, 8)).toBe(50)
+    expect(curveBarHeight(31, 31)).toBe(50)
+    expect(curveBarHeight(4, 8)).toBe(25)
+    expect(curveBarHeight(0, 8)).toBe(0)
+    expect(curveBarHeight(1, 31)).toBe(2)
+    renderRail(yedora())
+    const fills = screen.getAllByTestId('curve-fill')
+    expect(fills[0]).toHaveStyle({ height: '50px' })
+    expect(fills[1]).toHaveStyle({ height: '0px' })
   })
   it('curve: a click opens the panel, another bar switches, the same bar or Escape closes', async () => {
     const user = userEvent.setup()

@@ -11,6 +11,10 @@ import { RailSection } from './RailSection'
 const MVS = [1, 2, 3, 4, 5, 6, 7]
 const mvLabel = (mv: number) => (mv === 7 ? '7+' : String(mv))
 const segFill = (key: string) => (key === 'M' ? `var(${MULTI_FILL_VAR})` : `var(${MANA_FILL_VARS[key as keyof typeof MANA_FILL_VARS]})`)
+export const CURVE_MAX_BAR_PX = 50
+export const CURVE_MIN_BAR_PX = 2
+/** Tallest bucket is always 50px; others scale to it; zero shows no bar; non-zero is at least 2px. */
+export const curveBarHeight = (count: number, tallest: number) => (count <= 0 || tallest <= 0 ? 0 : Math.max(CURVE_MIN_BAR_PX, (count / tallest) * CURVE_MAX_BAR_PX))
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 export function RailCurve({ cards }: { cards: RailCard[] }) {
@@ -27,7 +31,7 @@ export function RailCurve({ cards }: { cards: RailCard[] }) {
       action={avg !== null ? <span className="text-[11px] font-medium tabular-nums text-[var(--text-primary)]" data-testid="avg-mv">Avg CMC {avg.toFixed(1)}</span> : undefined}
     >
       <div
-        className="flex h-28 items-end"
+        className="flex items-end"
         onKeyDown={(e) => {
           if (e.key === 'Escape' && selected !== null) setSelected(null)
         }}
@@ -43,13 +47,14 @@ export function RailCurve({ cards }: { cards: RailCard[] }) {
               aria-label={`Mana value ${mvLabel(mv)}, ${plural(count, 'card', 'cards')}`}
               onClick={() => setSelected(on ? null : mv)}
               data-testid="curve-bar"
-              className={cn('flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1 rounded-[2px]', FOCUS_RING)}
+              className={cn('flex min-w-0 flex-1 flex-col items-center justify-end gap-1 rounded-[2px]', FOCUS_RING)}
             >
               <span className={cn('text-[10px] tabular-nums text-[var(--text-secondary)]', on && 'font-semibold text-[var(--text-primary)]')} aria-hidden="true">{count}</span>
               <span
                 aria-hidden="true"
+                data-testid="curve-fill"
                 className="block w-6 rounded-[2px]"
-                style={{ height: `${Math.min(64, count * 1.65)}px`, minHeight: count > 0 ? 2 : 0, background: `var(${on ? CURVE_BRAND_SELECTED_VAR : CURVE_BRAND_VAR})` }}
+                style={{ height: `${curveBarHeight(count, max)}px`, background: `var(${on ? CURVE_BRAND_SELECTED_VAR : CURVE_BRAND_VAR})` }}
               />
               <span className={cn('text-[10px] text-[var(--text-secondary)]', on && 'font-semibold text-[var(--text-primary)]')} aria-hidden="true">{mvLabel(mv)}</span>
             </button>

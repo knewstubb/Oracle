@@ -65,7 +65,7 @@ export interface HealthTile {
 
 export interface HealthTilesView {
   mode: HealthMode
-  /** Problem tiles first (under before over, largest first), then the rest in their usual order, Game Plan last. */
+  /** Fixed order: Ramp, Board Wipes, Card Advantage, Lands, Targeted Removal, Game Plan (custom mode: problems first as before). */
   tiles: HealthTile[]
   headline: { text: string; problem: boolean }
 }
@@ -173,12 +173,16 @@ export function applySettings(
   })
 }
 
-/** Orders the tiles and words the headline. */
+const RAIL_TILE_ORDER: HealthKind[] = ['ramp', 'board_wipes', 'card_advantage', 'lands', 'targeted_removal', 'game_plan']
+/** Words the headline and puts the tiles in the design's fixed order (problems are not moved to the front). */
 export function healthTilesView(tiles: HealthTile[], mode: HealthMode): HealthTilesView {
   const under = tiles.filter((t) => t.status === 'under').sort((a, b) => a.offBy - b.offBy)
   const over = tiles.filter((t) => t.status === 'over').sort((a, b) => b.offBy - a.offBy)
+  // Fixed order as in the design (default mode); custom mode keeps problems first.
+  const pos = (t: HealthTile) => (t.kind ? RAIL_TILE_ORDER.indexOf(t.kind) : -1)
   const rest = tiles.filter((t) => t.status !== 'under' && t.status !== 'over')
-  const ordered = [...under, ...over, ...rest.filter((t) => t.status !== 'total'), ...rest.filter((t) => t.status === 'total')]
+  const problemsFirst = [...under, ...over, ...rest.filter((t) => t.status !== 'total'), ...rest.filter((t) => t.status === 'total')]
+  const ordered = mode === 'default' ? [...tiles].sort((a, b) => pos(a) - pos(b)) : problemsFirst
   const name = (t: HealthTile) => (t.kind ? SHORT_NAMES[t.kind] : t.label)
   let text: string
   if (under.length + over.length > 0) {

@@ -4,7 +4,6 @@ import { ChevronDown } from 'lucide-react'
 import { CardImage } from '@/components/CardImage'
 import { cardCountView, type RailCard } from '@/lib/deck-rail-stats'
 import { FOCUS_RING } from '@/components/deck-strategy/focus'
-import { CARD_SURFACE_CLASS, CARD_SURFACE_STYLE } from '@/lib/ui-tokens'
 import { cn } from '@/lib/utils'
 import { RailCommander, type RailCommanderRow } from './RailCommander'
 import { isCompanion } from '@/lib/command-zone'
@@ -47,7 +46,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
-    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[320px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:px-6 @[800px]:pb-6 @[800px]:pt-2">
+    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[320px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:px-4 @[800px]:pb-4 @[800px]:pt-2">
       <button
         type="button"
         aria-expanded={expanded}
@@ -70,20 +69,20 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
         <span className="sr-only">{expanded ? 'Hide deck summary' : 'Show deck summary'}</span>
       </button>
       <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} px-4 pb-4 @[800px]:block @[800px]:p-0`}>
-        <div className={cn(CARD_SURFACE_CLASS, 'overflow-hidden')} style={CARD_SURFACE_STYLE} data-testid="rail-card">
+        <div className="overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]" data-testid="rail-card">
           {hasCommander ? (
-            <div className="flex w-full" data-testid="rail-art">
+            <div className="flex h-[150px] w-full" data-testid="rail-art">
               <div className="min-w-0 flex-1">
-                <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={secondArt ? 152 : 304} height={secondArt ? 111 : 222} artCrop noPreview className="block h-auto w-full object-cover" />
+                <CardImage scryfallId={deck.commander_scryfall_id!} alt={`${commanderNames[0]} card art`} width={secondArt ? 152 : 304} height={secondArt ? 111 : 222} artCrop noPreview className="block h-full w-full object-cover" />
               </div>
               {secondArt && (
                 <div className="min-w-0 flex-1">
-                  <CardImage scryfallId={secondArt} alt={`${commanderNames[1] ?? 'Partner'} card art`} width={152} height={111} artCrop noPreview className="block h-auto w-full object-cover" />
+                  <CardImage scryfallId={secondArt} alt={`${commanderNames[1] ?? 'Partner'} card art`} width={152} height={111} artCrop noPreview className="block h-full w-full object-cover" />
                 </div>
               )}
             </div>
           ) : null}
-          <div className="p-4 pb-2">
+          <div className="space-y-2 p-4">
             <h1 className="break-words text-[length:var(--fs-xl)] font-semibold leading-tight">{deck.name}</h1>
             {isPrecon && (
               <span
@@ -93,10 +92,10 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
                 Precon mod
               </span>
             )}
+            <RailCommander commanders={commanders} companion={companion} />
           </div>
-          <RailCommander commanders={commanders} companion={companion} />
           <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} totalValue={totalValue} />
-          <div className="border-t border-white/[0.08] p-4">{strategySlot}</div>
+          <div className="border-t border-[var(--border-subtle)] p-4">{strategySlot}</div>
           <RailHealth deckId={deck.id} cards={cards} />
           <RailCurve cards={cards} />
           <RailProduction cards={cards} colourIdentity={deck.colour_identity} library={Math.max(0, totalCards - commanders.length)} />

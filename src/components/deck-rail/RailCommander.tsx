@@ -27,7 +27,7 @@ const lettersOf = (raw: string | null | undefined): ManaLetter[] => {
 function Symbols({ identity }: { identity: string | null | undefined }) {
   if (identity == null) return null
   return (
-    <span className="inline-flex shrink-0 items-center gap-0.5 text-[length:var(--fs-lg)]">
+    <span className="inline-flex shrink-0 items-center gap-0.5 text-[12.3px] leading-none">
       {lettersOf(identity).map((c) => (
         <ManaSymbol key={c} colour={c} />
       ))}
@@ -38,8 +38,8 @@ function Symbols({ identity }: { identity: string | null | undefined }) {
 function Tag({ label, name }: { label: string; name: string }) {
   return (
     <div className="flex items-center gap-2">
-      <span className="rounded-[4px] border border-[var(--border-subtle)] px-1.5 py-0.5 text-[10px] font-medium uppercase text-[var(--text-secondary)]">{label}</span>
-      <span className="min-w-0 break-words text-[12px]">{name}</span>
+      <span className="rounded-[4px] border border-[var(--border-default)] px-1.5 py-0.5 text-[11px] font-medium uppercase text-[var(--text-secondary)]">{label}</span>
+      <span className="min-w-0 break-words text-[13px]">{name}</span>
     </div>
   )
 }
@@ -47,7 +47,7 @@ function Tag({ label, name }: { label: string; name: string }) {
 export function RailCommander({ commanders, companion }: RailCommanderProps) {
   if (commanders.length === 0) {
     return (
-      <div className="px-4 pb-4" data-testid="rail-commander">
+      <div data-testid="rail-commander">
         <p className="rounded-lg border border-dashed border-[#8A8A93] px-3 py-3 text-[length:var(--fs-md)]">Choose a commander</p>
       </div>
     )
@@ -55,11 +55,11 @@ export function RailCommander({ commanders, companion }: RailCommanderProps) {
   const background = commanders.find((c) => c.role === 'background')
   const rows = commanders.filter((c) => c !== background)
   return (
-    <div className="space-y-2 px-4 pb-4" data-testid="rail-commander">
-      <ul className="space-y-1.5">
+    <div className="space-y-2" data-testid="rail-commander">
+      <ul className="space-y-2">
         {rows.map((c) => (
           <li key={c.name} className="flex items-center justify-between gap-2">
-            <span className="min-w-0 break-words text-[length:var(--fs-md)] font-medium">{c.name}</span>
+            <span className="min-w-0 break-words text-[13px] font-medium">{c.name}</span>
             <Symbols identity={c.colourIdentity} />
           </li>
         ))}

@@ -76,7 +76,7 @@ describe('DeckRail', () => {
     expect(await screen.findByText('2 cards over')).toBeInTheDocument()
     expect(screen.getByTestId('rail-legal-chip')).toHaveTextContent('Not legal')
     expect(screen.getByTestId('rail-count')).toHaveTextContent('102')
-    expect(screen.getByTestId('rail-count').getAttribute('style')).toMatch(/warn-amber/)
+    expect(screen.getByTestId('rail-count').getAttribute('style')).toMatch(/signal-warning/)
   })
   it('100 cards: no amber, no over text, Legal for Commander', async () => {
     renderRail(yedora({ totalCards: 100 }))
@@ -127,11 +127,11 @@ describe('DeckRail', () => {
     expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0)
   })
 
-  it('shows six health tiles, problems first, with the count, the target and an arrow only on problem tiles', async () => {
+  it('shows six health tiles in the fixed design order, with the count, the target and an arrow only on problem tiles', async () => {
     renderRail(yedora())
     const rows = await screen.findByTestId('health-rows')
     const items = within(rows).getAllByRole('button')
-    expect(items.map((b) => b.getAttribute('data-kind'))).toEqual(['card_advantage', 'targeted_removal', 'board_wipes', 'ramp', 'lands', 'game_plan'])
+    expect(items.map((b) => b.getAttribute('data-kind'))).toEqual(['ramp', 'board_wipes', 'card_advantage', 'lands', 'targeted_removal', 'game_plan'])
     // The numbers are the buildDeckHealth numbers.
     for (const src of HEALTH.rows) {
       const el = items.find((b) => b.getAttribute('data-kind') === src.kind)!
@@ -150,7 +150,7 @@ describe('DeckRail', () => {
     expect(within(gp).queryByTestId('health-arrow-up')).toBeNull()
     expect(within(gp).queryByTestId('health-arrow-down')).toBeNull()
     expect(screen.getByTestId('health-verdict')).toHaveTextContent('Light on card advantage, removal and board wipes, heavy on ramp')
-    expect(screen.getByText('Mana sources 55: 37 lands, 18 ramp cards. An estimate.')).toBeInTheDocument()
+    expect(screen.queryByText(/Mana sources/)).toBeNull() // the info lines are not in the rail (design)
   })
   it('has no Ok, Light or Heavy words on any tile and no Confirm or Decline in the rail', async () => {
     renderRail(yedora())
@@ -199,7 +199,7 @@ describe('DeckRail', () => {
     expect(within(rows).getAllByRole('button')).toHaveLength(6)
     expect(screen.getByRole('button', { name: /^Board Wipes: 0 cards\. Target 3\u20136/ })).toBeInTheDocument()
   })
-  it('shows the double-faced line and the uncategorised and overlap notes only when they apply', async () => {
+  it('shows the double-faced line on the Lands tile and no info notes in the rail', async () => {
     health = () =>
       json(
         200,
@@ -213,9 +213,8 @@ describe('DeckRail', () => {
     renderRail(yedora())
     const lands = await screen.findByRole('button', { name: /^Lands: 36 cards/ })
     expect(lands).toHaveTextContent('+ 2 double-faced')
-    expect(screen.getByText(/Mana sources 38: 36 lands, 2 double-faced/)).toBeInTheDocument()
-    expect(screen.getByText('1 card has no card text yet, so Oracle could not place it. It is counted in Game Plan & Win Conditions.')).toBeInTheDocument()
-    expect(screen.getByText(/1 card counts in more than one row, so the rows add to/)).toBeInTheDocument()
+    expect(screen.queryByTestId('health-notes')).toBeNull()
+    expect(screen.queryByText(/Mana sources 38/)).toBeNull()
   })
   it('opens the details panel from a row: range, source, first six cards, "and N more", the reference, and back to the overview', async () => {
     const user = userEvent.setup()
@@ -339,7 +338,7 @@ describe('DeckRail', () => {
     expect(img.className).not.toMatch(/\brounded/)
     const card = screen.getByTestId('rail-card')
     expect(card.className).toMatch(/\boverflow-hidden\b/)
-    expect(card.className).toMatch(/\brounded-lg\b/)
+    expect(card.className).toMatch(/\brounded-xl\b/)
     expect(screen.getByTestId('rail-art').parentElement).toBe(card)
     unmount()
     renderRail(yedora({ commanders: [{ name: 'Tymna', colourIdentity: 'WB', role: null }, { name: 'Thrasios', colourIdentity: 'GU', role: 'partner' }], secondCommanderScryfallId: 'xyz' }))
@@ -351,16 +350,16 @@ describe('DeckRail', () => {
     fireEvent.error(screen.getByAltText('Yedora, Grave Gardener card art'))
     expect(screen.getByRole('img', { name: 'Yedora, Grave Gardener card art' })).toHaveTextContent('No image')
   })
-  it('has no green status colour in any rail component', () => {
+  it('has no green fill in any rail component', () => {
     const dir = join(process.cwd(), 'src/components/deck-rail')
     const files = readdirSync(dir).filter((f) => f.endsWith('.tsx') && !f.endsWith('.test.tsx'))
     expect(files.length).toBeGreaterThan(5)
-    for (const f of files) expect(readFileSync(join(dir, f), 'utf8'), f).not.toContain('signal-success')
+    for (const f of files) expect(readFileSync(join(dir, f), 'utf8'), f).not.toMatch(/signal-success-bg|bg-\[var\(--signal-success/) // green is only the tick icon on the Playable and Legal chips
   })
   it('puts a shared section label style on every rail section', () => {
     renderRail(yedora())
     for (const name of ['Deck health', 'Mana curve', 'Mana production']) {
-      expect(screen.getByRole('heading', { name }).className).toMatch(/text-\[11px\].*uppercase/)
+      expect(screen.getByRole('heading', { name }).className).toMatch(/text-\[10px\].*uppercase/)
     }
     expect(screen.queryByText(/Salt/)).toBeNull() // salt now lives in the Strategy block
   })

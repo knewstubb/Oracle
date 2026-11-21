@@ -29,7 +29,7 @@ export const CURVE_TEAL_SELECTED_VAR = '--curve-teal-selected'
 export const MANA_FILL_HEX: Record<ManaLetter, string> = {
   W: '#F0E6B8',
   U: '#4C9BE8',
-  B: '#8E7F9E',
+  B: '#7A7A83',
   R: '#E5604D',
   G: '#3DAA6D',
   C: '#9AA0A6',
@@ -57,4 +57,4 @@ export const CANVAS_VAR = '--bg-canvas'
 export const MUTED_TEXT_VAR = '--text-secondary'
 
 /** Section label: 11px, 600, uppercase, letter-spaced, muted. Shared by every rail section and the Strategy block. */
-export const SECTION_LABEL_CLASS = 'text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-muted)]'
+export const SECTION_LABEL_CLASS = 'text-[10px] font-medium uppercase tracking-[0.06em] text-[var(--text-secondary)]'

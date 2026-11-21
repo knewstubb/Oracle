@@ -11,6 +11,8 @@ import { bracketWarning, type StrategyWindowData } from '@/lib/deck-strategy-win
 import { fetchStrategy, strategyKey, useOpenDeckSettings } from './DeckSettingsHost'
 import { useOnlineStatus } from './useOnlineStatus'
 import { FOCUS_RING } from './focus'
+import { RailEditLink } from '@/components/deck-rail/RailEditLink'
+import { SECTION_LABEL_CLASS } from '@/lib/ui-tokens'
 export interface StrategyBlockProps {
   deckId: number
 }
@@ -56,9 +58,9 @@ export function StrategyBlock({ deckId }: StrategyBlockProps) {
   const warning = bracketWarning(data.bracket, data.implied)
   const openWindow = () => openSettings('strategy', blockRef.current)
   return (
-    <div className="w-full space-y-1" data-testid="strategy-block">
+    <div className="w-full space-y-2" data-testid="strategy-block">
       <div className="flex items-center justify-between gap-2">
-        <h2 className="text-[10px] font-medium uppercase text-[var(--text-secondary)]">Strategy &amp; bracket</h2>
+        <h2 className={SECTION_LABEL_CLASS}>Strategy &amp; bracket</h2>
         <div className="flex items-center gap-2">
           {!online && (
             <span className="flex shrink-0 items-center gap-1 rounded-md border border-amber-400 px-2 py-1 text-[length:var(--fs-sm)] text-amber-300">
@@ -66,27 +68,19 @@ export function StrategyBlock({ deckId }: StrategyBlockProps) {
               Offline · showing saved copy
             </span>
           )}
-          <button
-            ref={blockRef}
-            type="button"
-            aria-haspopup="dialog"
-            aria-label="Edit strategy"
-            onClick={openWindow}
-            className={cn('flex min-h-11 items-center px-1 text-[10px] font-medium tracking-[0.8px] text-[var(--accent-primary)] underline-offset-2 hover:underline', FOCUS_RING)}
-          >
-            Edit
-          </button>
+          <RailEditLink ref={blockRef} label="Edit strategy" onClick={openWindow} />
         </div>
       </div>
       <div className="flex items-start gap-2">
         <span
-          className="flex size-10 shrink-0 items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] text-[24px] font-semibold"
+          className="flex size-10 shrink-0 items-center justify-center rounded-[6px] border border-[var(--border-default)] bg-[var(--bg-canvas)] p-1 text-[24px] font-semibold"
+          style={hasBracket ? undefined : { color: 'var(--text-secondary)' }}
           title={bracketName(data.bracket) ?? undefined}
           data-testid="bracket-box"
         >
           {hasBracket ? data.bracket : '–'}
         </span>
-        <p className="min-w-0 flex-1 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
+        <p className={cn('min-w-0 flex-1 text-[12px]', data.summary ? 'text-[var(--text-primary)]' : 'text-[var(--text-secondary)]')}>
           {data.summary || 'Add a bracket and a one-line summary of how this deck plays'}
         </p>
       </div>

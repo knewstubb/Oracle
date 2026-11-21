@@ -28,20 +28,22 @@ const view = (h: ReturnType<typeof deck>, s: HealthSettings = DEFAULT_SETTINGS, 
 describe('default mode', () => {
   it('shows the six rows with the standard ranges and Game Plan as a total', () => {
     const v = view(deck(37, 11, 11, 11, 4))
-    expect(v.tiles.map((t) => t.label)).toEqual(['Lands', 'Ramp', 'Card Advantage', 'Targeted Removal', 'Board Wipes', 'Game Plan'])
-    expect(v.tiles.map((t) => t.rangeText)).toEqual(['35\u201338', '10\u201312', '10\u201312', '10\u201312', '3\u20136', null])
+    expect(v.tiles.map((t) => t.label)).toEqual(['Ramp', 'Board Wipes', 'Card Advantage', 'Lands', 'Targeted Removal', 'Game Plan'])
+    expect(v.tiles.map((t) => t.rangeText)).toEqual(['10\u201312', '3\u20136', '10\u201312', '35\u201338', '10\u201312', null])
     const gp = v.tiles[5]
     expect(gp.status).toBe('total')
     expect(gp.have).toBe(5)
     expect(v.headline).toEqual({ text: 'On target in every category', problem: false })
   })
-  it('puts problems first and words the headline: shortfalls first, then overs', () => {
+  it('keeps the fixed design order (problems are not moved) and words the headline: shortfalls first, then overs', () => {
     const v = view(deck(37, 18, 6, 8, 8))
-    expect(v.tiles.slice(0, 4).map((t) => [t.kind, t.status])).toEqual([
-      ['card_advantage', 'under'],
-      ['targeted_removal', 'under'],
+    expect(v.tiles.map((t) => [t.kind, t.status])).toEqual([
       ['ramp', 'over'],
       ['board_wipes', 'over'],
+      ['card_advantage', 'under'],
+      ['lands', 'on'],
+      ['targeted_removal', 'under'],
+      ['game_plan', 'total'],
     ])
     expect(v.headline.text).toBe('Light on card advantage and removal, heavy on ramp and board wipes')
     expect(v.headline.problem).toBe(true)

@@ -10,13 +10,13 @@ import { RailSection } from './RailSection'
 
 const fill = (c: ManaLetter) => `var(${MANA_FILL_VARS[c]})`
 const pct = (p: number) => Math.round(p * 100)
-const AMBER = 'var(--warn-amber)'
+const AMBER = 'var(--signal-warning)'
 
 function SegmentBar({ label, segments }: { label: string; segments: Array<{ colour: ManaLetter; weight: number; tip: string }> }) {
   return (
-    <div className="flex items-center gap-3 text-[length:var(--fs-xs)]">
-      <span className="w-14 text-[var(--text-muted)]">{label}</span>
-      <div className="flex h-1.5 flex-1 gap-px overflow-hidden rounded-full bg-[var(--bg-tertiary)]" role="group" aria-label={label} data-testid={`bar-${label.toLowerCase()}`}>
+    <div className="flex items-center gap-3 text-[11px]">
+      <span className="w-[52px] shrink-0 text-[var(--text-secondary)]">{label}</span>
+      <div className="flex h-1.5 flex-1 gap-px overflow-hidden rounded-[2px] bg-[var(--bg-tertiary)]" role="group" aria-label={label} data-testid={`bar-${label.toLowerCase()}`}>
         {segments.filter((s) => s.weight > 0).map((s) => (
           <Tooltip key={s.colour}>
             <TooltipTrigger
@@ -47,35 +47,34 @@ export function RailProduction({ cards, colourIdentity, library }: { cards: Rail
     <RailSection
       id="rail-production-h"
       title="Mana production"
-      className="space-y-3"
       testId="rail-production"
-      action={<span className="text-[length:var(--fs-xs)] tabular-nums text-[var(--text-muted)]" data-testid="land-count">{balance.landCount} {balance.landCount === 1 ? 'Land' : 'Lands'}</span>}
+      action={<span className="text-[11px] font-medium tabular-nums text-[var(--text-primary)]" data-testid="land-count">{balance.landCount} {balance.landCount === 1 ? 'Land' : 'Lands'}</span>}
     >
       {balance.kind === 'colourless' ? (
         <p className="text-[length:var(--fs-sm)]">Colourless deck</p>
       ) : (
-        <div className="space-y-2" data-testid="mana-balance">
+        <div className="space-y-2.5" data-testid="mana-balance">
           <SegmentBar label="Pips" segments={balance.rows.map((r) => ({ colour: r.colour, weight: r.pips, tip: `${MANA_NAMES[r.colour]}: ${r.demandPct}% of pips` }))} />
           <SegmentBar label="Sources" segments={balance.rows.map((r) => ({ colour: r.colour, weight: r.sources, tip: `${MANA_NAMES[r.colour]}: ${r.sources} ${r.sources === 1 ? 'source' : 'sources'}` }))} />
         </div>
       )}
-      <div className="space-y-3 border-t border-white/[0.08] pt-3" data-testid="hand-odds">
-        <p className="text-[length:var(--fs-sm)] font-semibold">Opening hand (7 cards)</p>
+      <div className="space-y-3 border-t border-[var(--border-subtle)] pt-3" data-testid="hand-odds">
+        <p className="text-[11px] text-[var(--text-secondary)]">Opening hand (7 cards)</p>
         <ul className="grid grid-cols-3 gap-2">
           {hand.map((h) => (
-            <li key={h.label} className="rounded-lg border border-white/[0.12] p-2 text-center" data-testid="hand-figure">
-              <span className="block text-[length:var(--fs-lg)] font-semibold tabular-nums" style={h.warn ? { color: AMBER } : undefined} data-warn={h.warn}>{h.p}%</span>
-              <span className="block text-[length:var(--fs-xs)] text-[var(--text-muted)]">{h.label}</span>
+            <li key={h.label} className="rounded-lg border border-[var(--border-subtle)] px-2.5 py-2 text-center" data-testid="hand-figure">
+              <span className="block text-[16px] font-semibold tabular-nums" style={h.warn ? { color: AMBER } : undefined} data-warn={h.warn}>{h.p}%</span>
+              <span className="block text-[10px] text-[var(--text-secondary)]">{h.label}</span>
             </li>
           ))}
         </ul>
-        <ul className="space-y-1.5">
+        <ul className="space-y-3">
           {drops.map((d) => {
             const warn = d.amberRule && d.p < 60
             return (
-              <li key={d.label} className="flex items-baseline justify-between gap-2 text-[length:var(--fs-sm)]" data-testid="land-drop">
+              <li key={d.label} className="flex items-baseline justify-between gap-2 text-[11px] text-[var(--text-secondary)]" data-testid="land-drop">
                 <span>{d.label}</span>
-                <span className="font-semibold tabular-nums" style={warn ? { color: AMBER } : undefined} data-warn={warn}>{d.p}%</span>
+                <span className="font-medium tabular-nums text-[var(--text-primary)]" style={warn ? { color: AMBER } : undefined} data-warn={warn}>{d.p}%</span>
               </li>
             )
           })}

@@ -1,12 +1,13 @@
 'use client'
 // Deck health in the rail: a headline, then two-column tiles (name, big count, target). Problem tiles are amber with an arrow
 // (up = over, down = under). Tiles open the cards-in-category panel; Edit opens Deck settings on the Deck health tab.
+// The info notes (mana sources, template, uncategorised, overlap) are not in the rail; the cards-in-category panel shows them.
 // Confirm and Decline for Claude's proposals are not here, only in the Deck settings window.
 import { useRef, useState } from 'react'
 import { AlertCircle, AlertTriangle, ArrowDown, ArrowUp, Check, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DeckHealthPanel } from '@/components/DeckHealthPanel'
-import { HealthNotes } from '@/components/deck-health-parts'
+import { RailEditLink } from './RailEditLink'
 import { useOpenDeckSettings } from '@/components/deck-strategy/DeckSettingsHost'
 import { useDeckHealth } from '@/hooks/useDeckHealth'
 import { useHealthSettings } from '@/hooks/useHealthSettings'
@@ -39,20 +40,8 @@ export function RailHealth({ deckId, cards = [] }: { deckId: number; cards?: Arr
     <RailSection
       id="rail-health-h"
       title="Deck health"
-      className="space-y-3"
       testId="rail-health"
-      action={
-        <button
-          ref={editRef}
-          type="button"
-          aria-haspopup="dialog"
-          aria-label="Edit deck health"
-          onClick={() => openSettings('health', editRef.current)}
-          className={cn('flex min-h-11 items-center px-1 text-[10px] font-medium tracking-[0.8px] text-[var(--accent-primary)] underline-offset-2 hover:underline', FOCUS_RING)}
-        >
-          Edit
-        </button>
-      }
+      action={<RailEditLink ref={editRef} label="Edit deck health" onClick={() => openSettings('health', editRef.current)} />}
     >
       {isLoading && (
         <p role="status" className="flex items-center gap-1 text-[length:var(--fs-sm)] text-[var(--text-muted)]">
@@ -68,7 +57,6 @@ export function RailHealth({ deckId, cards = [] }: { deckId: number; cards?: Arr
         </div>
       )}
       {data && !isError && <HealthBody view={healthTilesView(applySettings(data, settings, cards), settings.available ? settings.mode : 'default')} open={open} />}
-      {data && !isError && <HealthNotes health={data} />}
       <DeckHealthPanel
         open={panelOpen}
         onClose={close}
@@ -88,9 +76,9 @@ function HealthBody({ view, open }: { view: HealthTilesView; open: (kind: Health
   const { headline } = view
   return (
     <>
-      <p className="flex items-start gap-2 text-[length:var(--fs-md)] font-semibold" data-testid="health-verdict">
+      <p className="flex items-start gap-2 text-[12px] font-medium" data-testid="health-verdict">
         {headline.problem ? (
-          <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--warn-amber)' }} />
+          <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--signal-warning)' }} />
         ) : (
           <Check size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--text-secondary)' }} />
         )}
@@ -110,22 +98,22 @@ function HealthBody({ view, open }: { view: HealthTilesView; open: (kind: Health
 function Tile({ tile: t, open }: { tile: HealthTile; open: (kind: HealthKind | null, from: HTMLElement) => void }) {
   const problem = t.status === 'under' || t.status === 'over'
   const base = cn(
-    'flex min-h-[72px] w-full flex-col justify-between gap-1 rounded-lg border p-3 text-left',
-    problem ? 'border-[var(--warn-amber)] bg-[var(--warn-amber)]/10' : 'border-white/[0.08] bg-white/[0.03]',
+    'flex w-full flex-col gap-0.5 rounded-lg border p-2 text-left',
+    problem ? 'border-[var(--signal-warning)]/45 bg-[var(--signal-warning-bg)]' : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]',
   )
   const body = (
     <>
-      <span className="block truncate text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
+      <span className="block text-[11px] text-[var(--text-secondary)]">
         {t.label}
         {t.kind === 'lands' && t.doubleFaced > 0 && <span className="ml-1 text-[length:var(--fs-xs)] text-[var(--text-muted)]">+ {t.doubleFaced} double-faced</span>}
       </span>
-      <span className="flex items-baseline gap-1.5">
-        <span className="flex items-center gap-0.5 text-2xl font-semibold leading-none tabular-nums" style={problem ? { color: 'var(--warn-amber)' } : undefined} data-testid="health-have">
+      <span className="flex items-baseline gap-1">
+        <span className="flex items-center gap-0.5 text-[20px] font-semibold leading-none tabular-nums" style={problem ? { color: 'var(--signal-warning)' } : undefined} data-testid="health-have">
           {t.have}
           {t.status === 'over' && <ArrowUp size={14} aria-hidden="true" data-testid="health-arrow-up" />}
           {t.status === 'under' && <ArrowDown size={14} aria-hidden="true" data-testid="health-arrow-down" />}
         </span>
-        <span className="text-[length:var(--fs-sm)] text-[var(--text-muted)]" data-testid="health-target">
+        <span className="text-[11px] text-[var(--text-secondary)]" data-testid="health-target">
           {t.status === 'total' ? 'Total' : t.status === 'none' ? 'No target' : `/ ${t.rangeText}`}
         </span>
       </span>
@@ -134,7 +122,7 @@ function Tile({ tile: t, open }: { tile: HealthTile; open: (kind: HealthKind | n
   // Default rows open the cards-in-category panel. A custom category has no panel yet, so its tile is not a button.
   if (t.kind) {
     return (
-      <button type="button" aria-haspopup="dialog" aria-label={t.ariaLabel} data-kind={t.kind} data-status={t.status} className={cn(base, 'hover:bg-white/[0.06]', FOCUS_RING)} onClick={(e) => open(t.kind, e.currentTarget)}>
+      <button type="button" aria-haspopup="dialog" aria-label={t.ariaLabel} data-kind={t.kind} data-status={t.status} className={cn(base, 'hover:bg-[var(--bg-surface-hover)]', FOCUS_RING)} onClick={(e) => open(t.kind, e.currentTarget)}>
         {body}
       </button>
     )

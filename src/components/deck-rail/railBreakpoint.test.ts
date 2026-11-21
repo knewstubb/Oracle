@@ -11,10 +11,10 @@ describe('deck rail switch point', () => {
     const used = new Set(src.match(/@\[\d+px\]:/g))
     expect([...used]).toEqual(['@[800px]:'])
   })
-  it('page declares the container and the rail column is 352 px (24 px gutter, 272 px card), sticky, scrolling on its own from 800 up', () => {
+  it('page declares the container and the rail column is 320 px (16 px gutter, 288 px card), sticky, scrolling on its own from 800 up', () => {
     expect(read('src/app/decks/[id]/page.tsx')).toContain('@container')
     const rail = read('src/components/deck-rail/DeckRail.tsx')
-    for (const c of ['@[800px]:w-[320px]', '@[800px]:px-6', '@[800px]:sticky', '@[800px]:overflow-y-auto', '@[800px]:hidden']) expect(rail).toContain(c)
+    for (const c of ['@[800px]:w-[320px]', '@[800px]:px-4', '@[800px]:sticky', '@[800px]:overflow-y-auto', '@[800px]:hidden']) expect(rail).toContain(c)
   })
   it('tab row scrolls sideways instead of running under the build picker', () => {
     expect(read('src/app/decks/[id]/page.tsx')).not.toContain('sm:overflow-visible')

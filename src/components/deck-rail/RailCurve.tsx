@@ -23,9 +23,8 @@ export function RailCurve({ cards }: { cards: RailCard[] }) {
     <RailSection
       id="rail-curve-h"
       title="Mana curve"
-      className="space-y-3"
       testId="rail-curve"
-      action={avg !== null ? <span className="text-[length:var(--fs-xs)] tabular-nums text-[var(--text-muted)]" data-testid="avg-mv">Avg CMC {avg.toFixed(1)}</span> : undefined}
+      action={avg !== null ? <span className="text-[11px] font-medium tabular-nums text-[var(--text-primary)]" data-testid="avg-mv">Avg CMC {avg.toFixed(1)}</span> : undefined}
     >
       <div
         className="flex h-28 items-end"
@@ -44,33 +43,33 @@ export function RailCurve({ cards }: { cards: RailCard[] }) {
               aria-label={`Mana value ${mvLabel(mv)}, ${plural(count, 'card', 'cards')}`}
               onClick={() => setSelected(on ? null : mv)}
               data-testid="curve-bar"
-              className={cn('flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1 rounded', FOCUS_RING)}
+              className={cn('flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1 rounded-[2px]', FOCUS_RING)}
             >
-              <span className={cn('text-[length:var(--fs-xs)] tabular-nums', on && 'font-bold')} aria-hidden="true">{count}</span>
+              <span className={cn('text-[10px] tabular-nums text-[var(--text-secondary)]', on && 'font-semibold text-[var(--text-primary)]')} aria-hidden="true">{count}</span>
               <span
                 aria-hidden="true"
-                className="block w-5 rounded-t"
-                style={{ height: `${(count / max) * 64}px`, minHeight: count > 0 ? 2 : 0, background: `var(${on ? CURVE_TEAL_SELECTED_VAR : CURVE_TEAL_VAR})` }}
+                className="block w-6 rounded-[2px]"
+                style={{ height: `${Math.min(64, count * 1.65)}px`, minHeight: count > 0 ? 2 : 0, background: `var(${on ? CURVE_TEAL_SELECTED_VAR : CURVE_TEAL_VAR})` }}
               />
-              <span className={cn('text-[length:var(--fs-xs)] text-[var(--text-muted)]', on && 'font-bold text-foreground')} aria-hidden="true">{mvLabel(mv)}</span>
+              <span className={cn('text-[10px] text-[var(--text-secondary)]', on && 'font-semibold text-[var(--text-primary)]')} aria-hidden="true">{mvLabel(mv)}</span>
             </button>
           )
         })}
       </div>
       {panel && selected !== null && (
-        <div className="space-y-2 rounded-lg border border-white/[0.12] p-3" data-testid="curve-panel">
-          <p className="flex items-baseline justify-between text-[length:var(--fs-sm)]">
-            <span className="font-semibold">Mana value {mvLabel(selected)}</span>
-            <span className="text-[var(--text-muted)]">{plural(panel.total, 'card', 'cards')}</span>
+        <div className="space-y-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-2.5" data-testid="curve-panel">
+          <p className="flex items-baseline justify-between text-[11px]">
+            <span className="font-medium text-[var(--text-primary)]">Mana value {mvLabel(selected)}</span>
+            <span className="text-[var(--text-secondary)]">{plural(panel.total, 'card', 'cards')}</span>
           </p>
-          <div className="flex h-2 overflow-hidden rounded-full bg-[var(--bg-tertiary)]" aria-hidden="true">
+          <div className="flex h-2 gap-px overflow-hidden rounded-[2px] bg-[var(--bg-tertiary)]" aria-hidden="true">
             {panel.segments.filter((s) => s.count > 0).map((s) => (
               <div key={s.key} style={{ flexGrow: s.count, background: segFill(s.key) }} data-segment={s.key} />
             ))}
           </div>
-          <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[length:var(--fs-xs)]">
+          <ul className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-[var(--text-secondary)]">
             {panel.segments.filter((s) => s.count > 0).map((s) => (
-              <li key={s.key} className="flex items-center gap-1.5">
+              <li key={s.key} className="flex items-center gap-1">
                 <span className="h-2 w-2 rounded-full" style={{ background: segFill(s.key) }} aria-hidden="true" />
                 {s.count} {s.label}
               </li>

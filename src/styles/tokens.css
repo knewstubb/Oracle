@@ -55,13 +55,16 @@
   --surface-card: rgba(26, 26, 30, 0.5);
   --text-muted: var(--text-secondary);
   --warn-amber: #F2B84B;
-  --mana-fill-w: #F0E6B8;
-  --mana-fill-u: #4C9BE8;
+  /* Bar and chip fills alias the shared WUBRG tokens above so the rail cannot drift from them. Black stays the app's purple-grey (Figma has #6C6C6C; owner question). */
+  --mana-colourless: #CBC2BF;
+  --mana-multi: #8F51D5;
+  --mana-fill-w: var(--mana-white);
+  --mana-fill-u: var(--mana-blue);
   --mana-fill-b: #8E7F9E;
-  --mana-fill-r: #E5604D;
-  --mana-fill-g: #3DAA6D;
-  --mana-fill-c: #9AA0A6;
-  --mana-fill-multi: #A78BFA;
+  --mana-fill-r: var(--mana-red);
+  --mana-fill-g: var(--mana-green);
+  --mana-fill-c: var(--mana-colourless);
+  --mana-fill-multi: var(--mana-multi);
   --curve-teal: #2BA5A0;
   --curve-teal-selected: #5FD6CF;
   --swatch-original: #C9CFCB;

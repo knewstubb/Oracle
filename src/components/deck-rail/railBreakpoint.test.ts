@@ -11,10 +11,12 @@ describe('deck rail switch point', () => {
     const used = new Set(src.match(/@\[\d+px\]:/g))
     expect([...used]).toEqual(['@[800px]:'])
   })
-  it('page declares the container and the rail column is 320 px (16 px gutter, 288 px card), sticky, scrolling on its own from 800 up', () => {
+  it('page declares the container and the rail is a 288 px card (at least 280) that scrolls inside itself from 800 up, with 32 px page margins', () => {
     expect(read('src/app/decks/[id]/page.tsx')).toContain('@container')
     const rail = read('src/components/deck-rail/DeckRail.tsx')
-    for (const c of ['@[800px]:w-[320px]', '@[800px]:px-4', '@[800px]:sticky', '@[800px]:overflow-y-auto', '@[800px]:hidden']) expect(rail).toContain(c)
+    for (const c of ['@[800px]:w-72', '@[800px]:min-w-[280px]', '@[800px]:overflow-y-auto', '@[800px]:hover:[scrollbar-color', '@[800px]:hidden']) expect(rail).toContain(c)
+    const page = read('src/app/decks/[id]/page.tsx')
+    for (const c of ['@[800px]:gap-8', '@[800px]:pl-8', '@[800px]:pr-8', '@[800px]:pt-8']) expect(page).toContain(c)
   })
   it('tab row scrolls sideways instead of running under the build picker', () => {
     expect(read('src/app/decks/[id]/page.tsx')).not.toContain('sm:overflow-visible')

@@ -62,7 +62,7 @@ export function RailProduction({ cards, colourIdentity, library }: { cards: Rail
         <p className="text-[11px] text-[var(--text-secondary)]">Opening hand (7 cards)</p>
         <ul className="grid grid-cols-3 gap-2">
           {hand.map((h) => (
-            <li key={h.label} className="rounded-lg border border-[var(--border-subtle)] px-2.5 py-2 text-center" data-testid="hand-figure">
+            <li key={h.label} className="rounded-[8px] border border-[var(--border-subtle)] px-2.5 py-2 text-center" data-testid="hand-figure">
               <span className="block text-[16px] font-semibold tabular-nums" style={h.warn ? { color: AMBER } : undefined} data-warn={h.warn}>{h.p}%</span>
               <span className="block text-[10px] text-[var(--text-secondary)]">{h.label}</span>
             </li>

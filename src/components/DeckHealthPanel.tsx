@@ -6,7 +6,7 @@ import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import type { DeckHealthResponse, HealthKind, HealthRoleKey, HealthRow, TypeCount } from '@/lib/deck-health'
 import { GapDetail } from '@/components/GapDetail'
-import { HealthNotes, HeaderIcon, RangeMeter, VerdictMark, rowAriaLabel } from '@/components/deck-health-parts'
+import { HeaderIcon, RangeMeter, VerdictMark, rowAriaLabel } from '@/components/deck-health-parts'
 
 export interface DeckHealthPanelProps {
   open: boolean
@@ -113,7 +113,6 @@ function Overview({ data, onOpen, onChat }: { data: DeckHealthResponse; onOpen: 
         <RowCard key={r.kind} row={r} onOpen={onOpen} />
       ))}
       {gamePlan && <RowCard row={gamePlan} onOpen={onOpen} />}
-      <HealthNotes health={data} inPanel />
       <section aria-label="For reference only" className="space-y-1">
         <h3 className="pt-1 text-[length:var(--fs-sm)] font-medium" style={{ color: 'var(--text-secondary)' }}>
           For reference only: the average EDHREC deck for this commander

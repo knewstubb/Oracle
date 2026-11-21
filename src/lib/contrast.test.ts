@@ -5,7 +5,13 @@ import { composite, contrastRatio, parseColor, tokenValue } from './contrast'
 import { CANVAS_VAR, CURVE_TEAL_SELECTED_VAR, CURVE_TEAL_VAR, MULTI_FILL_VAR, MANA_FILL_HEX, MANA_FILL_VARS, MUTED_TEXT_VAR, SURFACE_VAR, SWATCH_VARS, type ManaLetter } from './ui-tokens'
 
 const css = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8')
-const tok = (name: string) => parseColor(tokenValue(css, name))
+// Follows var(--other) aliases, so the mana fills may point at the shared --mana-* tokens.
+const value = (name: string): string => {
+  const v = tokenValue(css, name)
+  const m = v.match(/^var\((--[\w-]+)\)$/)
+  return m ? value(m[1]) : v
+}
+const tok = (name: string) => parseColor(value(name))
 // The card surface is translucent, so check against it painted over the page background.
 const surface = composite(tok(SURFACE_VAR), tok(CANVAS_VAR))
 
@@ -20,7 +26,7 @@ describe('contrast helpers', () => {
 
 describe('deck rail tokens against the card surface', () => {
   it('ui-tokens mana hex values match tokens.css', () => {
-    for (const k of Object.keys(MANA_FILL_VARS) as ManaLetter[]) expect(tokenValue(css, MANA_FILL_VARS[k]).toUpperCase()).toBe(MANA_FILL_HEX[k])
+    for (const k of Object.keys(MANA_FILL_VARS) as ManaLetter[]) expect(value(MANA_FILL_VARS[k]).toUpperCase()).toBe(MANA_FILL_HEX[k])
   })
   it.each(Object.keys(MANA_FILL_VARS) as ManaLetter[])('mana fill %s is at least 3:1', (k) => {
     expect(contrastRatio(tok(MANA_FILL_VARS[k]), surface)).toBeGreaterThanOrEqual(3)

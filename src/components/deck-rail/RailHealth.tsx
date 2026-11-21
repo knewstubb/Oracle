@@ -98,7 +98,7 @@ function HealthBody({ view, open }: { view: HealthTilesView; open: (kind: Health
 function Tile({ tile: t, open }: { tile: HealthTile; open: (kind: HealthKind | null, from: HTMLElement) => void }) {
   const problem = t.status === 'under' || t.status === 'over'
   const base = cn(
-    'flex w-full flex-col gap-0.5 rounded-lg border p-2 text-left',
+    'flex w-full flex-col gap-0.5 rounded-[8px] border p-2 text-left',
     problem ? 'border-[var(--signal-warning)]/45 bg-[var(--signal-warning-bg)]' : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]',
   )
   const body = (

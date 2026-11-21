@@ -338,7 +338,7 @@ describe('DeckRail', () => {
     expect(img.className).not.toMatch(/\brounded/)
     const card = screen.getByTestId('rail-card')
     expect(card.className).toMatch(/\boverflow-hidden\b/)
-    expect(card.className).toMatch(/\brounded-xl\b/)
+    expect(card.className).toMatch(/rounded-\[12px\]/)
     expect(screen.getByTestId('rail-art').parentElement).toBe(card)
     unmount()
     renderRail(yedora({ commanders: [{ name: 'Tymna', colourIdentity: 'WB', role: null }, { name: 'Thrasios', colourIdentity: 'GU', role: 'partner' }], secondCommanderScryfallId: 'xyz' }))

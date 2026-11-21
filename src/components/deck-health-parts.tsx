@@ -1,5 +1,5 @@
 'use client'
-import { AlertTriangle, ArrowDown, ArrowUp, Check, Info } from 'lucide-react'
+import { AlertTriangle, ArrowDown, ArrowUp, Check } from 'lucide-react'
 import type { DeckHealthResponse, HealthRow, Verdict } from '@/lib/deck-health'
 
 /** Shared by the rail rows and the details panel. Each verdict is an icon plus a word, never colour alone. */
@@ -84,20 +84,3 @@ export function RangeMeter({ row }: { row: HealthRow }) {
   )
 }
 
-/** Small grey notes with an info icon. Each note shows only when it applies. */
-export function HealthNotes({ health, inPanel = false }: { health: DeckHealthResponse; inPanel?: boolean }) {
-  const items: string[] = [health.notes.manaSources]
-  if (!inPanel) items.push('Ranges are the Command Zone template. Select a row for details.')
-  if (health.notes.uncategorised) items.push(health.notes.uncategorised)
-  if (health.notes.overlap) items.push(health.notes.overlap)
-  return (
-    <ul className="grid gap-1 text-[length:var(--fs-xs)]" style={{ color: 'var(--text-secondary)' }} data-testid="health-notes">
-      {items.map((t) => (
-        <li key={t} className="flex items-start gap-1.5">
-          <Info size={12} aria-hidden="true" className="mt-0.5 shrink-0" />
-          <span>{t}</span>
-        </li>
-      ))}
-    </ul>
-  )
-}

@@ -46,7 +46,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
-    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[320px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:px-4 @[800px]:pb-4 @[800px]:pt-2">
+    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:h-full @[800px]:w-72 @[800px]:min-w-[280px] @[800px]:border-b-0 @[800px]:pb-8">
       <button
         type="button"
         aria-expanded={expanded}
@@ -68,8 +68,8 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
         <ChevronDown size={18} aria-hidden="true" className={expanded ? 'rotate-180' : ''} />
         <span className="sr-only">{expanded ? 'Hide deck summary' : 'Show deck summary'}</span>
       </button>
-      <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} px-4 pb-4 @[800px]:block @[800px]:p-0`}>
-        <div className="overflow-hidden rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-surface)]" data-testid="rail-card">
+      <div id="deck-rail-body" className={`${expanded ? 'block' : 'hidden'} px-4 pb-4 @[800px]:block @[800px]:h-full @[800px]:p-0`}>
+        <div className="overflow-hidden rounded-[12px] border border-[var(--border-subtle)] bg-[var(--bg-surface)] @[800px]:max-h-full @[800px]:overflow-y-auto @[800px]:overflow-x-hidden @[800px]:[scrollbar-width:thin] @[800px]:[scrollbar-color:transparent_transparent] @[800px]:hover:[scrollbar-color:var(--border-default)_transparent]" data-testid="rail-card">
           {hasCommander ? (
             <div className="flex h-[150px] w-full" data-testid="rail-art">
               <div className="min-w-0 flex-1">

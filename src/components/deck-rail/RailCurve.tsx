@@ -57,7 +57,7 @@ export function RailCurve({ cards }: { cards: RailCard[] }) {
         })}
       </div>
       {panel && selected !== null && (
-        <div className="space-y-2 rounded-lg border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-2.5" data-testid="curve-panel">
+        <div className="space-y-2 rounded-[8px] border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-2.5" data-testid="curve-panel">
           <p className="flex items-baseline justify-between text-[11px]">
             <span className="font-medium text-[var(--text-primary)]">Mana value {mvLabel(selected)}</span>
             <span className="text-[var(--text-secondary)]">{plural(panel.total, 'card', 'cards')}</span>

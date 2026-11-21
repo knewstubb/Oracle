@@ -55,6 +55,7 @@ export async function GET(
   const cardNames = (cards ?? []).map(c => c.card_name)
   const manaCostMap: Record<string, string> = {}
   const typeLineMap: Record<string, string> = {}
+  const oracleTextMap: Record<string, string> = {}
   const priceMap: Record<string, number> = {}
   const rarityMap: Record<string, string> = {}
   const colorIdentityMap: Record<string, string> = {}
@@ -70,11 +71,12 @@ export async function GET(
       const batch = lookupArray.slice(i, i + 200)
       const { data: metaRows } = await supabase
         .from('ref_cards')
-        .select('name, mana_cost, type_line, edhrec_rank, color_identity')
+        .select('name, mana_cost, type_line, oracle_text, edhrec_rank, color_identity')
         .in('name', batch)
       for (const row of metaRows ?? []) {
         if (row.mana_cost) manaCostMap[row.name] = row.mana_cost
         if (row.type_line) typeLineMap[row.name] = row.type_line
+        if (row.oracle_text) oracleTextMap[row.name] = row.oracle_text
         if (row.color_identity != null) colorIdentityMap[row.name] = row.color_identity
       }
     }
@@ -105,6 +107,7 @@ export async function GET(
         const front = frontFaceName(name)
         if (manaCostMap[front]) manaCostMap[name] = manaCostMap[front]
         if (typeLineMap[front] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[front]
+        if (oracleTextMap[front] && !oracleTextMap[name]) oracleTextMap[name] = oracleTextMap[front]
         if (colorIdentityMap[front] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[front]
         if (priceMap[front] !== undefined) priceMap[name] = priceMap[front]
         if (rarityMap[front]) rarityMap[name] = rarityMap[front]
@@ -116,6 +119,7 @@ export async function GET(
         if (fullName) {
           manaCostMap[name] = manaCostMap[fullName]
           if (typeLineMap[fullName] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[fullName]
+          if (oracleTextMap[fullName] && !oracleTextMap[name]) oracleTextMap[name] = oracleTextMap[fullName]
           if (colorIdentityMap[fullName] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[fullName]
           if (priceMap[fullName] !== undefined) priceMap[name] = priceMap[fullName]
           if (rarityMap[fullName]) rarityMap[name] = rarityMap[fullName]
@@ -233,6 +237,7 @@ export async function GET(
       : null,
     mana_cost: manaCostMap[card.card_name] || null,
     type_line: typeLineMap[card.card_name] || null,
+    oracle_text: oracleTextMap[card.card_name] || null,
     color_identity: colorIdentityMap[card.card_name] ?? null,
     price_usd: priceMap[card.card_name] ?? null,
     edition_name: card.scryfall_id ? editionMap[card.scryfall_id]?.editionName || null : null,

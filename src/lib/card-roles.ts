@@ -52,7 +52,7 @@ export function isLandTypeLine(typeLine: string | null | undefined): boolean {
 }
 
 /** Text of the front face only. Joined double-faced text is split on a line that is just "//". */
-function frontFaceText(text: string): string {
+export function frontFaceText(text: string): string {
   const parts = text.split(/\n\s*\/\/\s*\n/)
   return parts[0]
 }

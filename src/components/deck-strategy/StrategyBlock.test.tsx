@@ -3,6 +3,7 @@ import { render, screen, waitFor, act } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrategyBlock } from './StrategyBlock'
+import { DeckSettingsHost } from './DeckSettingsHost'
 import type { StrategyWindowData } from '@/lib/deck-strategy-window'
 const EMPTY: StrategyWindowData = { configured: false, bracket: null, summary: '', strategy: '', playgroup: '', updatedBy: null, updatedAt: null, canStoreNewFields: true, implied: null }
 const SET: StrategyWindowData = { ...EMPTY, configured: true, bracket: 4, summary: 'Plants and recursion', updatedBy: 'owner', updatedAt: '2026-11-19T10:00:00Z' }
@@ -24,7 +25,9 @@ function renderBlock(onSeeHistory = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const { unmount } = render(
     <QueryClientProvider client={qc}>
-      <StrategyBlock deckId={7} deckName="Yedora, the Explorer" onSeeHistory={onSeeHistory} />
+      <DeckSettingsHost deckId={7} deckName="Yedora, the Explorer" cards={[]} onSeeHistory={onSeeHistory}>
+        <StrategyBlock deckId={7} />
+      </DeckSettingsHost>
     </QueryClientProvider>,
   )
   return { user: userEvent.setup(), onSeeHistory, qc, unmount }
@@ -42,7 +45,7 @@ describe('Strategy block', () => {
     expect(block).toHaveTextContent('Add a bracket and a one-line summary of how this deck plays')
     expect(screen.queryByTestId('set-bracket')).toBeNull()
     await userEvent.setup().click(edit)
-    expect(await screen.findByRole('dialog', { name: 'Strategy' })).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Deck settings' })).toBeInTheDocument()
   })
   it('there is no whole-block button: only Edit opens the window', async () => {
     renderBlock()
@@ -95,7 +98,7 @@ describe('Strategy block', () => {
     expect(block).toHaveTextContent('Offline · showing saved copy')
     expect(block).toHaveTextContent('Plants and recursion')
     await userEvent.setup().click(screen.getByRole('button', { name: 'Edit strategy' }))
-    const dlg = await screen.findByRole('dialog', { name: 'Strategy' })
+    const dlg = await screen.findByRole('dialog', { name: 'Deck settings' })
     expect(dlg).toHaveTextContent("Your changes will save when you're back online")
     expect(screen.queryByRole('button', { name: 'Save' })).toBeNull()
   })
@@ -105,7 +108,7 @@ describe('Strategy block', () => {
     const { user } = renderBlock()
     await screen.findByTestId('strategy-block')
     await user.click(screen.getByRole('button', { name: 'Edit strategy' }))
-    await screen.findByRole('dialog', { name: 'Strategy' })
+    await screen.findByRole('dialog', { name: 'Deck settings' })
     await waitFor(() => expect(screen.getByRole('radio', { name: /1Exhibition/ })).toHaveFocus())
     await user.click(screen.getByRole('radio', { name: /4Optimized/ }))
     const puts = () => fetchMock.mock.calls.filter((c) => c[1]?.method === 'PUT').map((c) => JSON.parse(String(c[1]!.body)))

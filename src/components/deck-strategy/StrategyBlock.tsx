@@ -1,35 +1,22 @@
 'use client'
 // The Strategy & bracket block in the deck rail: a label, one Edit link, a bracket box and the summary line.
-// Edit opens the Strategy window.
-import { useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+// Edit opens Deck settings on the Strategy tab (the window is mounted once by DeckSettingsHost).
+import { useRef } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, WifiOff, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
-import { deckKeys } from '@/hooks/useDeckQueryKeys'
 import { bracketName } from '@/lib/deck-bracket'
 import { bracketWarning, type StrategyWindowData } from '@/lib/deck-strategy-window'
-import { StrategyWindow, type SaveResult, type WindowValues } from './StrategyWindow'
+import { fetchStrategy, strategyKey, useOpenDeckSettings } from './DeckSettingsHost'
 import { useOnlineStatus } from './useOnlineStatus'
 import { FOCUS_RING } from './focus'
-export const strategyKey = (deckId: number) => [...deckKeys.detail(deckId), 'strategy-window'] as const
-const SAVE_FAILED = "Couldn't save. Your changes are still here and nothing was lost. Check your connection. It will try again by itself."
-async function fetchStrategy(deckId: number): Promise<StrategyWindowData> {
-  const res = await fetch(`/api/decks/${deckId}/strategy-window`)
-  if (!res.ok) throw new Error('Failed to load strategy')
-  return res.json()
-}
 export interface StrategyBlockProps {
   deckId: number
-  deckName: string
-  /** Opens wherever History opens today (the deck's Version History window). */
-  onSeeHistory: () => void
 }
-export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockProps) {
-  const queryClient = useQueryClient()
+export function StrategyBlock({ deckId }: StrategyBlockProps) {
   const online = useOnlineStatus()
-  const [open, setOpen] = useState(false)
-  const [announce, setAnnounce] = useState('')
+  const openSettings = useOpenDeckSettings()
   const blockRef = useRef<HTMLButtonElement | null>(null)
   const { data, isPending, isError, refetch, isFetching } = useQuery<StrategyWindowData>({
     queryKey: strategyKey(deckId),
@@ -38,43 +25,6 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
     retry: 1,
     networkMode: 'always',
   })
-  const save = async (changed: Partial<WindowValues>): Promise<SaveResult> => {
-    let res: Response
-    try {
-      res = await fetch(`/api/decks/${deckId}/strategy-window`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(changed),
-      })
-    } catch {
-      return { ok: false, error: SAVE_FAILED }
-    }
-    if (!res.ok) {
-      let message = SAVE_FAILED
-      try {
-        const body = (await res.json()) as { error?: string; code?: string }
-        // A specific refusal the owner can act on (for example bracket 5 before the stored-data update) is shown as written.
-        if (body.code === 'bracket_5_not_stored_yet' && body.error) message = `${body.error} Your changes are still here.`
-        else if (res.status === 400 && body.error) message = `${body.error} Your changes are still here and nothing was lost.`
-      } catch {
-        /* keep the general message */
-      }
-      return { ok: false, error: message }
-    }
-    const { notSaved, ...fresh } = (await res.json()) as StrategyWindowData & { notSaved?: string[] }
-    queryClient.setQueryData(strategyKey(deckId), fresh)
-    if (!notSaved || notSaved.length === 0) setAnnounce('Strategy saved')
-    return { ok: true, notSaved }
-  }
-  const saveOnLeave = (changed: Partial<WindowValues>) => {
-    void fetch(`/api/decks/${deckId}/strategy-window`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(changed),
-      keepalive: true,
-    }).catch(() => {})
-  }
-  const status = <span role="status" aria-live="polite" className="sr-only">{announce}</span>
   if (isPending && !isError) {
     return (
       <div className="w-full">
@@ -104,7 +54,7 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
   }
   const hasBracket = data.bracket !== null
   const warning = bracketWarning(data.bracket, data.implied)
-  const openWindow = () => setOpen(true)
+  const openWindow = () => openSettings('strategy', blockRef.current)
   return (
     <div className="w-full space-y-1" data-testid="strategy-block">
       <div className="flex items-center justify-between gap-2">
@@ -146,18 +96,6 @@ export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockP
           <span>{warning.text}</span>
         </p>
       )}
-      {status}
-      <StrategyWindow
-        open={open}
-        deckName={deckName}
-        data={data}
-        online={online}
-        onClose={() => setOpen(false)}
-        onSave={save}
-        onSaveOnLeave={saveOnLeave}
-        onSeeHistory={onSeeHistory}
-        finalFocusRef={blockRef}
-      />
     </div>
   )
 }

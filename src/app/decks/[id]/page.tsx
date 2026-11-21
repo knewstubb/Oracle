@@ -22,6 +22,7 @@ import { PicklistV2 } from '@/components/PicklistV2'
 import { WorkbenchTab } from '@/components/WorkbenchTab'
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
 import { StrategyBlock } from '@/components/deck-strategy/StrategyBlock'
+import { DeckSettingsHost } from '@/components/deck-strategy/DeckSettingsHost'
 import { LiveChangeNote } from '@/components/LiveChangeNote'
 import { useLiveDeckRefresh } from '@/hooks/useLiveRefresh'
 import { getFormatConfig } from '@/lib/format-config'
@@ -261,6 +262,7 @@ export default function DeckViewPage() {
 
       {/* All page content — sits above the art layer. Narrow: one scrolling column. Wide: rail beside the workspace. */}
       <div className="relative z-10 flex min-h-full flex-col @[800px]:h-full @[800px]:flex-row">
+      <DeckSettingsHost deckId={deck.id} deckName={deck.name} cards={activeCards} onSeeHistory={() => setHistoryOpen(true)}>
       <DeckRail
         deck={{
           id: deck.id,
@@ -277,8 +279,9 @@ export default function DeckViewPage() {
         allCards={cards}
         secondCommanderScryfallId={commanderCards.find((c) => c.scryfall_id && c.scryfall_id !== deck.commander_scryfall_id)?.scryfall_id}
         totalValue={totalValue}
-        strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />}
+        strategySlot={<StrategyBlock deckId={deck.id} />}
       />
+      </DeckSettingsHost>
       <div className="flex min-w-0 flex-1 flex-col @[800px]:min-h-0">
       {/* Fresh import result line */}
       {importSummary && (

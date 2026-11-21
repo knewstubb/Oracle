@@ -96,7 +96,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
           <RailCommander commanders={commanders} companion={companion} />
           <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} totalValue={totalValue} />
           <div className="border-t border-white/[0.08] p-4">{strategySlot}</div>
-          <RailHealth deckId={deck.id} />
+          <RailHealth deckId={deck.id} cards={cards} />
           <RailMana cards={cards} colourIdentity={deck.colour_identity} />
         </div>
       </div>

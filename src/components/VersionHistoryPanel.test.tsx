@@ -8,6 +8,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 vi.mock('sonner', () => ({ toast: vi.fn() }))
 import { VersionHistoryPanel } from './VersionHistoryPanel'
 import { StrategyBlock } from './deck-strategy/StrategyBlock'
+import { DeckSettingsHost } from './deck-strategy/DeckSettingsHost'
 const now = new Date().toISOString()
 const REASON = 'The deck is two mana sources under its target.'
 const change = (over: Record<string, unknown> = {}) => ({
@@ -115,7 +116,9 @@ describe('the Strategy window\'s "See in History" opens this History', () => {
     return (
       <>
         <VersionHistoryPanel deckId={7} deckName="Yedora" open={open} onOpenChange={setOpen} />
-        <StrategyBlock deckId={7} deckName="Yedora" onSeeHistory={() => setOpen(true)} />
+        <DeckSettingsHost deckId={7} deckName="Yedora" cards={[]} onSeeHistory={() => setOpen(true)}>
+          <StrategyBlock deckId={7} />
+        </DeckSettingsHost>
       </>
     )
   }

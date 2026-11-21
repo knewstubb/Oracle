@@ -34,6 +34,17 @@ export interface StrategyWindowProps {
   /** Called after the window has closed; opens wherever History opens today. */
   onSeeHistory: () => void
   finalFocusRef?: React.RefObject<HTMLElement | null>
+  /** Set by the Deck settings window: adds the tabs and the Deck health tab around this same form. */
+  settings?: SettingsTabs
+}
+export type SettingsTab = 'strategy' | 'health'
+export interface SettingsTabs {
+  tab: SettingsTab
+  onTabChange: (tab: SettingsTab) => void
+  /** The Deck health tab's contents. Stays mounted (hidden) while the Strategy tab shows, so nothing typed there is lost. */
+  health: React.ReactNode
+  /** The Deck health tab puts its "save everything now" here; closing waits for it. Resolves false when a save failed. */
+  flushHealth: React.MutableRefObject<(() => Promise<boolean>) | null>
 }
 const NOT_SAVED_YET = 'Not saved yet. Nothing in History.'
 function fromData(d: StrategyWindowData | undefined): WindowValues {
@@ -52,7 +63,8 @@ const UPDATED_BY_CLAUDE = (
 )
 
 export function StrategyWindow(props: StrategyWindowProps) {
-  const { open, deckName, data, online, onClose, onSave, onSaveOnLeave, onSeeHistory, finalFocusRef } = props
+  const { open, deckName, data, online, onClose, onSave, onSaveOnLeave, onSeeHistory, finalFocusRef, settings } = props
+  const showHealth = settings?.tab === 'health'
   const uid = useId()
   const auto = useAutosave<WindowValues>({
     initial: fromData(data),
@@ -127,7 +139,8 @@ export function StrategyWindow(props: StrategyWindowProps) {
     closingRef.current = true
     try {
       // Everything typed is sent first. If it cannot be saved, the owner decides.
-      const ok = loading ? true : await flush()
+      const healthOk = settings?.flushHealth.current ? await settings.flushHealth.current() : true
+      const ok = (loading ? true : await flush()) && healthOk
       if (!ok) {
         setUnsaved(after)
         return
@@ -180,7 +193,7 @@ export function StrategyWindow(props: StrategyWindowProps) {
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descId}
-        initialFocus={() => radioRefs.current[tabbable] ?? true}
+        initialFocus={() => (settings && showHealth ? true : radioRefs.current[tabbable] ?? true)}
         finalFocus={finalFocusRef ?? true}
         className="max-h-[92vh] gap-4 overflow-y-auto p-5 sm:max-w-[560px] max-sm:top-0 max-sm:left-0 max-sm:h-dvh max-sm:max-h-dvh max-sm:max-w-none max-sm:translate-x-0 max-sm:translate-y-0 max-sm:rounded-none"
         data-testid="strategy-window"
@@ -189,15 +202,51 @@ export function StrategyWindow(props: StrategyWindowProps) {
       >
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <DialogTitle id={titleId} className="text-xl font-semibold leading-tight">Strategy</DialogTitle>
+            <DialogTitle id={titleId} className="text-xl font-semibold leading-tight">{settings ? 'Deck settings' : 'Strategy'}</DialogTitle>
             <DialogDescription id={descId} className="mt-1 text-[length:var(--fs-md)] text-muted-foreground">
-              {deckName}. Claude reads this when it advises you.
+              {settings ? deckName : `${deckName}. Claude reads this when it advises you.`}
             </DialogDescription>
           </div>
           <button type="button" aria-label="Close" onClick={() => void requestClose('close')} className={cn(BTN, 'shrink-0 border border-[#8A8A93] px-0', FOCUS_RING)}>
             <X className="size-5" aria-hidden="true" />
           </button>
         </div>
+        {settings && (
+          <div role="tablist" aria-label="Deck settings" className="flex gap-1 border-b border-border" data-testid="settings-tabs">
+            {([['strategy', 'Strategy'], ['health', 'Deck health']] as const).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                role="tab"
+                id={`${uid}-tab-${id}`}
+                aria-selected={settings.tab === id}
+                aria-controls={`${uid}-panel-${id}`}
+                tabIndex={settings.tab === id ? 0 : -1}
+                onClick={() => settings.onTabChange(id)}
+                onKeyDown={(e) => {
+                  if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+                    e.preventDefault()
+                    const other = id === 'strategy' ? 'health' : 'strategy'
+                    settings.onTabChange(other)
+                    requestAnimationFrame(() => document.getElementById(`${uid}-tab-${other}`)?.focus())
+                  }
+                }}
+                className={cn(
+                  'inline-flex min-h-11 items-center border-b-2 px-4 text-[length:var(--fs-md)] font-medium',
+                  settings.tab === id ? 'border-[var(--accent-primary)] text-foreground' : 'border-transparent text-muted-foreground',
+                  FOCUS_RING,
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+        {settings && (
+          <div role="tabpanel" id={`${uid}-panel-health`} aria-labelledby={`${uid}-tab-health`} hidden={!showHealth} className="space-y-4">
+            {settings.health}
+          </div>
+        )}
         {status === 'error' && error && (
           <div role="alert" className="flex gap-2 rounded-md border border-red-400 p-3 text-[length:var(--fs-md)] text-red-300">
             <XCircle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
@@ -216,7 +265,7 @@ export function StrategyWindow(props: StrategyWindowProps) {
             <span>You&apos;re offline. You can keep typing. Your changes will save when you&apos;re back online. Your text stays in this window.</span>
           </div>
         )}
-        {loading ? (
+        {showHealth ? null : loading ? (
           <div className="space-y-3" data-testid="strategy-window-loading">
             <p className="text-[length:var(--fs-md)] text-muted-foreground">Loading strategy…</p>
             {[0, 1, 2, 3].map((i) => (
@@ -412,7 +461,7 @@ export function StrategyWindow(props: StrategyWindowProps) {
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
-          <p className="text-[length:var(--fs-sm)] text-muted-foreground" data-testid="strategy-footer">
+          <p className="text-[length:var(--fs-sm)] text-muted-foreground" data-testid="strategy-footer" hidden={showHealth}>
             {lastChanged ? (
               <>
                 {lastChanged} ·{' '}
@@ -425,7 +474,7 @@ export function StrategyWindow(props: StrategyWindowProps) {
             )}
           </p>
           <div className="ml-auto flex flex-wrap items-center gap-3">
-            {!loading && <SaveStatus status={status} lastSavedAt={lastSavedAt} onRetry={() => void saveNow()} />}
+            {!loading && !showHealth && <SaveStatus status={status} lastSavedAt={lastSavedAt} onRetry={() => void saveNow()} />}
             <button type="button" onClick={() => void requestClose('close')} className={cn(BTN, 'border border-[#8A8A93]', FOCUS_RING)}>
               Close
             </button>

@@ -23,12 +23,15 @@ const STATUSES = {
 let health: () => unknown
 let statuses: () => Promise<unknown>
 let legality: () => unknown
+let settings: () => unknown
 beforeEach(() => {
   health = () => json(200, HEALTH)
   statuses = async () => json(200, STATUSES)
+  settings = () => json(200, { available: true, mode: 'default', overrides: {}, categories: [] })
   legality = () => json(200, { format: 'commander', isLegal: true, issues: [] })
   vi.stubGlobal('fetch', vi.fn(async (url: string) => {
     if (url.endsWith('/health')) return health()
+    if (url.endsWith('/health-settings')) return settings()
     if (url.endsWith('/card-statuses')) return statuses()
     if (url.endsWith('/legality')) return legality()
     return json(404, {})
@@ -100,7 +103,8 @@ describe('DeckRail', () => {
   })
   it('an off-colour card at 100 shows Not legal and the colour identity line', async () => {
     statuses = async () => json(200, { cards: [], counts: { size: 100, sleeved: 100, original: 100 } })
-    legality = () => json(200, { format: 'commander', isLegal: false, issues: [{ cardName: 'Opt', reason: 'color_identity', details: '' }] })
+    settings = () => json(200, { available: true, mode: 'default', overrides: {}, categories: [] })
+  legality = () => json(200, { format: 'commander', isLegal: false, issues: [{ cardName: 'Opt', reason: 'color_identity', details: '' }] })
     renderRail(yedora({ totalCards: 100 }))
     expect(await screen.findByText('1 card outside colour identity')).toBeInTheDocument()
     expect(screen.getByTestId('rail-status-chip')).toHaveTextContent('Assembling')
@@ -123,38 +127,39 @@ describe('DeckRail', () => {
     expect(screen.getAllByRole('button', { name: 'Try again' }).length).toBeGreaterThan(0)
   })
 
-  it('shows six health rows, shortfalls first, with have, range and an amber minus only below the minimum', async () => {
+  it('shows six health tiles, problems first, with the count, the target and an arrow only on problem tiles', async () => {
     renderRail(yedora())
     const rows = await screen.findByTestId('health-rows')
     const items = within(rows).getAllByRole('button')
-    expect(items.map((b) => b.getAttribute('data-kind'))).toEqual(['card_advantage', 'targeted_removal', 'board_wipes', 'lands', 'ramp', 'game_plan'])
-    const row = (name: RegExp) => screen.getByRole('button', { name })
+    expect(items.map((b) => b.getAttribute('data-kind'))).toEqual(['card_advantage', 'targeted_removal', 'board_wipes', 'ramp', 'lands', 'game_plan'])
     // The numbers are the buildDeckHealth numbers.
     for (const src of HEALTH.rows) {
-      const el = within(rows).getAllByRole('button').find((b) => b.getAttribute('data-kind') === src.kind)!
-      expect(within(el).getByTestId('health-have').querySelector('b')).toHaveTextContent(String(src.have))
-      if (src.range) expect(el).toHaveTextContent(`${src.range.min} to ${src.range.max}`)
-      expect(within(el).getByTestId('health-delta')).toHaveTextContent(src.offBy < 0 ? `\u2212${-src.offBy}` : /^$/)
+      const el = items.find((b) => b.getAttribute('data-kind') === src.kind)!
+      expect(within(el).getByTestId('health-have')).toHaveTextContent(String(src.have))
+      if (src.range) expect(within(el).getByTestId('health-target')).toHaveTextContent(`/ ${src.range.min}\u2013${src.range.max}`)
     }
-    expect(row(/^Lands: 37 cards\. Range 35 to 38\./)).toBeInTheDocument()
-    expect(row(/^Ramp: 18 cards\. Range 10 to 12\./)).toBeInTheDocument() // over the maximum: neutral, no delta
-    expect(row(/^Board Wipes: 0 cards\. Range 3 to 6\. 3 below the minimum/)).toHaveTextContent('\u22123')
-    const gp = row(/^Game Plan & Win Conditions: 34 cards\. A total, no range/)
-    expect(gp).toHaveTextContent('34')
-    expect(within(gp).queryByTestId('health-meter')).toBeNull()
-    expect(screen.getByTestId('health-verdict')).toHaveTextContent('Light on card advantage, removal and board wipes')
+    const tile = (name: RegExp) => screen.getByRole('button', { name })
+    expect(tile(/^Lands: 37 cards\. Target 35\u201338\. On target/)).toHaveAttribute('data-status', 'on')
+    const ramp = tile(/^Ramp: 18 cards\. Target 10\u201312\. 6 above/)
+    expect(ramp).toHaveAttribute('data-status', 'over')
+    expect(within(ramp).getByTestId('health-arrow-up')).toBeInTheDocument()
+    const wipes = tile(/^Board Wipes: 0 cards\. Target 3\u20136\. 3 below/)
+    expect(within(wipes).getByTestId('health-arrow-down')).toBeInTheDocument()
+    const gp = tile(/^Game Plan: 34 cards\. A total, no target/)
+    expect(gp).toHaveTextContent('Total')
+    expect(within(gp).queryByTestId('health-arrow-up')).toBeNull()
+    expect(within(gp).queryByTestId('health-arrow-down')).toBeNull()
+    expect(screen.getByTestId('health-verdict')).toHaveTextContent('Light on card advantage, removal and board wipes, heavy on ramp')
     expect(screen.getByText('Mana sources 55: 37 lands, 18 ramp cards. An estimate.')).toBeInTheDocument()
-    expect(screen.getByText('Ranges are the Command Zone template. Select a row for details.')).toBeInTheDocument()
   })
-  it('has no Ok, Light or Heavy words on any health row, and no meter fill is green', async () => {
+  it('has no Ok, Light or Heavy words on any tile and no Confirm or Decline in the rail', async () => {
     renderRail(yedora())
     const rows = await screen.findByTestId('health-rows')
     expect(rows.textContent).not.toMatch(/\b(Ok|Light|Heavy)\b/)
     for (const b of within(rows).getAllByRole('button')) expect(b.getAttribute('aria-label')).not.toMatch(/\b(ok|light|heavy)\b/i)
-    const fills = within(rows).getAllByTestId('health-fill').map((f) => (f as HTMLElement).style.background)
-    expect(fills.filter((f) => f.includes('warn-amber'))).toHaveLength(3)
+    expect(screen.queryByRole('button', { name: /confirm|decline/i })).toBeNull()
   })
-  it('says Well covered with no amber when every row is in range', async () => {
+  it('says On target in every category with no amber when every row is in range', async () => {
     health = () =>
       json(
         200,
@@ -167,27 +172,32 @@ describe('DeckRail', () => {
         ]),
       )
     renderRail(yedora())
-    expect(await screen.findByTestId('health-verdict')).toHaveTextContent('Well covered')
-    expect(screen.getAllByTestId('health-delta').every((d) => d.textContent === '')).toBe(true)
+    expect(await screen.findByTestId('health-verdict')).toHaveTextContent('On target in every category')
+    expect(screen.queryByTestId('health-arrow-up')).toBeNull()
+    expect(screen.queryByTestId('health-arrow-down')).toBeNull()
   })
-  it('footnote: EDHREC reference with the deck count, and the small-sample note at 999 but not at 1,000', async () => {
-    const withSample = (n: number) => ({ ...HEALTH, reference: { available: true, label: 'EDHREC average deck', sample: n } })
-    health = () => json(200, withSample(999))
-    const { unmount } = renderRail(yedora())
-    expect(await screen.findByTestId('health-reference')).toHaveTextContent('EDHREC average for reference · 999 decks')
-    expect(screen.getByTestId('health-small-sample')).toHaveTextContent('small sample, treat as rough')
-    unmount()
-    health = () => json(200, withSample(1000))
+  it('the EDHREC reference line is not in the rail any more (it moved to the Deck health tab)', async () => {
     renderRail(yedora())
-    expect(await screen.findByTestId('health-reference')).toHaveTextContent('EDHREC average for reference · 1,000 decks')
-    expect(screen.queryByTestId('health-small-sample')).toBeNull()
+    await screen.findByTestId('health-rows')
+    expect(screen.queryByTestId('health-reference')).toBeNull()
+    expect(screen.queryByText(/EDHREC average for reference/)).toBeNull()
+  })
+  it('shows custom categories with No target and no verdict when the deck is in Custom mode', async () => {
+    settings = () => json(200, { available: true, mode: 'custom', overrides: {}, categories: [{ id: 1, name: 'Mana Rocks', min: 2, max: 4, proposed: null }, { id: 2, name: 'Tutors', min: null, max: null, proposed: { min: 3, max: 5 } }] })
+    renderRail(yedora({ cards: [{ card_name: 'Sol Ring', quantity: 1, categories: 'Mana Rocks' }, { card_name: 'Mind Stone', quantity: 1, categories: 'Mana Rocks' }, { card_name: 'Demonic Tutor', quantity: 1, categories: 'Tutors' }] }))
+    const rows = await screen.findByTestId('health-rows')
+    await waitFor(() => expect(within(rows).getByRole('group', { name: /^Mana Rocks: 2 cards/ })).toHaveAttribute('data-status', 'on'))
+    const tutors = within(rows).getByRole('group', { name: /^Tutors: 1 card\. No target/ })
+    expect(tutors).toHaveTextContent('No target')
+    expect(screen.getByTestId('health-verdict')).toHaveTextContent('On target everywhere a target is set')
+    expect(screen.queryByRole('button', { name: /confirm|decline/i })).toBeNull()
   })
   it('shows the six rows even at 0 cards', async () => {
     health = () => json(200, buildDeckHealth([]))
     renderRail(yedora())
     const rows = await screen.findByTestId('health-rows')
     expect(within(rows).getAllByRole('button')).toHaveLength(6)
-    expect(screen.getByRole('button', { name: /^Board Wipes: 0 cards\. Range 3 to 6/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /^Board Wipes: 0 cards\. Target 3\u20136/ })).toBeInTheDocument()
   })
   it('shows the double-faced line and the uncategorised and overlap notes only when they apply', async () => {
     health = () =>
@@ -219,7 +229,7 @@ describe('DeckRail', () => {
     expect(within(dialog).getByText('and 12 more')).toBeInTheDocument()
     await user.click(within(dialog).getByRole('button', { name: 'Deck health' }))
     expect(within(dialog).getByRole('heading', { name: 'Deck health' })).toBeInTheDocument()
-    expect(within(dialog).getAllByRole('button', { name: /Open details\.$/ })).toHaveLength(6)
+    expect(within(dialog).getAllByRole('button', { name: /Open details\.$/ }).length).toBeGreaterThanOrEqual(6)
     expect(within(dialog).getByText('For reference only: the average EDHREC deck for this commander')).toBeInTheDocument()
   })
   it('a Light row opens the existing "cards that fill it" list inside its details', async () => {
@@ -233,7 +243,7 @@ describe('DeckRail', () => {
   it('the Game Plan row opens a total with the quiet template note and no range', async () => {
     const user = userEvent.setup()
     renderRail(yedora())
-    await user.click(await screen.findByRole('button', { name: /^Game Plan & Win Conditions: 34 cards/ }))
+    await user.click(await screen.findByRole('button', { name: /^Game Plan: 34 cards/ }))
     const dialog = await screen.findByRole('dialog')
     expect(within(dialog).getByText(/It is a total, so it has no range and no verdict/)).toBeInTheDocument()
     expect(within(dialog).getByText('The Command Zone template suggests about 25 to 30 here. That is a guide only.')).toBeInTheDocument()

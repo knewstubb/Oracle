@@ -12,6 +12,7 @@ export interface RailCard {
   quantity?: number
   mana_cost?: string | null
   type_line?: string | null
+  categories?: string | null
 }
 
 const qty = (c: RailCard) => c.quantity || 1

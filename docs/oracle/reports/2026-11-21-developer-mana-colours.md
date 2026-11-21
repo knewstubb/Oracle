@@ -10,7 +10,7 @@ The deck page rail now uses the Figma colours for white, blue, red, green, colou
 - src/styles/tokens.css — added --mana-colourless and --mana-multi next to the existing Figma --mana-white/blue/red/green; removed the duplicate --mana-fill-w/u/r/g/c/multi copies
 - src/lib/ui-tokens.ts — rail colour lookups now point at the shared --mana-* tokens; hex table for the contrast test updated
 - src/components/ManaSymbol.test.tsx — expects the new token name
-- src/components/AnalysisTab.tsx — colour dots for W/U/R/G use the shared tokens instead of hard-coded hex
+- src/components/AnalysisTab.tsx — only the W/U/R/G swatch dots use the shared tokens; the red severity colour (#D3202A) for low scores and poor coverage is unchanged
 - src/components/DeckStatusCard.tsx, CommanderOverview.tsx, brew-v2/CandidateCard.tsx — old hex values (#F9FAF4/#F8F6D8/#FFF8DC, #0E68AB, #D3202A/#D32029, #00733E, colourless #B5A99B) replaced by var(--mana-*); Black (#150B00) left as is
 - src/components/DraftDeckTile.tsx, DraftSessionTile.tsx — hard-coded Figma hex copies replaced by var(--mana-*)
 

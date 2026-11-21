@@ -602,7 +602,7 @@ function AttributeBar({ label, score }: { label: string; score: number }) {
   let scoreColour: string
   if (clampedScore >= 7) scoreColour = '#1D9E75'
   else if (clampedScore >= 4) scoreColour = '#EF9F27'
-  else scoreColour = 'var(--mana-red)'
+  else scoreColour = '#D3202A'
 
   return (
     <div
@@ -769,7 +769,7 @@ function ColorCoverageGaps({
     excellent: '#1D9E75',
     good: '#3B82F6',
     risky: '#EF9F27',
-    poor: 'var(--mana-red)',
+    poor: '#D3202A',
   }
 
   // Sort colors by severity (fewest sources relative to need first)

@@ -183,7 +183,7 @@ describe('Deck health tab', () => {
   it('Confirm and Decline are only in the window, never in the rail', async () => {
     stored = { ...stored, mode: 'custom' }
     setup()
-    await screen.findByTestId('health-rows')
+    await screen.findByTestId('health-see-all')
     expect(screen.queryByRole('button', { name: /confirm|decline/i })).toBeNull()
   })
   it('with the stored data missing it shows the defaults read-only with one line and no error', async () => {
@@ -195,10 +195,11 @@ describe('Deck health tab', () => {
     expect(within(dlg).queryByRole('alert')).toBeNull()
     expect(puts).toEqual([])
   })
-  it('the rail still shows the six default tiles when the stored data is missing', async () => {
+  it('the rail still shows the six default rows under See all when the stored data is missing', async () => {
     available = false
     setup()
     const rows = await screen.findByTestId('health-rows')
+    await userEvent.setup().click(screen.getByTestId('health-see-all'))
     expect(within(rows).getAllByRole('button')).toHaveLength(6)
   })
 })

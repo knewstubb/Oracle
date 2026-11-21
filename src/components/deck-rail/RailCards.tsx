@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { cardStatusesQueryOptions } from '@/lib/deck-card-statuses-query'
 import { legalityQueryOptions } from '@/lib/deck-legality-query'
 import { cardsSectionView, railBuildStatus, type CardsSectionView, type CardsStatus, type StatusCountsInput } from '@/lib/deck-rail-stats'
+import { PROBLEM_ROW_CLASS, ProblemList, ProblemRowContent } from './RailProblemList'
 import { formatPrice } from '@/lib/collection-printing-utils'
 
 interface StatusesResponse {
@@ -77,15 +78,13 @@ export function RailCardsView({ view, totalValue, details = true }: { view: Card
         </Badge>
       </div>
       {view.problems.length > 0 && (
-        <ul className="space-y-2 rounded-[10px] border border-[var(--border-subtle)] bg-[var(--bg-canvas)] p-2" data-testid="rail-problems">
+        <ProblemList testId="rail-problems">
           {view.problems.map((p) => (
-            <li key={p.key} className="flex items-center gap-2 text-[12px] font-medium">
-              <AlertTriangle size={16} aria-hidden="true" className="shrink-0" style={{ color: AMBER }} />
-              <span className="min-w-0 flex-1 truncate" title={p.text}>{p.text}</span>
-              {p.right && <span className="shrink-0">{p.right}</span>}
+            <li key={p.key} className={PROBLEM_ROW_CLASS}>
+              <ProblemRowContent text={p.text} right={p.right} />
             </li>
           ))}
-        </ul>
+        </ProblemList>
       )}
         </>
       )}

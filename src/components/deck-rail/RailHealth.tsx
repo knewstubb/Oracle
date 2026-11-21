@@ -1,10 +1,10 @@
 'use client'
-// Deck health in the rail: a headline, then two-column tiles (name, big count, target). Problem tiles are amber with an arrow
-// (up = over, down = under). Tiles open the cards-in-category panel; Edit opens Deck settings on the Deck health tab.
+// Deck health in the rail: amber warning rows ("Light on ramp  11 / 35–38") in the same box as the Cards problems;
+// See all adds the healthy, total and no-target rows. Rows open the cards-in-category panel; Edit opens Deck settings on the Deck health tab.
 // The info notes (mana sources, template, uncategorised, overlap) are not in the rail; the cards-in-category panel shows them.
 // Confirm and Decline for Claude's proposals are not here, only in the Deck settings window.
 import { useRef, useState } from 'react'
-import { AlertCircle, AlertTriangle, ArrowDown, ArrowUp, Check, Loader2 } from 'lucide-react'
+import { AlertCircle, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { DeckHealthPanel } from '@/components/DeckHealthPanel'
 import { RailEditLink } from './RailEditLink'
@@ -12,6 +12,7 @@ import { useOpenDeckSettings } from '@/components/deck-strategy/DeckSettingsHost
 import { useDeckHealth } from '@/hooks/useDeckHealth'
 import { useHealthSettings } from '@/hooks/useHealthSettings'
 import { RailSection } from './RailSection'
+import { ProblemList, ProblemRowContent, PROBLEM_ROW_CLASS } from './RailProblemList'
 import { FOCUS_RING } from '@/components/deck-strategy/focus'
 import type { HealthKind } from '@/lib/deck-health'
 import { applySettings, healthTilesView, type HealthTile, type HealthTilesView } from '@/lib/deck-health-settings'
@@ -73,62 +74,50 @@ export function RailHealth({ deckId, cards = [] }: { deckId: number; cards?: Arr
 }
 
 function HealthBody({ view, open }: { view: HealthTilesView; open: (kind: HealthKind | null, from: HTMLElement) => void }) {
-  const { headline } = view
+  const [showAll, setShowAll] = useState(false)
+  const isWarning = (t: HealthTile) => t.status === 'under' || t.status === 'over'
+  const warnings = view.tiles.filter(isWarning)
+  const rows = showAll ? [...warnings, ...view.tiles.filter((t) => !isWarning(t))] : warnings
   return (
     <>
-      <p className="flex items-start gap-2 text-[12px] font-medium" data-testid="health-verdict">
-        {headline.problem ? (
-          <AlertTriangle size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--signal-warning)' }} />
-        ) : (
-          <Check size={16} aria-hidden="true" className="mt-0.5 shrink-0" style={{ color: 'var(--text-secondary)' }} />
-        )}
-        <span>{headline.text}</span>
-      </p>
-      <ul data-testid="health-rows" className="grid grid-cols-2 gap-2">
-        {view.tiles.map((t) => (
-          <li key={t.key} className="min-w-0">
-            <Tile tile={t} open={open} />
-          </li>
-        ))}
-      </ul>
+      {rows.length > 0 && (
+        <ProblemList testId="health-rows">
+          {rows.map((t) => (
+            <li key={t.key} className="min-w-0">
+              <HealthRow tile={t} open={open} />
+            </li>
+          ))}
+        </ProblemList>
+      )}
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="-mt-1 h-auto self-start px-1 py-0.5 text-[12px] text-[var(--text-secondary)]"
+        aria-expanded={showAll}
+        data-testid="health-see-all"
+        onClick={() => setShowAll((v) => !v)}
+      >
+        {showAll ? 'Hide' : 'See all'}
+      </Button>
     </>
   )
 }
-
-function Tile({ tile: t, open }: { tile: HealthTile; open: (kind: HealthKind | null, from: HTMLElement) => void }) {
-  const problem = t.status === 'under' || t.status === 'over'
-  const base = cn(
-    'flex w-full flex-col gap-0.5 rounded-[8px] border p-2 text-left',
-    problem ? 'border-[var(--signal-warning)]/45 bg-[var(--signal-warning-bg)]' : 'border-[var(--border-subtle)] bg-[var(--bg-canvas)]',
-  )
-  const body = (
-    <>
-      <span className="block text-[11px] text-[var(--text-secondary)]">
-        {t.label}
-        {t.kind === 'lands' && t.doubleFaced > 0 && <span className="ml-1 text-[length:var(--fs-xs)] text-[var(--text-muted)]">+ {t.doubleFaced} double-faced</span>}
-      </span>
-      <span className="flex items-baseline gap-1">
-        <span className="flex items-center gap-0.5 text-[20px] font-semibold leading-none tabular-nums" style={problem ? { color: 'var(--signal-warning)' } : undefined} data-testid="health-have">
-          {t.have}
-          {t.status === 'over' && <ArrowUp size={14} aria-hidden="true" data-testid="health-arrow-up" />}
-          {t.status === 'under' && <ArrowDown size={14} aria-hidden="true" data-testid="health-arrow-down" />}
-        </span>
-        <span className="text-[11px] text-[var(--text-secondary)]" data-testid="health-target">
-          {t.status === 'total' ? 'Total' : t.status === 'none' ? 'No target' : `/ ${t.rangeText}`}
-        </span>
-      </span>
-    </>
-  )
-  // Default rows open the cards-in-category panel. A custom category has no panel yet, so its tile is not a button.
+function HealthRow({ tile: t, open }: { tile: HealthTile; open: (kind: HealthKind | null, from: HTMLElement) => void }) {
+  const warning = t.status === 'under' || t.status === 'over'
+  const text = warning ? `${t.status === 'over' ? 'Heavy' : 'Light'} on ${t.label.toLowerCase()}` : t.label
+  const right = t.status === 'total' ? `${t.have} Total` : t.status === 'none' ? `${t.have} No target` : `${t.have} / ${t.rangeText}`
+  const body = <ProblemRowContent text={text} right={<span data-testid="health-target">{right}</span>} icon={warning ? 'warning' : t.status === 'on' ? 'ok' : 'none'} />
+  // Default rows open the cards-in-category panel. A custom category has no panel yet, so its row is not a button.
   if (t.kind) {
     return (
-      <button type="button" aria-haspopup="dialog" aria-label={t.ariaLabel} data-kind={t.kind} data-status={t.status} className={cn(base, 'hover:bg-[var(--bg-surface-hover)]', FOCUS_RING)} onClick={(e) => open(t.kind, e.currentTarget)}>
+      <button type="button" aria-haspopup="dialog" aria-label={t.ariaLabel} data-kind={t.kind} data-status={t.status} className={cn(PROBLEM_ROW_CLASS, 'w-full text-left hover:bg-[var(--bg-surface-hover)]', FOCUS_RING)} onClick={(e) => open(t.kind, e.currentTarget)}>
         {body}
       </button>
     )
   }
   return (
-    <div role="group" aria-label={t.ariaLabel} data-status={t.status} className={base}>
+    <div role="group" aria-label={t.ariaLabel} data-status={t.status} className={PROBLEM_ROW_CLASS}>
       {body}
     </div>
   )

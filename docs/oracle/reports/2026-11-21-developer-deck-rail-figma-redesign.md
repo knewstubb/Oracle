@@ -41,7 +41,7 @@ The left rail now follows the new Figma design: commanders, a Cards box that sho
 - Should an off-colour deck at exactly 100 say Assembling plus Not legal, or only Not legal?
 
 ## Verification
-- npm test — 4570 passed, 1 failed on the first run: the deck page heading list still expected one Mana section. Fixed in this step; that file now passes 8 of 8. The ImportIntentFlow failure did not appear in this run.
+- npm test — 4570 passed, 1 failed on the first run: the deck page heading list still expected one Mana section. Fixed in this step; that file now passes 8 of 8. Integration re-run: 4570 passed, 1 failed in the upgrade-engine property test, which passed 60 of 60 when run alone (random-input test, unrelated to the rail).
 - npm run typecheck — only the 4 known AddToPicklist errors.
 - npm run lint — only the known 1 error (in a storage page) and 275 warnings.
 - Figma versus app comparison at 1280 and 800 wide, real decks (Rot to Process, Yedora, Arti-facts, a Background deck), problem states, Deck settings, curve click, hover — NOT run. No login in this environment, so no screenshots exist. Differences are therefore unlisted beyond those under decisions above.

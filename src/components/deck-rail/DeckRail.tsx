@@ -47,7 +47,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
-    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[352px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:px-6 @[800px]:pb-6 @[800px]:pt-2">
+    <aside aria-label="Deck summary" className="w-full shrink-0 border-b @[800px]:sticky @[800px]:top-0 @[800px]:h-full @[800px]:w-[320px] @[800px]:overflow-y-auto @[800px]:border-b-0 @[800px]:px-6 @[800px]:pb-6 @[800px]:pt-2">
       <button
         type="button"
         aria-expanded={expanded}

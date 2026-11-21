@@ -50,6 +50,8 @@
   --mana-black: #9E9E9E;
   --mana-red: #D4836A;
   --mana-green: #7BC4A0;
+  --mana-colourless: #CBC2BF;
+  --mana-multi: #8F51D5; /* Figma status/brewing */
 
   /* ─── Brand scale (purple, base #7138CC = 600) ───────────────────────
    * Purple overlaps least with the WUBRG pips. Use these for anything that is
@@ -76,13 +78,7 @@
   --surface-card: rgba(26, 26, 30, 0.5);
   --text-muted: var(--text-secondary);
   --warn-amber: #F2B84B;
-  --mana-fill-w: #F0E6B8;
-  --mana-fill-u: #4C9BE8;
   --mana-fill-b: #8E7F9E;
-  --mana-fill-r: #E5604D;
-  --mana-fill-g: #3DAA6D;
-  --mana-fill-c: #9AA0A6;
-  --mana-fill-multi: #A78BFA;
   --curve-brand: var(--brand-500);
   --curve-brand-selected: var(--brand-300);
   --swatch-original: #C9CFCB;

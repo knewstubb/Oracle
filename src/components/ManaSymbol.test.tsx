@@ -7,7 +7,7 @@ describe('ManaSymbol', () => {
     render(<ManaSymbol colour="G" />)
     const el = screen.getByRole('img', { name: 'Green' })
     expect(el.className).toContain('ms ms-g ms-cost')
-    expect(el.style.color).toBe('var(--mana-fill-g)')
+    expect(el.style.color).toBe('var(--mana-green)')
   })
   it('hides from assistive tech when the label is off', () => {
     const { container } = render(<ManaSymbol colour="C" label={false} />)

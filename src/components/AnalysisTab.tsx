@@ -161,11 +161,11 @@ function computeHeuristicRatings(cards: DeckCard[]): AttributeRating[] {
 
 /** MTG colour swatches */
 const COLOUR_MAP: Record<string, { name: string; swatch: string }> = {
-  W: { name: 'White', swatch: '#F9FAF4' },
-  U: { name: 'Blue', swatch: '#0E68AB' },
+  W: { name: 'White', swatch: 'var(--mana-white)' },
+  U: { name: 'Blue', swatch: 'var(--mana-blue)' },
   B: { name: 'Black', swatch: '#150B00' },
-  R: { name: 'Red', swatch: '#D3202A' },
-  G: { name: 'Green', swatch: '#00733E' },
+  R: { name: 'Red', swatch: 'var(--mana-red)' },
+  G: { name: 'Green', swatch: 'var(--mana-green)' },
 }
 
 // Category distribution targets for status badges
@@ -602,7 +602,7 @@ function AttributeBar({ label, score }: { label: string; score: number }) {
   let scoreColour: string
   if (clampedScore >= 7) scoreColour = '#1D9E75'
   else if (clampedScore >= 4) scoreColour = '#EF9F27'
-  else scoreColour = '#D3202A'
+  else scoreColour = 'var(--mana-red)'
 
   return (
     <div
@@ -769,7 +769,7 @@ function ColorCoverageGaps({
     excellent: '#1D9E75',
     good: '#3B82F6',
     risky: '#EF9F27',
-    poor: '#D3202A',
+    poor: 'var(--mana-red)',
   }
 
   // Sort colors by severity (fewest sources relative to need first)

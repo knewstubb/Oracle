@@ -1,5 +1,5 @@
 # Brief: Deck rail, new Figma design (addendum to DV-01 and HC)
-Author: Developer, drafted 2026-11-21 from the owner's Figma rail (file Oracle, rail 338:1472, variants 341:2978, states sheet 350:1562). Status: **Draft, awaiting owner approval (Gate 1).** Nothing is built, applied or changed. This adds to `briefs/deck-page-left-rail-and-strategy.md` and `briefs/categories-drive-deck-health.md` (both still Draft) and replaces only the parts named in section 2.
+Author: Developer, drafted 2026-11-21 from the owner's Figma rail (file Oracle, rail 338:1472, variants 341:2978, states sheet 350:1562). Status: **Owner answered 2026-11-21; draft migration still not applied.** Nothing is built, applied or changed. This adds to `briefs/deck-page-left-rail-and-strategy.md` and `briefs/categories-drive-deck-health.md` (both still Draft) and replaces only the parts named in section 2.
 
 ## 1. Scenarios
 1. **Open a healthy deck.** A Rot to Process, 100 of 100 cards, all sleeved, legal. Cards shows the green "Playable" and "Legal" chips and "100 / 100 sleeved".
@@ -64,6 +64,23 @@ Clicking a curve bar opens the Mana value N panel with the count, one horizontal
 8. **Sources bar colourless end.** Figma shows a pale colourless segment on the Sources bar. Land data may not always say whether a land makes colourless mana. Recommend: show it only where the land says so; otherwise leave it out.
 9. **Lines not in the design.** The old legend bar, "Basics short", "To buy", "Outside the 100", the Salt chip, "Not in any category" and the word "Heavy". Recommend: drop the legend bar, Salt chip and "Heavy" word; move "To buy" and "Basics short" to the deck's cards area if you still want them. Which ones should come back?
 10. **Rail width.** Today 352 px; Figma 320 px. Recommend: 320 as drawn. You would see a slightly narrower rail.
+
+## 5b. Owner answers (recorded verbatim, 2026-11-21)
+1. "Rachel Weeks" = the Command Zone deck guide numbers. Keep the locked defaults (Lands 35-38, Ramp 10-12, Card Advantage 10-12, Targeted Removal 10-12, Board Wipes 3-6; Game Plan is a plain total).
+2. Opening hand: lands only for now (label "0-1 lands" etc, not sources). Land-drop lines lands only.
+3. Cards seen by turn: follow the Figma (on the play: 9, 10, 12 cards).
+4. Yes: clicking the same curve bar a second time closes the panel.
+5. Yes: Playable also requires legality. Illegal is never Playable. Do your read-only check of real decks and report any that change.
+6. Yes: a deck over 100 is Not legal even when fully sleeved.
+7. Yes: keep the click-through from each health tile to the cards in that category.
+8. Sources bar: do NOT show colourless at all. Compare only coloured mana the lands can produce versus the coloured pips.
+9. Drop the Salt chip and the salt score entirely. Also drop the old legend bar and the word "Heavy" (tiles use the amber arrow). Move To buy and Basics short elsewhere as you recommended. Outside the 100 and Not in any category stay out of the rail as drawn unless the existing briefs require them (if so, flag it for the owner).
+10. Rail width 320 as drawn.
+11. Definition of Not legal: not exactly 100 cards, OR any card outside the commander colour identity, OR any card not legal in the deck's selected format. An off-colour deck with exactly 100 cards shows Assembling (or Brewing if nothing is sleeved) plus Not legal. Pips come from the mana costs of nonland cards (confirmed).
+
+### Flags for the owner
+- The categories brief (section 7) asks for a "Not in any category" line in the rail. Your answer drops it as drawn. This is the one existing requirement that conflicts, so it is now dropped by your decision. Say so if you want the line back.
+- Question 5 (real decks whose status would change) is a read-only check that needs the new legality rule built first. It will be run and reported during the Cards slice, before the rail is shown to you. The 2026-11-20 report found none under the old rule.
 
 ## 6. Stored-data change (draft only)
 Two new tables, drafts at `supabase/drafts/20261121100000_deck_health_settings.*`: one holds each deck's mode (Default values or Custom categories), one holds custom categories and per-deck range overrides, with Claude's proposals kept apart until you confirm. Additive only. Not applied. Needs your approval and a rolled-back rehearsal first.

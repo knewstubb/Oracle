@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { composite, contrastRatio, parseColor, tokenValue } from './contrast'
-import { CANVAS_VAR, MANA_FILL_HEX, MANA_FILL_VARS, MUTED_TEXT_VAR, SURFACE_VAR, SWATCH_VARS, type ManaLetter } from './ui-tokens'
+import { CANVAS_VAR, CURVE_TEAL_SELECTED_VAR, CURVE_TEAL_VAR, MULTI_FILL_VAR, MANA_FILL_HEX, MANA_FILL_VARS, MUTED_TEXT_VAR, SURFACE_VAR, SWATCH_VARS, type ManaLetter } from './ui-tokens'
 
 const css = readFileSync(join(process.cwd(), 'src/styles/tokens.css'), 'utf8')
 const tok = (name: string) => parseColor(tokenValue(css, name))
@@ -24,6 +24,9 @@ describe('deck rail tokens against the card surface', () => {
   })
   it.each(Object.keys(MANA_FILL_VARS) as ManaLetter[])('mana fill %s is at least 3:1', (k) => {
     expect(contrastRatio(tok(MANA_FILL_VARS[k]), surface)).toBeGreaterThanOrEqual(3)
+  })
+  it.each([CURVE_TEAL_VAR, CURVE_TEAL_SELECTED_VAR, MULTI_FILL_VAR])('curve and multicolour token %s is at least 3:1', (v) => {
+    expect(contrastRatio(tok(v), surface)).toBeGreaterThanOrEqual(3)
   })
   it('muted text is at least 4.5:1', () => {
     expect(contrastRatio(tok(MUTED_TEXT_VAR), surface)).toBeGreaterThanOrEqual(4.5)

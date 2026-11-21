@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { manaCurveBuckets, avgManaValue, curveByColour, colourBalance, colourNeeds, cardCountView, cardsSectionView, railBuildStatus } from './deck-rail-stats'
+import { manaCurveBuckets, avgManaValue, curvePanel, colourBalance, colourNeeds, cardCountView, cardsSectionView, railBuildStatus } from './deck-rail-stats'
 import { computeDeckReadiness } from './deck-readiness'
 
 const spell = (name: string, mana_cost: string | null, quantity = 1) => ({ card_name: name, mana_cost, type_line: 'Creature — Elf', quantity })
@@ -86,61 +86,47 @@ describe('avgManaValue', () => {
   })
 })
 
-describe('curveByColour', () => {
-  it('drops the 0 column when it is empty and keeps it when a free card exists', () => {
-    expect(curveByColour([spell('Elf', '{G}')]).columns.map((c) => c.label)).toEqual(['1', '2', '3', '4', '5', '6', '7+'])
-    expect(curveByColour([spell('Ornithopter', '{0}')]).columns.map((c) => c.label)[0]).toBe('0')
+describe('curvePanel', () => {
+  it('splits mana value 5 like the Figma example: 2 Blue, 4 Black, 2 Multicolour', () => {
+    const cards = [
+      spell('U1', '{3}{U}{U}'), spell('U2', '{4}{U}'),
+      spell('B1', '{3}{B}{B}'), spell('B2', '{4}{B}'), spell('B3', '{2}{B}{B}{B}'), spell('B4', '{4}{B}'),
+      spell('UB1', '{3}{U}{B}'), spell('UB2', '{2}{U}{B}{B}'),
+      spell('Other', '{1}{G}'),
+    ]
+    const p = curvePanel(cards, 5)
+    expect(p.total).toBe(8)
+    expect(p.segments.filter((s) => s.count > 0).map((s) => [s.label, s.count])).toEqual([['Blue', 2], ['Black', 4], ['Multicolour', 2]])
   })
-  it('splits a multicolour card evenly and puts colourless cards in grey', () => {
-    const col = curveByColour([spell('Rock', '{2}', 2), spell('Gold', '{1}{W}{B}'), spell('Mono', '{1}{G}')]).columns
-    const two = col.find((c) => c.label === '2')!
-    expect(two.total).toBe(3)
-    expect(two.segments).toEqual([{ colour: 'G', count: 1 }, { colour: 'C', count: 2 }])
-    const three = col.find((c) => c.label === '3')!
-    expect(three.segments).toEqual([{ colour: 'W', count: 0.5 }, { colour: 'B', count: 0.5 }])
+  it('counts colourless cards, quantities, and puts 7 or more in the 7 bucket', () => {
+    const p = curvePanel([spell('Rock', '{7}', 2), spell('Titan', '{6}{G}{G}'), spell('Mid', '{1}{G}')], 7)
+    expect(p.total).toBe(3)
+    expect(p.segments.find((s) => s.key === 'C')!.count).toBe(2)
+    expect(p.segments.find((s) => s.key === 'G')!.count).toBe(1)
   })
-  it('leaves lands out and counts costless spells as unknown', () => {
-    const r = curveByColour([land('Forest', 10), spell('Mystery', null, 2), spell('Elf', '{G}')])
-    expect(r.unknown).toBe(2)
-    expect(r.columns.reduce((n, c) => n + c.total, 0)).toBe(1)
+  it('leaves lands and costless cards out', () => {
+    expect(curvePanel([land('Forest', 10), spell('Mystery', null, 2)], 1).total).toBe(0)
   })
 })
-
 describe('colourBalance', () => {
   const lands = (g: number, w: number) => [basic('Forest', 'Forest', g), basic('Plains', 'Plains', w)]
   it('says colourless for a deck with no colour identity', () => {
     expect(colourBalance([spell('Rock', '{2}')], '').kind).toBe('colourless')
   })
-  it('is mono for one colour: no chip, no split', () => {
-    const b = colourBalance([spell('Elf', '{G}', 3), ...lands(30, 0)], 'G')
-    expect(b.kind).toBe('mono')
-    expect(b.underColours).toEqual([])
+  it('is mono for one colour', () => {
+    expect(colourBalance([spell('Elf', '{G}', 3), ...lands(30, 0)], 'G').kind).toBe('mono')
   })
-  // 50 green pips and 50 white pips against 50/50 sources is balanced; shift the lands to test the 5-point line.
   const pips = (g: number, w: number) => [spell('Elf', '{G}', g), spell('Mage', '{W}', w)]
-  it('flags a colour whose sources trail its pips by 5 points', () => {
-    // pips 55 / 45 percent, sources 50 / 50: green trails by 5.
-    const b = colourBalance([...pips(55, 45), ...lands(50, 50)], 'GW')
-    const g = b.rows.find((r) => r.colour === 'G')!
-    expect(g).toMatchObject({ demandPct: 55, supplyPct: 50, gap: 5, under: true })
-    expect(b.underColours).toEqual(['G'])
+  it('gives pips, sources and their shares per colour', () => {
+    const b = colourBalance([...pips(55, 45), ...lands(30, 10)], 'GW')
+    expect(b.rows.find((r) => r.colour === 'G')).toMatchObject({ demandPct: 55, pips: 55, supplyPct: 75, sources: 30 })
+    expect(b.rows.find((r) => r.colour === 'W')).toMatchObject({ demandPct: 45, pips: 45, supplyPct: 25, sources: 10 })
+    expect(b.landCount).toBe(40)
   })
-  it('does not flag a 4-point gap', () => {
-    const b = colourBalance([...pips(54, 46), ...lands(50, 50)], 'GW')
-    expect(b.rows.find((r) => r.colour === 'G')).toMatchObject({ gap: 4, under: false })
-    expect(b.underColours).toEqual([])
-  })
-  it('flags nothing when no land makes any identity colour (nothing to compare)', () => {
-    const b = colourBalance(pips(5, 5), 'GW')
-    expect(b.rows.every((r) => !r.under)).toBe(true)
-  })
-  it('measures sources as a share of the identity colours sources', () => {
-    const b = colourBalance([...pips(1, 1), ...lands(30, 10)], 'GW')
-    expect(b.rows.find((r) => r.colour === 'G')!.supplyPct).toBe(75)
-    expect(b.rows.find((r) => r.colour === 'W')!.supplyPct).toBe(25)
+  it('shows zero shares when no land makes any identity colour', () => {
+    expect(colourBalance(pips(5, 5), 'GW').rows.every((r) => r.supplyPct === 0)).toBe(true)
   })
 })
-
 describe('cardsSectionView', () => {
   const view = (total: number, sleeved: number, issues: Array<{ reason: 'banned' | 'color_identity' | 'over_limit' }> = []) =>
     cardsSectionView({

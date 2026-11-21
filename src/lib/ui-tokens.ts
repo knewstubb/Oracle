@@ -20,6 +20,12 @@ export const MANA_FILL_VARS: Record<ManaLetter, string> = {
   C: '--mana-fill-c',
 }
 
+/** Purple segment for multicolour cards in the curve panel. */
+export const MULTI_FILL_VAR = '--mana-fill-multi'
+/** Mana curve bars: one teal, lighter when selected. */
+export const CURVE_TEAL_VAR = '--curve-teal'
+export const CURVE_TEAL_SELECTED_VAR = '--curve-teal-selected'
+
 export const MANA_FILL_HEX: Record<ManaLetter, string> = {
   W: '#F0E6B8',
   U: '#4C9BE8',

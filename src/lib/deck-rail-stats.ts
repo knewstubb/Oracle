@@ -86,80 +86,66 @@ export function avgManaValue(cards: RailCard[]): number | null {
   return n > 0 ? total / n : null
 }
 
-const MANA_ORDER: ManaLetter[] = ['W', 'U', 'B', 'R', 'G', 'C']
+const MANA_ORDER: ManaLetter[] = ['W', 'U', 'B', 'R', 'G']
 
-export interface CurveColumn {
-  /** "1" to "6", "7+" (and "0" only when a zero-cost card exists). */
+export interface CurvePanelSegment {
+  /** A colour letter, 'C' for colourless (no coloured pip) or 'M' for multicolour (two or more colours). */
+  key: ManaLetter | 'M'
   label: string
-  total: number
-  /** Cards in this column split by card colour; a multicolour card is split evenly, a colourless one is C. */
-  segments: Array<{ colour: ManaLetter; count: number }>
+  count: number
 }
 
-/** The curve with each bar stacked by card colour. The 0 column is dropped when it is empty. */
-export function curveByColour(cards: RailCard[]): { columns: CurveColumn[]; unknown: number } {
-  const labels = ['0', '1', '2', '3', '4', '5', '6', '7+']
-  const parts = labels.map(() => new Map<ManaLetter, number>())
-  const totals = new Array<number>(8).fill(0)
-  let unknown = 0
+/** The cards at one mana value (7 means 7 or more), split by colour. Lands are excluded. Zero-count entries are kept so callers can filter. */
+export function curvePanel(cards: RailCard[], mv: number): { total: number; segments: CurvePanelSegment[] } {
+  const counts = new Map<string, number>()
+  let total = 0
   for (const card of cards) {
-    if (isLandTypeLine(card.type_line)) continue
-    if (!card.mana_cost) {
-      unknown += qty(card)
-      continue
-    }
-    const i = Math.min(calculateCMC(card.mana_cost), 7)
+    if (isLandTypeLine(card.type_line) || !card.mana_cost) continue
+    if (Math.min(calculateCMC(card.mana_cost), 7) !== mv) continue
     const pips = parseManaCost(card.mana_cost)
-    const colours = MANA_ORDER.filter((c) => c !== 'C' && pips[c as 'W'] > 0)
-    const split: ManaLetter[] = colours.length > 0 ? colours : ['C']
-    totals[i] += qty(card)
-    for (const c of split) parts[i].set(c, (parts[i].get(c) ?? 0) + qty(card) / split.length)
+    const colours = MANA_ORDER.filter((c) => pips[c as 'W'] > 0)
+    const key = colours.length >= 2 ? 'M' : colours.length === 1 ? colours[0] : 'C'
+    counts.set(key, (counts.get(key) ?? 0) + qty(card))
+    total += qty(card)
   }
-  const columns = labels
-    .map((label, i) => ({
-      label,
-      total: totals[i],
-      segments: MANA_ORDER.filter((c) => parts[i].has(c)).map((c) => ({ colour: c, count: parts[i].get(c)! })),
-    }))
-    .filter((c, i) => !(i === 0 && c.total === 0))
-  return { columns, unknown }
+  const order: Array<[CurvePanelSegment['key'], string]> = [
+    ['W', 'White'], ['U', 'Blue'], ['B', 'Black'], ['R', 'Red'], ['G', 'Green'], ['C', 'Colourless'], ['M', 'Multicolour'],
+  ]
+  return { total, segments: order.map(([key, label]) => ({ key, label, count: counts.get(key) ?? 0 })) }
 }
-
-/** Demand trailing supply by at least this many whole points shows the amber chip. */
-export const UNDER_SUPPLY_POINTS = 5
 
 export interface ColourBalanceRow {
   colour: ManaLetter
   /** Share of the deck's coloured pips, whole percent. */
   demandPct: number
+  /** Coloured pips in the mana costs of the nonland cards. */
+  pips: number
   /** Share of coloured land sources over the identity colours, whole percent. */
   supplyPct: number
-  /** Demand minus supply in points (positive = supply trails demand). */
-  gap: number
-  /** True when the gap is at least UNDER_SUPPLY_POINTS. */
-  under: boolean
+  /** Lands that can make this colour. */
+  sources: number
 }
-
 export interface ColourBalance {
   kind: 'colourless' | 'mono' | 'multi'
   rows: ColourBalanceRow[]
-  /** Colours that are under-supplied, in WUBRG order. */
-  underColours: ManaLetter[]
+  landCount: number
 }
-
-/** Pips against land sources on one percent scale, built from colourNeeds. No chip when no land makes any identity colour. */
+/** Pips against land sources on one percent scale, built from colourNeeds. */
 export function colourBalance(cards: RailCard[], colourIdentity: string | null | undefined): ColourBalance {
   const needs = colourNeeds(cards, colourIdentity)
-  if (needs.colourless) return { kind: 'colourless', rows: [], underColours: [] }
+  if (needs.colourless) return { kind: 'colourless', rows: [], landCount: needs.landCount }
   const sourceSum = needs.rows.reduce((n, r) => n + r.sources, 0)
-  const rows = needs.rows.map((r): ColourBalanceRow => {
-    const supplyPct = sourceSum > 0 ? Math.round((r.sources / sourceSum) * 100) : 0
-    const gap = r.symbolsPct - supplyPct
-    return { colour: r.colour as ManaLetter, demandPct: r.symbolsPct, supplyPct, gap, under: sourceSum > 0 && gap >= UNDER_SUPPLY_POINTS }
-  })
-  return { kind: rows.length === 1 ? 'mono' : 'multi', rows, underColours: rows.filter((r) => r.under).map((r) => r.colour) }
+  const rows = needs.rows.map(
+    (r): ColourBalanceRow => ({
+      colour: r.colour as ManaLetter,
+      demandPct: r.symbolsPct,
+      pips: r.symbols,
+      supplyPct: sourceSum > 0 ? Math.round((r.sources / sourceSum) * 100) : 0,
+      sources: r.sources,
+    }),
+  )
+  return { kind: rows.length === 1 ? 'mono' : 'multi', rows, landCount: needs.landCount }
 }
-
 export function cardCountView(total: number, target: number | null | undefined): { label: string; over: number } {
   if (target == null) return { label: `${total}`, over: 0 }
   return { label: `${total} / ${target}`, over: Math.max(0, total - target) }

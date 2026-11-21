@@ -61,6 +61,9 @@
   --mana-fill-r: #E5604D;
   --mana-fill-g: #3DAA6D;
   --mana-fill-c: #9AA0A6;
+  --mana-fill-multi: #A78BFA;
+  --curve-teal: #2BA5A0;
+  --curve-teal-selected: #5FD6CF;
   --swatch-original: #C9CFCB;
   --swatch-other-decks: #6E7571;
   --swatch-unowned: var(--warn-amber);

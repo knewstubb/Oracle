@@ -62,7 +62,7 @@ describe('DeckRail', () => {
     const aside = screen.getByRole('complementary', { name: 'Deck summary' })
     expect(screen.getByRole('heading', { level: 1, name: 'Yedora, the Explorer' })).toBeInTheDocument()
     const headings = within(aside).getAllByRole('heading').map((h) => h.textContent)
-    expect(headings).toEqual(['Yedora, the Explorer', 'Cards', 'Deck health', 'Mana'])
+    expect(headings).toEqual(['Yedora, the Explorer', 'Cards', 'Deck health', 'Mana curve', 'Mana production'])
     const slot = screen.getByTestId('strategy-slot')
     expect(screen.getByTestId('rail-commander').compareDocumentPosition(screen.getByRole('heading', { name: 'Cards' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('heading', { name: 'Cards' }).compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
@@ -259,46 +259,74 @@ describe('DeckRail', () => {
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     await waitFor(() => expect(lands).toHaveFocus())
   })
-  it('prints every curve value in a text alternative, drops the empty 0 column, and names cards without a cost', () => {
+  it('curve: one bar per mana value 1 to 7+, nothing selected and no panel at first, average shown', () => {
     renderRail(yedora())
-    const chart = screen.getByRole('img', { name: /Mana curve/ })
-    expect(chart).toHaveAccessibleName('Mana curve. cost 1: 1, cost 2: 0, cost 3: 0, cost 4: 0, cost 5: 0, cost 6: 0, cost 7+: 0.')
-    expect(screen.getAllByTestId('curve-column')).toHaveLength(7)
-    expect(screen.getByText('1 card has no cost on file')).toBeInTheDocument()
-    expect(screen.getByText('Stacked by card colour · lands excluded')).toBeInTheDocument()
-    expect(screen.getByTestId('avg-mv')).toHaveTextContent('Avg MV ≈ 1.0')
+    const bars = screen.getAllByTestId('curve-bar')
+    expect(bars).toHaveLength(7)
+    expect(bars[0]).toHaveAccessibleName('Mana value 1, 1 card')
+    expect(bars[1]).toHaveAccessibleName('Mana value 2, 0 cards')
+    bars.forEach((b) => expect(b).toHaveAttribute('aria-pressed', 'false'))
+    expect(screen.queryByTestId('curve-panel')).toBeNull()
+    expect(screen.getByTestId('avg-mv')).toHaveTextContent('Avg CMC 1.0')
   })
-  it('mono-colour deck: one line, no per-colour bars', () => {
-    renderRail(yedora())
-    expect(screen.getByTestId('mana-verdict')).toHaveTextContent('Mono-colour: nothing to balance')
-    expect(screen.getByText("Every pip is green, so there's no split to check.")).toBeInTheDocument()
-    expect(screen.queryByTestId('under-chip')).toBeNull()
-    expect(screen.getByText("Lands counted: basics and well-known duals only. Rocks and utility lands aren't included.")).toBeInTheDocument()
+  it('curve: a click opens the panel, another bar switches, the same bar or Escape closes', async () => {
+    const user = userEvent.setup()
+    renderRail(yedora({ cards: [{ card_name: 'Elf', mana_cost: '{1}{G}', type_line: 'Creature', quantity: 2 }, { card_name: 'Gold', mana_cost: '{1}{G}{U}', type_line: 'Creature', quantity: 1 }] }))
+    await user.click(screen.getByRole('button', { name: 'Mana value 2, 2 cards' }))
+    const panel = screen.getByTestId('curve-panel')
+    expect(panel).toHaveTextContent('Mana value 22 cards')
+    expect(panel).toHaveTextContent('2 Green')
+    expect(screen.getByRole('button', { name: 'Mana value 2, 2 cards' })).toHaveAttribute('aria-pressed', 'true')
+    await user.click(screen.getByRole('button', { name: 'Mana value 3, 1 card' }))
+    expect(screen.getByTestId('curve-panel')).toHaveTextContent('1 Multicolour')
+    await user.click(screen.getByRole('button', { name: 'Mana value 3, 1 card' }))
+    expect(screen.queryByTestId('curve-panel')).toBeNull()
+    await user.click(screen.getByRole('button', { name: 'Mana value 2, 2 cards' }))
+    await user.keyboard('{Escape}')
+    expect(screen.queryByTestId('curve-panel')).toBeNull()
   })
-  it('two-colour deck: pips and sources on one percent scale, and the amber chip at a 5-point gap only', () => {
+  it('production: Pips and Sources bars with exact values, no legend or percentage text', () => {
     const cards = [
       { card_name: 'Elf', mana_cost: '{G}', type_line: 'Creature', quantity: 55 },
       { card_name: 'Mage', mana_cost: '{W}', type_line: 'Creature', quantity: 45 },
-      { card_name: 'Forest', mana_cost: null, type_line: 'Basic Land — Forest', quantity: 50 },
-      { card_name: 'Plains', mana_cost: null, type_line: 'Basic Land — Plains', quantity: 50 },
+      { card_name: 'Forest', mana_cost: null, type_line: 'Basic Land — Forest', quantity: 30 },
+      { card_name: 'Plains', mana_cost: null, type_line: 'Basic Land — Plains', quantity: 10 },
     ]
-    const { unmount } = renderRail(yedora({ cards, deck: { ...yedora().deck, colour_identity: 'GW' } }))
-    expect(screen.getByTestId('mana-verdict')).toHaveTextContent('Green is under-supplied')
-    expect(screen.getByTestId('under-chip')).toHaveTextContent('\u22125 pts')
-    unmount()
-    renderRail(yedora({ cards: cards.map((c) => (c.card_name === 'Elf' ? { ...c, quantity: 54 } : c.card_name === 'Mage' ? { ...c, quantity: 46 } : c)), deck: { ...yedora().deck, colour_identity: 'GW' } }))
-    expect(screen.queryByTestId('under-chip')).toBeNull()
-    expect(screen.getByTestId('mana-verdict')).toHaveTextContent('Balanced across 2 colours')
+    renderRail(yedora({ cards, deck: { ...yedora().deck, colour_identity: 'GW' } }))
+    expect(screen.getByRole('img', { name: 'Green: 55% of pips' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'White: 45% of pips' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Green: 30 sources' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'White: 10 sources' })).toBeInTheDocument()
+    expect(screen.getByTestId('land-count')).toHaveTextContent('40 Lands')
+    expect(screen.getByTestId('mana-balance')).not.toHaveTextContent('%')
+  })
+  it('production: opening hand and land drops use lands only, 99 cards in the library, with amber rules', () => {
+    // 100-card deck, 1 commander, 35 lands in the 99-card library: 21.8% in 0-1, 68.1% 3rd drop, 49.8% 4th drop, 7.5% flooded.
+    renderRail(yedora({ totalCards: 100, cards: [{ card_name: 'Forest', mana_cost: null, type_line: 'Basic Land — Forest', quantity: 35 }] }))
+    const figs = screen.getAllByTestId('hand-figure')
+    expect(figs[0]).toHaveTextContent('22%')
+    expect(figs[0]).toHaveTextContent('0\u20131 lands')
+    expect(figs[0].querySelector('[data-warn]')).toHaveAttribute('data-warn', 'true')
+    expect(figs[1]).toHaveTextContent('73%')
+    const drops = screen.getAllByTestId('land-drop')
+    expect(drops[0]).toHaveTextContent('3rd land drop on turn 3')
+    expect(drops[0]).toHaveTextContent('68%')
+    expect(drops[0].querySelector('[data-warn]')).toHaveAttribute('data-warn', 'false')
+    expect(drops[1]).toHaveTextContent('50%')
+    expect(drops[1].querySelector('[data-warn]')).toHaveAttribute('data-warn', 'true')
+    expect(drops[2]).toHaveTextContent('Flooded by turn 6 (7+ lands in 12 cards)')
+    expect(drops[2].querySelector('[data-warn]')).toHaveAttribute('data-warn', 'false')
   })
   it('says Colourless deck when there is no colour identity', () => {
     renderRail(yedora({ deck: { ...yedora().deck, colour_identity: '' } }))
     expect(screen.getByText('Colourless deck')).toBeInTheDocument()
+    expect(screen.queryByTestId('mana-balance')).toBeNull()
   })
 
   it('shows a Choose a commander slot when none is chosen, and the rest still works', async () => {
     renderRail(yedora({ commanders: [], deck: { ...yedora().deck, commander_scryfall_id: null } }))
     expect(screen.getByText('Choose a commander')).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Mana' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Mana curve' })).toBeInTheDocument()
     await waitFor(() => expect(screen.queryByText('Checking…')).toBeNull())
   })
 
@@ -331,7 +359,7 @@ describe('DeckRail', () => {
   })
   it('puts a shared section label style on every rail section', () => {
     renderRail(yedora())
-    for (const name of ['Deck health', 'Mana']) {
+    for (const name of ['Deck health', 'Mana curve', 'Mana production']) {
       expect(screen.getByRole('heading', { name }).className).toMatch(/text-\[11px\].*uppercase/)
     }
     expect(screen.queryByText(/Salt/)).toBeNull() // salt now lives in the Strategy block

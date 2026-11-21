@@ -27,12 +27,12 @@ export const CURVE_TEAL_VAR = '--curve-teal'
 export const CURVE_TEAL_SELECTED_VAR = '--curve-teal-selected'
 
 export const MANA_FILL_HEX: Record<ManaLetter, string> = {
-  W: '#F5F0C1',
-  U: '#6BA5C4',
+  W: '#F0E6B8',
+  U: '#4C9BE8',
   B: '#8E7F9E',
-  R: '#D4836A',
-  G: '#7BC4A0',
-  C: '#CBC2BF',
+  R: '#E5604D',
+  G: '#3DAA6D',
+  C: '#9AA0A6',
 }
 
 export const MANA_NAMES: Record<ManaLetter, string> = {

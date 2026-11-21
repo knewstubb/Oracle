@@ -4,7 +4,7 @@ Status: DONE
 Task as received: Style and component-usage pass across the deck page left rail so it matches the Figma (file YCoOUFO1BOsUUxAPbh52TZ, page Redesign), comparing .agents/tasks/rail-figma-spec.md with .agents/tasks/rail-app-measured.txt.
 
 ## Summary for the owner
-The rail now follows the Figma: 288-wide card in a 320 column, 16 padding everywhere, smaller section labels, smaller health tiles with full names (no more "Card Advant…"), fixed tile order, no grey info lines under the tiles, a problem box in the Cards section, and a neutral grey for Black so it no longer looks like the purple Multicolour. I did not check the result visually against Figma in a browser; I compared measurements only. Four questions for you are at the end.
+The rail now follows the Figma: 288-wide card in a 320 column, 16 padding everywhere, smaller section labels, smaller health tiles with full names (no more "Card Advant…"), fixed tile order, no grey info lines under the tiles, a problem box in the Cards section. Black is unchanged. I did not check the result visually against Figma in a browser; I compared measurements only. Four questions for you are at the end.
 
 ## Changes (element, before, after)
 | Element | Before | After |
@@ -36,7 +36,7 @@ The rail now follows the Figma: 288-wide card in a 320 column, 16 padding everyw
 | Curve avg CMC | 11 / 400 muted | 11 / 500 primary |
 | Curve bars | width 20, radius top 4, normalised to 64px, count primary 11 | width 24, radius 2, 1.65 px per card (max 64), count and label 10 secondary, selected 10 / 600 primary |
 | Breakdown panel | padding 12, radius 12, border 12% white, no fill | padding 10, radius 8, border/subtle, bg/canvas; title 11 / 500; legend 11 secondary, dot gap 4; colour bar radius 2 with 1px gaps |
-| Black mana colour | #8E7F9E (purple-grey, like Multicolour) | #7A7A83 neutral grey (token and hex mirror); Multicolour stays purple |
+| Black mana colour | #8E7F9E (purple-grey, close to Multicolour) | unchanged (owner question 5) |
 | Mana production header value | 11 / 400 muted | 11 / 500 primary |
 | Pips and Sources | label w-14, bar radius full, rows gap 8 | label 52 wide, bar radius 2, rows gap 10 |
 | Opening hand | title 12 / 600 primary; boxes padding 8, radius 12, border 12% | title 11 / 400 secondary; boxes padding 8x10, radius 8, border/subtle |
@@ -49,7 +49,7 @@ The rail now follows the Figma: 288-wide card in a 320 column, 16 padding everyw
 - Rail card uses tokens directly; CARD_SURFACE_* stays for other screens.
 
 ## New decisions made (need owner confirmation)
-- Black mana is #7A7A83. It also changes Black wherever the mana fill token is used.
+- Black mana colour is left at #8E7F9E because the token is shared app-wide.
 - Amber in the rail now uses signal/warning, not warn-amber.
 - Curve bars use a fixed 1.65 px per card, so a small deck shows short bars.
 - Edit links are now about 23px tall (Figma look) instead of 44px; this is a smaller click target.
@@ -67,6 +67,8 @@ The rail now follows the Figma: 288-wide card in a 320 column, 16 padding everyw
 2. Tiles are now in the fixed Figma order, so problems no longer jump to the top (the headline and amber tiles still show them). Keep the fixed order, and should custom categories also be fixed (today problems-first)?
 3. Edit link size: keep the small Figma look, or keep a 44px click target?
 4. Curve bar height: fixed scale (current, per Figma) or stretch to the tallest bar as before?
+5. Black looks close to the purple Multicolour in the charts. Change Black to a neutral grey (this would change the Black mana symbol everywhere in the app)?
+6. Narrow windows: default is unchanged. Under 800px the rail is the collapsed "Show deck summary" bar, and opened it fills the width with 16 padding. Keep that, or design something else? Not retested visually.
 
 ## Verification
 - npm test: 4569 pass, 1 failure in upgrade-engine.property.test.ts (flaky, passes alone and on base)

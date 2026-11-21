@@ -50,3 +50,9 @@ The main colour of the app is now purple (#7138CC) instead of green. Buttons, th
 - Browser theme colour (mobile address bar) is now #7138CC.
 - Deliberately still green (semantic): Upgrade list status dot for included entries, analysis scores, owned/Playable, price gain, success dots.
 - Verification: tsc 4 baseline errors (AddToPicklist.test); lint 12 baseline errors; vitest excluding .worktrees: 4570 pass, 1 known flaky (upgrade-engine property test).
+
+## Review round 3 fixes
+- Installed-app icons (192 and 512) regenerated: purple #7138CC background, same white "O". Manifest theme colour set to #7138CC.
+- Browser favicon is black and white, not green, so left unchanged.
+- Light-theme screenshots added: collection-light, deck-light, import-cards-light (folder above). The app ships dark-only, so light was captured by removing the dark class on the live pages. Some surfaces (e.g. the import modal's dark panels, the deck page background) have no light design, which is expected.
+- Verification: only image and manifest files changed; typecheck, lint and unit tests not rerun (last run: tsc 4 baseline errors, lint 12 baseline, vitest 4570 pass + 1 known flaky).

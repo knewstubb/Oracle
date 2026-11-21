@@ -15,7 +15,10 @@ describe('scrollbar styling (one rule, dark tracks everywhere)', () => {
 
   it('never sets scrollbar-width outside that guard (Safari would then ignore the ::-webkit-scrollbar rules and show a light track)', () => {
     const withoutGuard = css.replace(/@supports \(scrollbar-color: auto\) \{[\s\S]*?\n  \}/, '')
-    const lines = withoutGuard.split('\n').filter((l) => /scrollbar-width:/.test(l) && !/none/.test(l))
+    // The deck page scrollbar block sets only 'auto' (keeps ::-webkit-scrollbar working) or, for engines
+    // without ::-webkit-scrollbar (Firefox), 'thin'.
+    const withoutDeck = withoutGuard.replace(/@supports (not )?selector\(::-webkit-scrollbar\) \{[\s\S]*?\n\}/g, '')
+    const lines = withoutDeck.split('\n').filter((l) => /scrollbar-width:/.test(l) && !/none/.test(l))
     expect(lines).toEqual([])
   })
 

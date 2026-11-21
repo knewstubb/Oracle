@@ -11,12 +11,12 @@ describe('deck rail switch point', () => {
     const used = new Set(src.match(/@\[\d+px\]:/g))
     expect([...used]).toEqual(['@[800px]:'])
   })
-  it('page declares the container and the rail is a 288 px card (at least 280) that scrolls inside itself from 800 up, with 32 px page margins', () => {
+  it('page declares the container and the rail is a 280 px card in a 292 px group whose scrollbar sits outside the card, with 24/24/12 page padding and 12 gap', () => {
     expect(read('src/app/decks/[id]/page.tsx')).toContain('@container')
     const rail = read('src/components/deck-rail/DeckRail.tsx')
-    for (const c of ['@[800px]:w-72', '@[800px]:min-w-[280px]', '@[800px]:overflow-y-auto', '@[800px]:hover:[scrollbar-color', '@[800px]:hidden']) expect(rail).toContain(c)
+    for (const c of ['@[800px]:w-[292px]', '@[800px]:min-w-[292px]', '@[800px]:overflow-y-scroll', 'deck-hover-scrollbar', '@[800px]:pr-1', '@[800px]:hidden']) expect(rail).toContain(c)
     const page = read('src/app/decks/[id]/page.tsx')
-    for (const c of ['@[800px]:gap-8', '@[800px]:pl-8', '@[800px]:pr-8', '@[800px]:pt-8']) expect(page).toContain(c)
+    for (const c of ['@[800px]:gap-3', '@[800px]:pl-6', '@[800px]:pr-3', '@[800px]:pt-6', '@[800px]:h-[71px]']) expect(page).toContain(c)
   })
   it('tab row scrolls sideways instead of running under the build picker', () => {
     expect(read('src/app/decks/[id]/page.tsx')).not.toContain('sm:overflow-visible')

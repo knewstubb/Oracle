@@ -239,3 +239,30 @@
     scroll-behavior: auto !important;
   }
 }
+/* Deck page scrollbars. The track is 8px wide, always reserved, and sits outside the cards (the
+   scroll area has 4px of padding before the track). The thumb shows only while the pointer is over
+   the scroll area. Keyboard and touch scrolling are unaffected. */
+@supports selector(::-webkit-scrollbar) {
+  .deck-hover-scrollbar {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+  .deck-hover-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+  .deck-hover-scrollbar::-webkit-scrollbar-thumb {
+    background: transparent;
+  }
+  .deck-hover-scrollbar:hover::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.18);
+  }
+}
+@supports not selector(::-webkit-scrollbar) {
+  .deck-hover-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+  }
+  .deck-hover-scrollbar:hover {
+    scrollbar-color: rgba(255, 255, 255, 0.18) transparent;
+  }
+}

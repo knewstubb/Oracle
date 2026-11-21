@@ -24,11 +24,11 @@ const CARD_WIDTH = 168
 
 /** MTG colour → gradient tone mapping for art placeholder */
 const COLOUR_GRADIENT_MAP: Record<string, string> = {
-  W: '#FFF8DC',
-  U: '#0E68AB',
+  W: 'var(--mana-white)',
+  U: 'var(--mana-blue)',
   B: '#150B00',
-  R: '#D32029',
-  G: '#00733E',
+  R: 'var(--mana-red)',
+  G: 'var(--mana-green)',
 }
 
 // ---------------------------------------------------------------------------

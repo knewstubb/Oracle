@@ -11,6 +11,8 @@ The deck page rail now uses the Figma colours for white, blue, red, green, colou
 - src/lib/ui-tokens.ts — rail colour lookups now point at the shared --mana-* tokens; hex table for the contrast test updated
 - src/components/ManaSymbol.test.tsx — expects the new token name
 - src/components/AnalysisTab.tsx — colour dots for W/U/R/G use the shared tokens instead of hard-coded hex
+- src/components/DeckStatusCard.tsx, CommanderOverview.tsx, brew-v2/CandidateCard.tsx — old hex values (#F9FAF4/#F8F6D8/#FFF8DC, #0E68AB, #D3202A/#D32029, #00733E, colourless #B5A99B) replaced by var(--mana-*); Black (#150B00) left as is
+- src/components/DraftDeckTile.tsx, DraftSessionTile.tsx — hard-coded Figma hex copies replaced by var(--mana-*)
 
 ## Measured before and after
 The rail fills are plain solid backgrounds (or text colour for pips). No opacity, blend mode or filter applies, so the computed colour equals the token value. [Confirmed: src/components/deck-rail/RailCurve.tsx, RailProduction.tsx, src/components/ManaSymbol.tsx]
@@ -28,6 +30,11 @@ Contrast is against the rail card surface (#16161A, the translucent card over th
 | Analysis tab dots Blue | #0E68AB | #6BA5C4 | n/a |
 | Analysis tab dots Red | #D3202A | #D4836A | n/a |
 | Analysis tab dots Green | #00733E | #7BC4A0 | n/a |
+| Status card pip, identity dots (Strategy tab), brew commander cards: White | #F9FAF4 / #F8F6D8 / #FFF8DC | #F5F0C1 | n/a |
+| Same three places: Blue | #0E68AB | #6BA5C4 | n/a |
+| Same three places: Red | #D3202A / #D32029 | #D4836A | n/a |
+| Same three places: Green | #00733E | #7BC4A0 | n/a |
+| Identity dot Colourless (Strategy tab) | #B5A99B | #CBC2BF | n/a |
 | Already Figma, now the single source (deck tiles, commander card, collection filter) | #F5F0C1 #6BA5C4 #D4836A #7BC4A0 | unchanged | n/a |
 
 All six pass the existing 3:1 rule. No Figma value was rejected.
@@ -53,3 +60,11 @@ All six pass the existing 3:1 rule. No Figma value was rejected.
 - npm test — 369 files passed, 4571 tests passed (includes contrast tests)
 - npx tsc --noEmit — 4 errors, the known AddToPicklist baseline
 - npm run lint — 1 error, the known baseline (277 warnings)
+
+
+## Review follow-up notes
+- Shared set: src/styles/tokens.css is the source. src/lib/ui-tokens.ts keeps a hex table only for the contrast test; contrast.test.ts checks it against tokens.css, so drift fails the test.
+- Intentional literals left: the settings components page shows the Figma values as default examples; #8F51D5 for multicolour also appears in DeckTile and deck-status-label because it is the Figma "brewing" status colour.
+- Open owner question: Black stays on the old values (#8E7F9E in the rail, #9E9E9E in deck tiles, #150B00 in status card, identity dots and brew cards). Figma says #6C6C6C. Which one should all of them use?
+- The "measured" values are read from the code (solid fills, no opacity/blend/filter), not from a browser run.
+- Verification after follow-up: npm test 4571 pass (one earlier run had 2 known flaky failures, rerun clean), tsc 4 baseline errors, lint 1 baseline error.

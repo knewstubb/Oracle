@@ -42,11 +42,11 @@ const TIER_CONFIG: Record<ReadinessTier, {
 
 // Color identity pip colors
 const PIP_COLORS: Record<string, string> = {
-  W: '#F9FAF4',
-  U: '#0E68AB',
+  W: 'var(--mana-white)',
+  U: 'var(--mana-blue)',
   B: '#150B00',
-  R: '#D3202A',
-  G: '#00733E',
+  R: 'var(--mana-red)',
+  G: 'var(--mana-green)',
 }
 
 export function DeckStatusCard({

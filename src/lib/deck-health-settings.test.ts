@@ -4,6 +4,7 @@ import {
   applySettings,
   categoryNamesOnCards,
   countCategory,
+  customRows,
   DEFAULT_SETTINGS,
   healthTilesView,
   validateCategoryName,
@@ -111,7 +112,7 @@ describe('custom mode', () => {
     const toDefault: HealthSettings = { ...s, mode: 'default' }
     const back: HealthSettings = { ...toDefault, mode: 'custom' }
     expect(view(deck(37, 11, 11, 11, 4), toDefault, cards).tiles).toHaveLength(6)
-    expect(view(deck(37, 11, 11, 11, 4), back, cards).tiles.map((t) => t.label)).toEqual(['Removal', 'Mana Rocks', 'Tutors', 'Wincons'])
+    expect(view(deck(37, 11, 11, 11, 4), back, cards).tiles.map((t) => t.label)).toEqual(['Removal', 'Mana Rocks', 'Ramp', 'Tutors', 'Wincons'])
     expect(back.categories).toEqual(s.categories)
   })
 })
@@ -133,5 +134,30 @@ describe('suggestions and validation', () => {
     expect(validateCategoryName('').ok).toBe(false)
     expect(validateCategoryName('x'.repeat(61)).ok).toBe(false)
     for (const n of ['Maybeboard', 'sideboard', 'COMMANDER', 'Companion']) expect(validateCategoryName(n).ok).toBe(false)
+  })
+})
+describe('customRows (categories come from the deck\'s cards)', () => {
+  const real: Array<[string, number]> = [['Land', 41], ['Ramp', 21], ['Land Recursion', 12], ['Sacrifice Engines', 12], ['Removal & Wipes', 11], ['Card Advantage', 11], ['Landfall Payoffs', 8], ['Sacrifice Payoffs', 7], ['Commander', 1]]
+  const cards = real.map(([categories, quantity]) => ({ categories, quantity }))
+  it('lists every category the cards carry, most cards first then A to Z, without Commander, with nothing stored', () => {
+    const rows = customRows(cards, [])
+    expect(rows.map((r) => [r.name, r.count])).toEqual([['Land', 41], ['Ramp', 21], ['Land Recursion', 12], ['Sacrifice Engines', 12], ['Card Advantage', 11], ['Removal & Wipes', 11], ['Landfall Payoffs', 8], ['Sacrifice Payoffs', 7]])
+    expect(rows.every((r) => r.stored === null && r.onCards)).toBe(true)
+  })
+  it('joins stored targets by name (case-insensitive) and keeps stored rows no card carries, after the card rows', () => {
+    const stored = [
+      { id: 1, name: 'ramp', min: 10, max: 12, proposed: null },
+      { id: 2, name: 'Old Name', min: 3, max: 5, proposed: null },
+    ]
+    const rows = customRows(cards, stored)
+    expect(rows.find((r) => r.key === 'ramp')?.stored?.id).toBe(1)
+    expect(rows.slice(-1)[0]).toMatchObject({ name: 'Old Name', count: 0, onCards: false })
+  })
+  it('rail tiles: one per category with its count; "No target" when none', () => {
+    const s: HealthSettings = { available: true, mode: 'custom', overrides: {}, categories: [{ id: 1, name: 'Ramp', min: 10, max: 12, proposed: null }] }
+    const tiles = applySettings(deck(37, 11, 11, 11, 4), s, cards)
+    expect(tiles).toHaveLength(8)
+    expect(tiles.find((t) => t.label === 'Ramp')).toMatchObject({ have: 21, status: 'over', rangeText: '10\u201312' })
+    expect(tiles.find((t) => t.label === 'Land')).toMatchObject({ have: 41, status: 'none' })
   })
 })

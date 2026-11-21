@@ -14,7 +14,8 @@ const HEALTH = buildDeckHealth([
   { cardName: 'Forest', quantity: 36, typeLine: 'Basic Land — Forest', oracleText: null, inMainDeck: true },
   ...Array.from({ length: 8 }, (_, i) => ({ cardName: `Rock ${i}`, quantity: 1, typeLine: 'Artifact', oracleText: '{T}: Add {G}.', inMainDeck: true })),
 ])
-const CARDS = [
+let cards: Array<{ categories: string; quantity: number }>
+const CARDS0 = [
   { categories: 'Mana Rocks', quantity: 1 },
   { categories: 'Mana Rocks', quantity: 1 },
   { categories: 'Finishers, Beaters', quantity: 1 },
@@ -26,6 +27,7 @@ let puts: Array<Record<string, unknown>>
 
 beforeEach(() => {
   available = true
+  cards = CARDS0
   puts = []
   stored = {
     available: true,
@@ -66,9 +68,9 @@ function setup() {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={qc}>
-      <DeckSettingsHost deckId={7} deckName="Yedora" cards={CARDS} onSeeHistory={() => {}}>
+      <DeckSettingsHost deckId={7} deckName="Yedora" cards={cards} onSeeHistory={() => {}}>
         <StrategyBlock deckId={7} />
-        <RailHealth deckId={7} cards={CARDS} />
+        <RailHealth deckId={7} cards={cards} />
       </DeckSettingsHost>
     </QueryClientProvider>,
   )
@@ -148,37 +150,67 @@ describe('Deck health tab', () => {
     const pane = await within(dlg).findByTestId('health-custom-pane')
     expect(within(pane).getByLabelText('Mana Rocks minimum')).toHaveValue('2')
     expect(within(pane).getByLabelText('Mana Rocks maximum')).toHaveValue('4')
-    expect(within(pane).getByTestId('health-cat-1')).toHaveTextContent('2 now')
+    expect(within(pane).getByTestId('health-cat-mana rocks')).toHaveTextContent('2 now')
     await user.click(within(dlg).getByRole('radio', { name: /Default values/ }))
     await waitFor(() => expect(puts).toContainEqual({ action: 'set_mode', mode: 'default' }))
     expect(within(dlg).getByTestId('health-default-pane')).toBeInTheDocument()
     await user.click(within(dlg).getByRole('radio', { name: /Custom categories/ }))
     const back = await within(dlg).findByTestId('health-custom-pane')
     expect(within(back).getByLabelText('Mana Rocks minimum')).toHaveValue('2')
-    expect(within(back).getByTestId('health-cat-2')).toHaveTextContent('Claude proposes 3–5')
+    expect(within(back).getByTestId('health-cat-tutors')).toHaveTextContent('Claude proposes 3 to 5')
     expect(stored.categories).toHaveLength(3)
   })
   it('custom rows: a proposal with Confirm and Decline, a No target row with Set target', async () => {
     stored = { ...stored, mode: 'custom' }
     const { user, dlg } = await openTab()
-    const tutors = await within(dlg).findByTestId('health-cat-2')
+    const tutors = await within(dlg).findByTestId('health-cat-tutors')
     expect(within(tutors).getByRole('button', { name: 'Decline Tutors proposal' })).toBeInTheDocument()
-    const finishers = within(dlg).getByTestId('health-cat-3')
+    const finishers = within(dlg).getByTestId('health-cat-finishers')
     expect(finishers).toHaveTextContent('No target')
     expect(finishers).toHaveTextContent('1 now')
     await user.click(within(finishers).getByRole('button', { name: 'Set target for Finishers' }))
     expect(within(finishers).getByLabelText('Finishers minimum')).toBeInTheDocument()
     await user.click(within(tutors).getByRole('button', { name: 'Confirm Tutors proposal' }))
     await waitFor(() => expect(puts).toContainEqual({ action: 'confirm_proposal', id: 2 }))
-    await waitFor(() => expect(within(dlg).getByTestId('health-cat-2')).toHaveTextContent('Tutors'))
-    expect(within(within(dlg).getByTestId('health-cat-2')).getByLabelText('Tutors minimum')).toHaveValue('3')
+    await waitFor(() => expect(within(dlg).getByTestId('health-cat-tutors')).toHaveTextContent('Tutors'))
+    expect(within(within(dlg).getByTestId('health-cat-tutors')).getByLabelText('Tutors minimum')).toHaveValue('3')
+  })
+  it('REPRO World Breaker: a deck whose cards carry categories but with nothing stored lists them with counts, no Commander', async () => {
+    const real: Array<[string, number]> = [['Land', 41], ['Ramp', 21], ['Land Recursion', 12], ['Sacrifice Engines', 12], ['Removal & Wipes', 11], ['Card Advantage', 11], ['Landfall Payoffs', 8], ['Sacrifice Payoffs', 7], ['Commander', 1]]
+    cards = real.map(([categories, quantity]) => ({ categories, quantity }))
+    stored = { ...stored, mode: 'custom', categories: [] }
+    const { user, dlg } = await openTab()
+    const pane = await within(dlg).findByTestId('health-custom-pane')
+    expect(within(pane).queryByText('No categories yet. Add one below.')).toBeNull()
+    const rows = within(pane).getAllByRole('listitem').map((li) => li.textContent ?? '')
+    expect(rows).toHaveLength(8)
+    expect(rows[0]).toContain('Land')
+    expect(rows[0]).toContain('41 now')
+    expect(rows[1]).toContain('Ramp')
+    expect(rows.some((r) => r.includes('Commander'))).toBe(false)
+    expect(within(pane).getByTestId('health-cat-ramp')).toHaveTextContent('No target')
+    // A first target creates the stored row.
+    await user.click(within(pane).getByRole('button', { name: 'Set target for Ramp' }))
+    await user.type(within(pane).getByLabelText('Ramp minimum'), '10')
+    await user.type(within(pane).getByLabelText('Ramp maximum'), '12')
+    fireEvent.blur(within(pane).getByLabelText('Ramp maximum'))
+    await waitFor(() => expect(puts).toContainEqual({ action: 'add_category', name: 'Ramp', min: 10, max: 12 }))
+  })
+  it('a stored target whose category has no cards stays listed with a note and can be removed', async () => {
+    stored = { ...stored, mode: 'custom' }
+    const { user, dlg } = await openTab()
+    const tutors = await within(dlg).findByTestId('health-cat-tutors')
+    expect(tutors).toHaveTextContent('0 now')
+    expect(tutors).toHaveTextContent('No cards in this category right now.')
+    await user.click(within(tutors).getByRole('button', { name: 'Remove Tutors' }))
+    await waitFor(() => expect(puts).toContainEqual({ action: 'remove_category', id: 2 }))
   })
   it('declining a proposal leaves the row at No target', async () => {
     stored = { ...stored, mode: 'custom' }
     const { user, dlg } = await openTab()
     await user.click(await within(dlg).findByRole('button', { name: 'Decline Tutors proposal' }))
     await waitFor(() => expect(puts).toContainEqual({ action: 'decline_proposal', id: 2 }))
-    await waitFor(() => expect(within(dlg).getByTestId('health-cat-2')).toHaveTextContent('No target'))
+    await waitFor(() => expect(within(dlg).getByTestId('health-cat-tutors')).toHaveTextContent('No target'))
   })
   it('Confirm and Decline are only in the window, never in the rail', async () => {
     stored = { ...stored, mode: 'custom' }

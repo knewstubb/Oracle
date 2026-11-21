@@ -12,10 +12,10 @@ import { useHealthSettings } from '@/hooks/useHealthSettings'
 import { DEFAULT_RANGES, KIND_LABELS, RANGED_KINDS, type RangedKind } from '@/lib/deck-health'
 import {
   CATEGORY_NAME_MAX,
-  categoryNamesOnCards,
-  countCategory,
+  categoryKey,
+  customRows,
   validateRange,
-  type CustomCategory,
+  type CustomRow,
   type HealthMode,
   type HealthSettings,
 } from '@/lib/deck-health-settings'
@@ -101,18 +101,23 @@ function HealthForm({
         for (const [id, [a, b]] of Object.entries(typed)) {
           const range = validateRange(toInt(a), toInt(b))
           if (!range.ok) continue
-          const known = latest.current.categories.find((c) => String(c.id) === id)
-          if (!known || (known.min === range.range.min && known.max === range.range.max)) continue
-          const r = await act({ action: 'set_range', id: Number(id), ...range.range })
+          const row = latest.current.find((c) => c.key === id)
+          if (!row) continue
+          const known = row.stored
+          if (known && known.min === range.range.min && known.max === range.range.max) continue
+          // A category that only exists on cards gets its stored row the first time it gets a target.
+          const r = known ? await act({ action: 'set_range', id: known.id, ...range.range }) : await act({ action: 'add_category', name: row.name, ...range.range })
           if (!r.ok) return fail(r.error)
         }
       }
       return { ok: true }
     },
   })
+  // The deck's own categories (from its cards) joined with the stored targets. Recomputed whenever the cards or the targets change.
+  const rows = useMemo(() => customRows(cards, settings.categories), [cards, settings.categories])
   const { draft, setField, saveNow, flush, status, lastSavedAt } = auto
   // The newest stored settings, read by the save above (it runs outside render).
-  const latest = useMemoRef(settings)
+  const latest = useMemoRef(rows)
   useEffect(() => {
     flushRef.current = readOnly ? null : flush
     return () => {
@@ -121,12 +126,14 @@ function HealthForm({
   }, [flush, flushRef, readOnly])
 
   const cats = useMemo(() => JSON.parse(draft.cats) as Record<string, [string, string]>, [draft.cats])
-  const setCat = (id: number, which: 0 | 1, value: string) => {
-    const base = cats[String(id)] ?? (settings.categories.find((c) => c.id === id) ? ([String(settings.categories.find((c) => c.id === id)!.min ?? ''), String(settings.categories.find((c) => c.id === id)!.max ?? '')] as [string, string]) : (['', ''] as [string, string]))
-    const next: [string, string] = [...base] as [string, string]
+  const setCat = (key: string, which: 0 | 1, value: string) => {
+    const s = rows.find((r) => r.key === key)?.stored
+    const base: [string, string] = cats[key] ?? [String(s?.min ?? ''), String(s?.max ?? '')]
+    const next: [string, string] = [...base]
     next[which] = value.replace(/\D/g, '').slice(0, 3)
-    setField('cats', JSON.stringify({ ...cats, [id]: next }))
+    setField('cats', JSON.stringify({ ...cats, [key]: next }))
   }
+  const dropTyped = (key: string) => setField('cats', JSON.stringify(Object.fromEntries(Object.entries(cats).filter(([k]) => k !== key))))
   const setDefault = (k: RangedKind, which: 0 | 1, value: string) => {
     const [a, b] = parsePair(draft[k])
     const v = value.replace(/\D/g, '').slice(0, 3)
@@ -145,12 +152,12 @@ function HealthForm({
   }
 
   const [newName, setNewName] = useState('')
-  const suggestions = useMemo(() => {
-    const used = new Set(settings.categories.map((c) => c.name.toLowerCase()))
-    return categoryNamesOnCards(cards).filter((n) => !used.has(n.toLowerCase()))
-  }, [cards, settings.categories])
   const addCategory = async () => {
     if (!newName.trim()) return
+    if (rows.some((r) => r.key === categoryKey(newName))) {
+      setMessage('This deck already has a category with that name.')
+      return
+    }
     if (await run(() => act({ action: 'add_category', name: newName }))) setNewName('')
   }
 
@@ -226,26 +233,24 @@ function HealthForm({
       ) : (
         <section className="space-y-2" data-testid="health-custom-pane">
           <h3 className={SECTION}>Categories</h3>
-          {settings.categories.length === 0 && <p className="text-[length:var(--fs-sm)] text-muted-foreground">No categories yet. Add one below.</p>}
+          {rows.length === 0 && <p className="text-[length:var(--fs-sm)] text-muted-foreground">No categories yet. Add one below.</p>}
           <ul className="divide-y divide-[var(--border-default)]">
-            {settings.categories.map((c) => (
+            {rows.map((r) => (
               <CategoryRow
-                key={c.id}
-                c={c}
-                now={countCategory(cards, c.name)}
-                typed={cats[String(c.id)]}
+                key={r.key}
+                r={r}
+                typed={cats[r.key]}
                 setCat={setCat}
-                saveNow={() => void saveNow()}
                 rangeInputs={rangeInputs}
                 rangeError={rangeError}
-                idPrefix={`${uid}-c${c.id}`}
-                onSetTarget={() => setField('cats', JSON.stringify({ ...cats, [c.id]: ['', ''] }))}
+                idPrefix={`${uid}-c-${r.key.replace(/\W+/g, '-')}`}
+                onSetTarget={() => setField('cats', JSON.stringify({ ...cats, [r.key]: ['', ''] }))}
                 onConfirm={async () => {
-                  if (await run(() => act({ action: 'confirm_proposal', id: c.id }))) setField('cats', JSON.stringify(Object.fromEntries(Object.entries(cats).filter(([id]) => id !== String(c.id)))))
+                  if (r.stored && (await run(() => act({ action: 'confirm_proposal', id: r.stored!.id })))) dropTyped(r.key)
                 }}
-                onDecline={() => void run(() => act({ action: 'decline_proposal', id: c.id }))}
+                onDecline={() => r.stored && void run(() => act({ action: 'decline_proposal', id: r.stored!.id }))}
                 onRemove={async () => {
-                  if (await run(() => act({ action: 'remove_category', id: c.id }))) setField('cats', JSON.stringify(Object.fromEntries(Object.entries(cats).filter(([id]) => id !== String(c.id)))))
+                  if (r.stored && (await run(() => act({ action: 'remove_category', id: r.stored!.id })))) dropTyped(r.key)
                 }}
               />
             ))}
@@ -253,7 +258,6 @@ function HealthForm({
           <div className="flex flex-wrap items-center gap-2 pt-1">
             <input
               aria-label="New category name"
-              list={`${uid}-names`}
               value={newName}
               maxLength={CATEGORY_NAME_MAX}
               placeholder="Category name"
@@ -266,11 +270,6 @@ function HealthForm({
               }}
               className={cn('min-h-11 min-w-0 flex-1 rounded-md border border-[#8A8A93] bg-transparent px-3 text-[length:var(--fs-md)]', FOCUS_RING)}
             />
-            <datalist id={`${uid}-names`}>
-              {suggestions.map((n) => (
-                <option key={n} value={n} />
-              ))}
-            </datalist>
             <button type="button" onClick={() => void addCategory()} className={cn(BTN, OUTLINE, 'gap-1', FOCUS_RING)}>
               <Plus className="size-4" aria-hidden="true" />
               Add category
@@ -309,11 +308,9 @@ function useMemoRef<T>(value: T) {
 }
 
 function CategoryRow(props: {
-  c: CustomCategory
-  now: number
+  r: CustomRow
   typed: [string, string] | undefined
-  setCat: (id: number, which: 0 | 1, value: string) => void
-  saveNow: () => void
+  setCat: (key: string, which: 0 | 1, value: string) => void
   rangeInputs: (label: string, a: string, b: string, onA: (v: string) => void, onB: (v: string) => void, id: string) => React.ReactNode
   rangeError: (a: string, b: string) => string | null
   idPrefix: string
@@ -322,38 +319,45 @@ function CategoryRow(props: {
   onDecline: () => void
   onRemove: () => void
 }) {
-  const { c, now, typed, setCat, rangeInputs, rangeError, idPrefix } = props
-  const hasRange = c.min !== null && c.max !== null
-  const [a, b] = typed ?? [String(c.min ?? ''), String(c.max ?? '')]
+  const { r, typed, setCat, rangeInputs, rangeError, idPrefix } = props
+  const c = r.stored
+  const hasRange = !!c && c.min !== null && c.max !== null
+  const [a, b] = typed ?? [String(c?.min ?? ''), String(c?.max ?? '')]
   const err = rangeError(a, b)
+  // A category with cards can only lose its target (the cards keep it). One with no cards can be removed.
+  const removeLabel = r.onCards ? `Clear target for ${r.name}` : `Remove ${r.name}`
+  const canRemove = !!c && (!r.onCards || hasRange)
   return (
-    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2" data-testid={`health-cat-${c.id}`}>
-      <span className="min-w-0 flex-1 break-words text-[length:var(--fs-md)]">{c.name}</span>
-      <span className="text-[length:var(--fs-sm)] text-muted-foreground tabular-nums">{now} now</span>
+    <li className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2" data-testid={`health-cat-${r.key}`}>
+      <span className="min-w-0 flex-1 break-words text-[length:var(--fs-md)]">{r.name}</span>
+      <span className="text-[length:var(--fs-sm)] text-muted-foreground tabular-nums">{r.count} now</span>
       {hasRange || typed ? (
-        rangeInputs(c.name, a, b, (v) => setCat(c.id, 0, v), (v) => setCat(c.id, 1, v), idPrefix)
-      ) : c.proposed ? (
+        rangeInputs(r.name, a, b, (v) => setCat(r.key, 0, v), (v) => setCat(r.key, 1, v), idPrefix)
+      ) : c?.proposed ? (
         <span className="flex flex-wrap items-center gap-2">
-          <span className="text-[length:var(--fs-sm)]">Claude proposes {c.proposed.min}&ndash;{c.proposed.max}</span>
-          <button type="button" aria-label={`Confirm ${c.name} proposal`} onClick={props.onConfirm} className={cn(BTN, 'gap-1 bg-[var(--accent-primary)] text-white', FOCUS_RING)}>
+          <span className="text-[length:var(--fs-sm)]">Claude proposes {c.proposed.min} to {c.proposed.max}</span>
+          <button type="button" aria-label={`Confirm ${r.name} proposal`} onClick={props.onConfirm} className={cn(BTN, 'gap-1 bg-[var(--accent-primary)] text-white', FOCUS_RING)}>
             <Check className="size-4" aria-hidden="true" />
             Confirm
           </button>
-          <button type="button" aria-label={`Decline ${c.name} proposal`} onClick={props.onDecline} className={cn(BTN, OUTLINE, FOCUS_RING)}>
+          <button type="button" aria-label={`Decline ${r.name} proposal`} onClick={props.onDecline} className={cn(BTN, OUTLINE, FOCUS_RING)}>
             Decline
           </button>
         </span>
       ) : (
         <span className="flex items-center gap-2">
           <span className="text-[length:var(--fs-sm)] text-muted-foreground">No target</span>
-          <button type="button" aria-label={`Set target for ${c.name}`} onClick={props.onSetTarget} className={cn(BTN, 'px-2 text-[length:var(--fs-sm)]', FOCUS_RING)} style={{ color: 'var(--accent-primary-text)' }}>
+          <button type="button" aria-label={`Set target for ${r.name}`} onClick={props.onSetTarget} className={cn(BTN, 'px-2 text-[length:var(--fs-sm)]', FOCUS_RING)} style={{ color: 'var(--accent-primary-text)' }}>
             Set target
           </button>
         </span>
       )}
-      <button type="button" aria-label={`Remove ${c.name}`} onClick={props.onRemove} className={cn(BTN, 'px-0 text-muted-foreground', FOCUS_RING)}>
-        <X className="size-4" aria-hidden="true" />
-      </button>
+      {canRemove && (
+        <button type="button" aria-label={removeLabel} onClick={props.onRemove} className={cn(BTN, 'px-0 text-muted-foreground', FOCUS_RING)}>
+          <X className="size-4" aria-hidden="true" />
+        </button>
+      )}
+      {!r.onCards && <p className="basis-full text-[length:var(--fs-xs)] text-muted-foreground">No cards in this category right now.</p>}
       {err && <p role="alert" className="basis-full text-[length:var(--fs-sm)] text-amber-300">{err}</p>}
     </li>
   )

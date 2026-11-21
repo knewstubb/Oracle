@@ -151,6 +151,36 @@ export function categoryNamesOnCards(cards: Array<{ categories?: string | null }
   return [...seen.values()].sort((a, b) => a.localeCompare(b))
 }
 
+/** One row of the custom list: a category the deck's cards carry or one the owner added, with its stored target (if any). */
+export interface CustomRow {
+  /** Lower-case name; targets are keyed by this per deck. */
+  key: string
+  name: string
+  count: number
+  /** The stored row (target, proposal), or null when the category exists only on cards and has no target yet. */
+  stored: CustomCategory | null
+  /** True when at least one card carries it. A stored row with no cards is an owner-added empty category or a target whose category is gone. */
+  onCards: boolean
+}
+
+/**
+ * The custom list: categories the cards carry (most cards first, then A to Z), then stored rows no card carries
+ * (owner-added empty categories, or targets whose category was renamed or emptied), in stored order. Nothing stored is dropped.
+ * Cards in Commander, Maybeboard, Sideboard or Companion are left out, as is "Other" (a card with no category).
+ */
+export function customRows(cards: Array<{ categories?: string | null; quantity?: number | null }>, stored: CustomCategory[]): CustomRow[] {
+  const byKey = new Map(stored.map((c) => [categoryKey(c.name), c]))
+  const seen = new Map<string, string>()
+  for (const name of categoryNamesOnCards(cards)) seen.set(categoryKey(name), name)
+  const fromCards: CustomRow[] = [...seen.entries()]
+    .map(([key, name]) => ({ key, name: byKey.get(key)?.name ?? name, count: countCategory(cards, name), stored: byKey.get(key) ?? null, onCards: true }))
+    .filter((r) => r.count > 0)
+  const carried = new Set(fromCards.map((r) => r.key))
+  fromCards.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+  const rest: CustomRow[] = stored.filter((c) => !carried.has(categoryKey(c.name))).map((c) => ({ key: categoryKey(c.name), name: c.name, count: 0, stored: c, onCards: false }))
+  return [...fromCards, ...rest]
+}
+
 /** The tiles for the current mode. Default mode never reads `cards`; custom mode never reads `health`. */
 export function applySettings(
   health: DeckHealthResponse,
@@ -158,9 +188,10 @@ export function applySettings(
   cards: Array<{ categories?: string | null; quantity?: number | null }>,
 ): HealthTile[] {
   if (settings.available && settings.mode === 'custom') {
-    return settings.categories.map((c) => {
-      const range = c.min !== null && c.max !== null ? { min: c.min, max: c.max } : null
-      return rangedTile(null, c.id, `cat-${c.id}`, c.name, countCategory(cards, c.name), range, c.proposed)
+    return customRows(cards, settings.categories).map((r) => {
+      const c = r.stored
+      const range = c && c.min !== null && c.max !== null ? { min: c.min, max: c.max } : null
+      return rangedTile(null, c?.id ?? null, `cat-${r.key}`, r.name, r.count, range, c?.proposed ?? null)
     })
   }
   const overrides = settings.available ? settings.overrides : {}

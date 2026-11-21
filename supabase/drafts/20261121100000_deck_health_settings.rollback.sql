@@ -1,5 +1,5 @@
 -- DRAFT. NOT APPLIED. Needs owner approval.
--- ROLLBACK for 20261121100000_deck_health_settings.draft.sql.
+-- ROLLBACK for 20261121100000_deck_health_settings.sql.
 -- Drops: deck_health_categories and deck_health_settings. Removes nothing else.
 -- Refuses while either table holds rows (the owner's custom categories and modes).
 BEGIN;

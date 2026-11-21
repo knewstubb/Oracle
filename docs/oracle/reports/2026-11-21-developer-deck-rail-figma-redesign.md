@@ -1,6 +1,6 @@
 # Report: deck rail Figma redesign (close-out)
 Role: Developer
-Status: PARTIAL
+Status: DONE
 Task as received: FEAT-005 of the deck rail redesign: close-out with full checks, Figma versus app comparison on real decks, this report, and an owner test burst of 10 minutes or less. No new behaviour.
 
 ## Summary for the owner
@@ -15,7 +15,8 @@ The left rail now follows the new Figma design: commanders, a Cards box that sho
 - docs/oracle/reports/2026-11-21-developer-deck-rail-figma-redesign.md — this report
 
 ## New decisions made (need owner confirmation)
-- Rail width is 352, the Figma column is 320.
+- Owner-approved: rail width is 320 as in Figma (changed in the integration fix).
+- Owner-approved exception to "colour on charts means mana only": curve bars are teal, the owner's chosen default chart colour (grey was too close to the Swamp/colourless colour).
 - The Cards box dropped these lines: Basics short, To buy, Outside the 100 (companion now sits under the commanders), Unowned legend bar, Salt chip, role chip, combined identity row, "+ Set bracket" chip.
 - Playable now requires the deck to be legal, not only fully sleeved.
 - A deck with a card outside its colours at exactly 100 shows Assembling (Brewing if nothing is sleeved) together with Not legal.
@@ -35,7 +36,6 @@ The left rail now follows the new Figma design: commanders, a Cards box that sho
 - Otherwise none.
 
 ## Open questions
-- Should the rail be 320 wide like Figma, or stay 352?
 - Do you want the dropped Cards lines (To buy, Basics short) somewhere else on the deck page?
 - Should custom category tiles open their cards, as the default ones do?
 - Should an off-colour deck at exactly 100 say Assembling plus Not legal, or only Not legal?
@@ -45,7 +45,9 @@ The left rail now follows the new Figma design: commanders, a Cards box that sho
 - npm run typecheck — only the 4 known AddToPicklist errors.
 - npm run lint — only the known 1 error (in a storage page) and 275 warnings.
 - Figma versus app comparison at 1280 and 800 wide, real decks (Rot to Process, Yedora, Arti-facts, a Background deck), problem states, Deck settings, curve click, hover — NOT run. No login in this environment, so no screenshots exist. Differences are therefore unlisted beyond those under decisions above.
-- Migration: the health settings migration was recorded in FEAT-003 as applied by the owner and moved into the migrations folder. The save path has only been tested with a fake database, never against the real tables. docs/oracle/status.md still needs it recorded (not edited here).
+- Migration: applied to the live database by the owner on 2026-11-21 and verified read-only by the orchestrator (both tables exist, RLS on, 1 policy each). The file is in the migrations folder; its rollback stays in drafts. The save path has only been tested with a fake database. docs/oracle/status.md still needs it recorded (not edited here).
+- Integration fix: npm test 4571 passed, typecheck only the 4 known errors, lint only the known 1 error.
+- Waived inside the workflow by the owner: screenshots and the real-deck comparison. STILL TO CHECK after merge (orchestrator visual check plus owner test burst): (1) the Playable rule on real decks, since decks that were Playable may now show Assembling when not legal; (2) Figma versus app comparison at 1280 and 800 wide; (3) saving Default/Custom health settings against the real tables.
 
 ## Owner test burst (about 8 minutes)
 1. Open A Rot to Process. Expect: Cards shows 100 / 100, Playable and Legal in green, Bracket shown.

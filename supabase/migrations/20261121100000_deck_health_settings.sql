@@ -1,4 +1,4 @@
--- DRAFT. NOT APPLIED. Needs owner approval.
+-- APPLIED to live 2026-11-21 by the owner.
 -- Task: deck rail Figma redesign (docs/oracle/briefs/deck-rail-figma-redesign.md), Deck settings > Deck health tab. Author: Developer, 2026-11-21.
 -- Pattern: supabase/drafts/20261118120400_roles_db5_health_targets.draft.sql (RLS select own rows, writes only via service role).
 -- What this does (and only this):

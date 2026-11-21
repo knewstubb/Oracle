@@ -7,7 +7,8 @@ import { FOCUS_RING } from '@/components/deck-strategy/focus'
 import { CARD_SURFACE_CLASS, CARD_SURFACE_STYLE } from '@/lib/ui-tokens'
 import { cn } from '@/lib/utils'
 import { RailCommander, type RailCommanderRow } from './RailCommander'
-import { RailCards, type RailAllCard } from './RailCards'
+import { isCompanion } from '@/lib/command-zone'
+import { RailCards } from './RailCards'
 import { RailHealth } from './RailHealth'
 import { RailMana } from './RailMana'
 
@@ -26,8 +27,8 @@ export interface DeckRailProps {
   cards: RailCard[]
   totalCards: number
   deckSize: number | null
-  /** Every deck row (Maybeboard and companion included) for "Outside the 100" and the buy line. */
-  allCards?: RailAllCard[]
+  /** Every deck row (Maybeboard and companion included); the companion row gives the companion line. */
+  allCards?: Array<{ card_name: string; command_zone_role?: string | null }>
   /** Printing id of the second commander (partner or background), shown beside the first one's art. */
   secondCommanderScryfallId?: string | null
   totalValue?: number
@@ -41,6 +42,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
   const commanderNames = commanders.map((c) => c.name)
   const hasCommander = commanders.length > 0 && !!deck.commander_scryfall_id
   const secondArt = secondCommanderScryfallId && secondCommanderScryfallId !== deck.commander_scryfall_id ? secondCommanderScryfallId : null
+  const companion = allCards?.find((c) => isCompanion(c))?.card_name ?? null
   const isPrecon = deck.is_precon_mod || deck.deck_type === 'Precon Mod'
 
   return (
@@ -80,7 +82,7 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
               )}
             </div>
           ) : null}
-          <div className="p-5">
+          <div className="p-4 pb-2">
             <h1 className="break-words text-[length:var(--fs-xl)] font-semibold leading-tight">{deck.name}</h1>
             {isPrecon && (
               <span
@@ -91,9 +93,9 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
               </span>
             )}
           </div>
-          <RailCommander commanders={commanders} combinedIdentity={deck.colour_identity ?? commanders.map((c) => c.colourIdentity ?? '').join('')} />
-          <div className="border-t border-white/[0.08] p-5">{strategySlot}</div>
-          <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} allCards={allCards} totalValue={totalValue} />
+          <RailCommander commanders={commanders} companion={companion} />
+          <RailCards deckId={deck.id} totalCards={totalCards} deckSize={deckSize} totalValue={totalValue} />
+          <div className="border-t border-white/[0.08] p-4">{strategySlot}</div>
           <RailHealth deckId={deck.id} />
           <RailMana cards={cards} colourIdentity={deck.colour_identity} />
         </div>

@@ -277,7 +277,7 @@ export default function DeckViewPage() {
         allCards={cards}
         secondCommanderScryfallId={commanderCards.find((c) => c.scryfall_id && c.scryfall_id !== deck.commander_scryfall_id)?.scryfall_id}
         totalValue={totalValue}
-        strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} saltScore={deck.salt_score} onSeeHistory={() => setHistoryOpen(true)} />}
+        strategySlot={<StrategyBlock deckId={deck.id} deckName={deck.name} onSeeHistory={() => setHistoryOpen(true)} />}
       />
       <div className="flex min-w-0 flex-1 flex-col @[800px]:min-h-0">
       {/* Fresh import result line */}

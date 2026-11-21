@@ -59,27 +59,53 @@ describe('DeckRail', () => {
     const aside = screen.getByRole('complementary', { name: 'Deck summary' })
     expect(screen.getByRole('heading', { level: 1, name: 'Yedora, the Explorer' })).toBeInTheDocument()
     const headings = within(aside).getAllByRole('heading').map((h) => h.textContent)
-    expect(headings).toEqual(['Yedora, the Explorer', 'Command zone', 'Cards', 'Deck health', 'Mana'])
+    expect(headings).toEqual(['Yedora, the Explorer', 'Cards', 'Deck health', 'Mana'])
     const slot = screen.getByTestId('strategy-slot')
-    expect(screen.getByRole('heading', { name: 'Command zone' }).compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
-    expect(slot.compareDocumentPosition(screen.getByRole('heading', { name: 'Cards' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByTestId('rail-commander').compareDocumentPosition(screen.getByRole('heading', { name: 'Cards' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Cards' }).compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
     expect(screen.getByRole('img', { name: 'Green' })).toBeInTheDocument()
     expect(screen.queryByText(/Commander · /)).toBeNull()
     expect(screen.getByText('$131.98')).toBeInTheDocument()
   })
 
-  it('shows 102 / 100 and "2 over" with a word', () => {
+  it('102 cards: amber count, Not legal and "2 cards over"', async () => {
     renderRail(yedora())
-    expect(screen.getByTestId('rail-count')).toHaveTextContent('102 / 100')
-    expect(screen.getByText('2 over')).toBeInTheDocument()
+    expect(await screen.findByText('2 cards over')).toBeInTheDocument()
+    expect(screen.getByTestId('rail-legal-chip')).toHaveTextContent('Not legal')
+    expect(screen.getByTestId('rail-count')).toHaveTextContent('102')
+    expect(screen.getByTestId('rail-count').getAttribute('style')).toMatch(/warn-amber/)
   })
-
-  it('shows no over text at 100', () => {
+  it('100 cards: no amber, no over text, Legal for Commander', async () => {
     renderRail(yedora({ totalCards: 100 }))
-    expect(screen.getByTestId('rail-count')).toHaveTextContent('100 / 100')
+    expect(await screen.findByText('Legal for Commander')).toBeInTheDocument()
+    expect(screen.getByTestId('rail-count')).toHaveTextContent('100')
+    expect(screen.getByTestId('rail-count').getAttribute('style')).toBeNull()
     expect(screen.queryByText(/over/)).toBeNull()
   })
-
+  it('84 cards: "16 cards short"', async () => {
+    renderRail(yedora({ totalCards: 84 }))
+    expect(await screen.findByText('16 cards short')).toBeInTheDocument()
+  })
+  it('85 of 100 sleeved: Assembling and "15 cards not sleeved" with 85 / 100', async () => {
+    renderRail(yedora({ totalCards: 100 }))
+    expect(await screen.findByText('15 cards not sleeved')).toBeInTheDocument()
+    expect(screen.getByText('85 / 100')).toBeInTheDocument()
+    expect(screen.getByTestId('rail-status-chip')).toHaveTextContent('Assembling')
+  })
+  it('all 100 sleeved and legal: Playable and no checklist', async () => {
+    statuses = async () => json(200, { cards: [], counts: { size: 100, sleeved: 100, original: 100 } })
+    renderRail(yedora({ totalCards: 100 }))
+    await waitFor(() => expect(screen.getByTestId('rail-status-chip')).toHaveTextContent('Playable'))
+    expect(screen.queryByTestId('rail-problems')).toBeNull()
+  })
+  it('an off-colour card at 100 shows Not legal and the colour identity line', async () => {
+    statuses = async () => json(200, { cards: [], counts: { size: 100, sleeved: 100, original: 100 } })
+    legality = () => json(200, { format: 'commander', isLegal: false, issues: [{ cardName: 'Opt', reason: 'color_identity', details: '' }] })
+    renderRail(yedora({ totalCards: 100 }))
+    expect(await screen.findByText('1 card outside colour identity')).toBeInTheDocument()
+    expect(screen.getByTestId('rail-status-chip')).toHaveTextContent('Assembling')
+    expect(screen.getByTestId('rail-legal-chip')).toHaveTextContent('Not legal')
+  })
   it('says Checking… while statuses load, never zeros', async () => {
     let release: (v: unknown) => void = () => {}
     statuses = () => new Promise((r) => { release = r })
@@ -88,12 +114,8 @@ describe('DeckRail', () => {
     expect(within(section).getByText('Checking…')).toBeInTheDocument()
     release(json(200, STATUSES))
     await waitFor(() => expect(within(section).queryByText('Checking…')).toBeNull())
-    // The old five ownership rows are replaced by one legend; the old words are gone.
-    for (const gone of ['Available', 'Generic', 'Claimed', '85 in deck']) expect(within(section).queryByText(gone)).toBeNull()
-    expect(within(section).getByText('Open')).toBeInTheDocument()
-    expect(within(section).queryByText(/in deck$/)).toBeNull()
+    expect(within(section).getByTestId('rail-status-chip')).toBeInTheDocument()
   })
-
   it("says Couldn't check with Try again when statuses fail", async () => {
     statuses = async () => json(500, {})
     renderRail(yedora())
@@ -299,7 +321,7 @@ describe('DeckRail', () => {
   })
   it('puts a shared section label style on every rail section', () => {
     renderRail(yedora())
-    for (const name of ['Command zone', 'Cards', 'Deck health', 'Mana']) {
+    for (const name of ['Deck health', 'Mana']) {
       expect(screen.getByRole('heading', { name }).className).toMatch(/text-\[11px\].*uppercase/)
     }
     expect(screen.queryByText(/Salt/)).toBeNull() // salt now lives in the Strategy block
@@ -312,7 +334,7 @@ describe('DeckRail', () => {
     await user.click(toggle)
     expect(screen.getByRole('button', { name: /Hide deck summary/ })).toHaveAttribute('aria-expanded', 'true')
   })
-  it('partner deck: role chip, one row per commander with its own symbols, and a Combined identity row', () => {
+  it('partner deck: one row per commander with its own symbols, no role chip and no combined row', () => {
     renderRail(
       yedora({
         commanders: [
@@ -322,100 +344,29 @@ describe('DeckRail', () => {
         deck: { ...yedora().deck, colour_identity: 'BG' },
       }),
     )
-    const section = screen.getByRole('heading', { name: 'Command zone' }).closest('section')!
-    expect(within(section).getByTestId('role-chip')).toHaveTextContent('Partners')
+    const section = screen.getByTestId('rail-commander')
     const rows = within(section).getAllByRole('listitem')
     expect(rows).toHaveLength(2)
     expect(within(rows[0]).getByRole('img', { name: 'Black' })).toBeInTheDocument()
     expect(within(rows[1]).getByRole('img', { name: 'Green' })).toBeInTheDocument()
-    const combined = within(section).getByTestId('combined-identity')
-    expect(within(combined).getByRole('img', { name: 'Black' })).toBeInTheDocument()
-    expect(within(combined).getByRole('img', { name: 'Green' })).toBeInTheDocument()
-  })
-  it('a Background second commander gets the Background chip; a single commander has no chip and no combined row', () => {
-    const { unmount } = renderRail(yedora({ commanders: [{ name: 'A', colourIdentity: 'W' }, { name: 'B', colourIdentity: 'R', role: 'background' }] }))
-    expect(screen.getByTestId('role-chip')).toHaveTextContent('Background')
-    unmount()
-    renderRail(yedora())
     expect(screen.queryByTestId('role-chip')).toBeNull()
     expect(screen.queryByTestId('combined-identity')).toBeNull()
   })
-  it('the companion appears only under Outside the 100, with Maybeboard and Tokens counts', async () => {
-    renderRail(
-      yedora({
-        allCards: [
-          { card_name: 'Lurrus of the Dream-Den', command_zone_role: 'companion', categories: '["Sideboard"]', has_copy: false },
-          { card_name: 'Opt', categories: '["Maybeboard"]' },
-          { card_name: 'Goblin token', categories: '["Tokens"]' },
-        ],
-      }),
-    )
-    const outside = await screen.findByTestId('rail-outside')
-    expect(outside).toHaveTextContent('Outside the 100')
-    expect(outside).toHaveTextContent('CompanionLurrus of the Dream-Den· not sleeved')
-    expect(outside).toHaveTextContent('Maybeboard1')
-    expect(outside).toHaveTextContent('Tokens1')
-    expect(screen.getByRole('heading', { name: 'Command zone' }).closest('section')).not.toHaveTextContent('Lurrus')
+  it('a Background second commander is a labelled line under the commander', () => {
+    renderRail(yedora({ commanders: [{ name: 'A', colourIdentity: 'W' }, { name: 'B', colourIdentity: 'R', role: 'background' }] }))
+    const section = screen.getByTestId('rail-commander')
+    expect(within(section).getAllByRole('listitem')).toHaveLength(1)
+    expect(section).toHaveTextContent('BackgroundB')
   })
-  it('shows no Outside the 100 block when nothing is outside', () => {
-    renderRail(yedora())
-    expect(screen.queryByTestId('rail-outside')).toBeNull()
-  })
-  it('legend groups: zero-count groups and items are hidden, and the empty group shows the missing slots', async () => {
-    statuses = async () => json(200, { cards: [], counts: { size: 84, sleeved: 84, original: 83, proxy: 1 } })
-    renderRail(yedora({ totalCards: 84 }))
-    const legend = await screen.findByTestId('rail-legend')
-    expect(within(legend).getByText('Original')).toBeInTheDocument()
-    expect(legend.querySelector('[data-legend-group="notSleeved"]')).toBeNull()
-    expect(legend.querySelector('[data-legend-group="empty"]')).toHaveTextContent('16Empty slots')
-    expect(screen.queryByTestId('rail-to-buy')).toBeNull()
-  })
-  it('shows the To buy line with count and price for unowned cards', async () => {
-    renderRail(yedora({ allCards: [{ card_name: 'Sol Ring', price_usd: 2 }, { card_name: 'Mana Crypt', price_usd: 100.5 }] }))
-    const line = await screen.findByTestId('rail-to-buy')
-    expect(line).toHaveTextContent('To buy: 2 unowned cards · $102.50')
-  })
-  it('ladder, Legal at 100: neutral check, subline with the count, and the status with an exact count', async () => {
-    renderRail(yedora({ totalCards: 100 }))
-    expect(await screen.findByText('Legal for Commander')).toBeInTheDocument()
-    expect(screen.getByText('100 cards · singleton · colour identity · no banned cards')).toBeInTheDocument()
-    const status = await screen.findByTestId('rail-build-status')
-    expect(status).toHaveTextContent('Assembling · 85 of 100 sleeved')
-    expect(screen.queryByText('Playable needs a legal list first.')).toBeNull()
-  })
-  it('ladder, Legal at 84: says "Legal so far" and never claims 100 cards', async () => {
-    renderRail(yedora({ totalCards: 84 }))
-    expect(await screen.findByText('Legal so far')).toBeInTheDocument()
-    expect(screen.getByText('Nothing found illegal. 84 of 100 cards.')).toBeInTheDocument()
-    expect(screen.queryByText(/100 cards ·/)).toBeNull()
-  })
-  it('ladder, Not legal: banner with bullets, and "Playable needs a legal list first." under an Assembling status', async () => {
-    legality = () => json(200, { format: 'commander', isLegal: false, issues: [{ cardName: 'Mana Crypt', reason: 'banned', details: 'Banned' }] })
-    renderRail(yedora({ totalCards: 100 }))
-    expect(await screen.findByText('Not legal yet')).toBeInTheDocument()
-    expect(screen.getByText('1 banned card: Mana Crypt')).toBeInTheDocument()
-    expect(await screen.findByText('Playable needs a legal list first.')).toBeInTheDocument()
-  })
-  it('the Playable line is not shown when the status is already Playable, even if Not legal', async () => {
-    legality = () => json(200, { format: 'commander', isLegal: false, issues: [{ cardName: 'Mana Crypt', reason: 'banned', details: 'Banned' }] })
-    statuses = async () => json(200, { cards: [], counts: { size: 100, sleeved: 100, original: 100 } })
-    renderRail(yedora({ totalCards: 100 }))
-    await screen.findByText('Not legal yet')
-    expect(await screen.findByText(/Playable · 100 of 100 sleeved/)).toBeInTheDocument()
-    expect(screen.queryByText('Playable needs a legal list first.')).toBeNull()
+  it('the companion is a labelled line under the commanders', () => {
+    renderRail(yedora({ allCards: [{ card_name: 'Lurrus of the Dream-Den', command_zone_role: 'companion' }, { card_name: 'Opt' }] }))
+    expect(screen.getByTestId('rail-commander')).toHaveTextContent('CompanionLurrus of the Dream-Den')
   })
   it('legality and card statuses are each fetched once', async () => {
     renderRail(yedora({ totalCards: 100 }))
-    await screen.findByTestId('rail-build-status')
+    await screen.findByTestId('rail-status-chip')
     const urls = vi.mocked(fetch).mock.calls.map(([u]) => String(u))
     expect(urls.filter((u) => u.endsWith('/legality'))).toHaveLength(1)
     expect(urls.filter((u) => u.endsWith('/card-statuses'))).toHaveLength(1)
-  })
-  it('does not repeat the deck size: "100" appears once in the Cards headline', async () => {
-    renderRail(yedora({ totalCards: 100 }))
-    await screen.findByTestId('rail-build-status')
-    expect(screen.getByTestId('rail-count')).toHaveTextContent('100 / 100')
-    expect(screen.getByTestId('rail-count').parentElement).toHaveTextContent('100 / 100 Planned')
-    expect(screen.queryByText(/in deck/)).toBeNull()
   })
 })

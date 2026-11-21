@@ -1,9 +1,9 @@
 'use client'
-// DV-02: the Strategy block in the deck rail: a label, one Edit link, bracket and salt chips, and the summary line.
-// Edit, "+ Set bracket" and the summary prompt all open the Strategy window.
+// The Strategy & bracket block in the deck rail: a label, one Edit link, a bracket box and the summary line.
+// Edit opens the Strategy window.
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { AlertTriangle, ChevronRight, WifiOff, XCircle } from 'lucide-react'
+import { AlertTriangle, WifiOff, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { deckKeys } from '@/hooks/useDeckQueryKeys'
@@ -12,7 +12,6 @@ import { bracketWarning, type StrategyWindowData } from '@/lib/deck-strategy-win
 import { StrategyWindow, type SaveResult, type WindowValues } from './StrategyWindow'
 import { useOnlineStatus } from './useOnlineStatus'
 import { FOCUS_RING } from './focus'
-import { SECTION_LABEL_CLASS } from '@/lib/ui-tokens'
 export const strategyKey = (deckId: number) => [...deckKeys.detail(deckId), 'strategy-window'] as const
 const SAVE_FAILED = "Couldn't save. Your changes are still here and nothing was lost. Check your connection. It will try again by itself."
 async function fetchStrategy(deckId: number): Promise<StrategyWindowData> {
@@ -23,12 +22,10 @@ async function fetchStrategy(deckId: number): Promise<StrategyWindowData> {
 export interface StrategyBlockProps {
   deckId: number
   deckName: string
-  /** Commander salt score (EDHREC). Shown as a neutral chip whether or not a bracket is set. */
-  saltScore?: number | null
   /** Opens wherever History opens today (the deck's Version History window). */
   onSeeHistory: () => void
 }
-export function StrategyBlock({ deckId, deckName, saltScore, onSeeHistory }: StrategyBlockProps) {
+export function StrategyBlock({ deckId, deckName, onSeeHistory }: StrategyBlockProps) {
   const queryClient = useQueryClient()
   const online = useOnlineStatus()
   const [open, setOpen] = useState(false)
@@ -106,15 +103,12 @@ export function StrategyBlock({ deckId, deckName, saltScore, onSeeHistory }: Str
     )
   }
   const hasBracket = data.bracket !== null
-  const name = bracketName(data.bracket)
   const warning = bracketWarning(data.bracket, data.implied)
-  const hasSalt = saltScore != null
   const openWindow = () => setOpen(true)
-  const chipBase = 'inline-flex min-h-6 items-center gap-1 rounded-full px-2 py-0.5 text-[length:var(--fs-sm)] font-medium'
   return (
-    <div className="w-full space-y-2" data-testid="strategy-block">
+    <div className="w-full space-y-1" data-testid="strategy-block">
       <div className="flex items-center justify-between gap-2">
-        <h2 className={SECTION_LABEL_CLASS}>Strategy</h2>
+        <h2 className="text-[10px] font-medium uppercase text-[var(--text-secondary)]">Strategy &amp; bracket</h2>
         <div className="flex items-center gap-2">
           {!online && (
             <span className="flex shrink-0 items-center gap-1 rounded-md border border-amber-400 px-2 py-1 text-[length:var(--fs-sm)] text-amber-300">
@@ -128,52 +122,24 @@ export function StrategyBlock({ deckId, deckName, saltScore, onSeeHistory }: Str
             aria-haspopup="dialog"
             aria-label="Edit strategy"
             onClick={openWindow}
-            className={cn('flex min-h-11 items-center px-1 text-[length:var(--fs-sm)] text-muted-foreground underline-offset-2 hover:underline', FOCUS_RING)}
+            className={cn('flex min-h-11 items-center px-1 text-[10px] font-medium tracking-[0.8px] text-[var(--accent-primary)] underline-offset-2 hover:underline', FOCUS_RING)}
           >
             Edit
-            <ChevronRight className="size-4" aria-hidden="true" />
           </button>
         </div>
       </div>
-      <div className="flex flex-wrap items-center gap-1.5">
-        {hasBracket ? (
-          <span className={cn(chipBase, 'bg-white/[0.06]')} title={name ?? undefined} data-testid="bracket-chip">
-            Bracket {data.bracket}
-          </span>
-        ) : (
-          <button
-            type="button"
-            aria-haspopup="dialog"
-            onClick={openWindow}
-            data-testid="set-bracket"
-            className={cn(chipBase, 'border border-dashed border-[#8A8A93] text-muted-foreground hover:text-foreground', FOCUS_RING)}
-          >
-            + Set bracket
-          </button>
-        )}
-        {hasSalt && (
-          <span
-            className={cn(chipBase, 'bg-white/[0.06] text-[var(--text-muted)]')}
-            title={`Salt Score: ${saltScore.toFixed(2)} — Community "saltiness" rating from EDHREC (0-4 scale)`}
-            data-testid="salt-chip"
-          >
-            <span aria-hidden="true">🧂</span>
-            Salt {saltScore.toFixed(1)}
-          </span>
-        )}
-      </div>
-      {data.summary ? (
-        <p className="text-[length:var(--fs-md)]">{data.summary}</p>
-      ) : (
-        <button
-          type="button"
-          aria-haspopup="dialog"
-          onClick={openWindow}
-          className={cn('block min-h-11 text-left text-[length:var(--fs-md)] italic text-muted-foreground underline-offset-2 hover:underline', FOCUS_RING)}
+      <div className="flex items-start gap-2">
+        <span
+          className="flex size-10 shrink-0 items-center justify-center rounded-md border border-[var(--border-default)] bg-[var(--bg-canvas)] text-[24px] font-semibold"
+          title={bracketName(data.bracket) ?? undefined}
+          data-testid="bracket-box"
         >
-          Add a one-line summary of how this deck plays
-        </button>
-      )}
+          {hasBracket ? data.bracket : '–'}
+        </span>
+        <p className="min-w-0 flex-1 text-[length:var(--fs-sm)] text-[var(--text-secondary)]">
+          {data.summary || 'Add a bracket and a one-line summary of how this deck plays'}
+        </p>
+      </div>
       {warning && (
         <p className="flex gap-2 text-[length:var(--fs-sm)] text-amber-300" data-testid="strategy-block-warning">
           <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />

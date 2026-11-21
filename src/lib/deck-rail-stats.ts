@@ -2,10 +2,9 @@
 // No new maths: this only arranges the results of calculateCMC, analyzeColorRequirements and countLandSources.
 import { analyzeColorRequirements, calculateCMC, countLandSources, parseManaCost } from '@/lib/mana-analysis'
 import { isLandTypeLine } from '@/lib/card-roles'
-import { isCompanion, parseColourLetters } from '@/lib/command-zone'
+import { parseColourLetters } from '@/lib/command-zone'
 import { computeDeckReadiness } from '@/lib/deck-readiness'
 import type { LegalityIssue } from '@/lib/deck-legality'
-import type { CopySwatchKind } from '@/components/CopySwatch'
 import type { ManaLetter } from '@/lib/ui-tokens'
 
 export interface RailCard {
@@ -165,7 +164,7 @@ export function cardCountView(total: number, target: number | null | undefined):
   return { label: `${total} / ${target}`, over: Math.max(0, total - target) }
 }
 
-// ---- Cards section: segmented bar, legend, buy line, Outside the 100 ----
+// ---- Cards section ----
 
 /** The numbers the card-statuses route returns (all optional so a partial response never crashes the rail). */
 export interface StatusCountsInput {
@@ -179,85 +178,6 @@ export interface StatusCountsInput {
   claimed?: number
   generic_land?: number
   generic_unsleeved?: number
-}
-
-export type LegendGroup = 'sleeved' | 'notSleeved' | 'empty'
-export interface LegendItem {
-  key: 'original' | 'proxy' | 'basics' | 'open' | 'basics_unsleeved' | 'other_decks' | 'unowned' | 'empty'
-  kind: CopySwatchKind
-  label: string
-  count: number
-  group: LegendGroup
-}
-export const LEGEND_GROUP_LABELS: Record<LegendGroup, string> = { sleeved: 'Sleeved', notSleeved: 'Not sleeved', empty: 'Empty' }
-
-/**
- * One item per card state, zero counts left out. Sleeved = a real copy (Original, Proxy) or a Sleeved generic basic.
- * Empty = slots still missing from the format's deck size. Wording follows the allocation convention
- * (Open = a free copy in storage, In other decks = held by another deck).
- */
-export function cardLegend(counts: StatusCountsInput, deckSize: number | null): LegendItem[] {
-  const n = (v: number | undefined) => Math.max(0, v ?? 0)
-  const genericTotal = n(counts.generic_land)
-  const genericUnsleeved = Math.min(genericTotal, n(counts.generic_unsleeved))
-  const empty = deckSize != null ? Math.max(0, deckSize - n(counts.size)) : 0
-  const items: LegendItem[] = [
-    { key: 'original', kind: 'original', label: 'Original', count: n(counts.original), group: 'sleeved' },
-    { key: 'proxy', kind: 'proxy', label: 'Proxy', count: n(counts.proxy), group: 'sleeved' },
-    { key: 'basics', kind: 'basics', label: 'Basics', count: genericTotal - genericUnsleeved, group: 'sleeved' },
-    { key: 'open', kind: 'open', label: 'Open', count: n(counts.available) + n(counts.in_hand), group: 'notSleeved' },
-    { key: 'basics_unsleeved', kind: 'basics', label: 'Basics, not sleeved', count: genericUnsleeved, group: 'notSleeved' },
-    { key: 'other_decks', kind: 'other_deck', label: 'In other decks', count: n(counts.claimed), group: 'notSleeved' },
-    { key: 'unowned', kind: 'unowned', label: 'Unowned', count: n(counts.unowned), group: 'notSleeved' },
-    { key: 'empty', kind: 'empty', label: empty === 1 ? 'Empty slot' : 'Empty slots', count: empty, group: 'empty' },
-  ]
-  return items.filter((i) => i.count > 0)
-}
-
-/** "To buy": the unowned cards of the deck and what they cost. Price is null when no unowned card has a price. */
-export function toBuyView(
-  unownedNames: string[],
-  deckCards: Array<{ card_name: string; quantity?: number; price_usd?: number | null }>,
-): { count: number; price: number | null; partial: boolean } {
-  const names = new Set(unownedNames)
-  let count = 0
-  let price = 0
-  let priced = 0
-  for (const c of deckCards) {
-    if (!names.has(c.card_name)) continue
-    const q = qty(c)
-    count += q
-    if (c.price_usd != null && c.price_usd > 0) {
-      price += c.price_usd * q
-      priced += q
-    }
-  }
-  return { count, price: priced > 0 ? price : null, partial: priced > 0 && priced < count }
-}
-
-export interface OutsideView {
-  companion: { name: string; sleeved: boolean } | null
-  maybeboard: number
-  tokens: number
-}
-
-/** Chips for "Outside the 100". The companion is the one row with role companion; Maybeboard and Tokens are counted by category. */
-export function outsideTheHundred(
-  all: Array<{ card_name: string; quantity?: number; categories?: string | null; command_zone_role?: string | null; has_copy?: boolean; type_line?: string | null }>,
-): OutsideView {
-  let companion: OutsideView['companion'] = null
-  let maybeboard = 0
-  let tokens = 0
-  for (const c of all) {
-    if (isCompanion(c)) {
-      companion = { name: c.card_name, sleeved: !!c.has_copy }
-      continue
-    }
-    const cats = c.categories ?? ''
-    if (cats.includes('Maybeboard')) maybeboard += qty(c)
-    else if (cats.includes('Tokens') || /^Token\b/.test(c.type_line ?? '')) tokens += qty(c)
-  }
-  return { companion, maybeboard, tokens }
 }
 
 // ---- Status ladder ----
@@ -285,49 +205,67 @@ export function railBuildStatus(
   return { state: r.state, sleeved: r.sleeved, of: deckSize ?? r.size }
 }
 
-export type LegalityViewStatus = 'legal' | 'not_legal' | 'unverified'
-export interface LegalityView {
-  status: LegalityViewStatus
-  /** One line per problem (Not legal). */
-  bullets: string[]
-  /** What was checked (Legal) or what is still unchecked (Unverified). */
-  subline: string | null
+export type CardsStatus = 'playable' | 'assembling' | 'brewing'
+export interface CardsProblem {
+  key: string
+  text: string
+  /** Shown at the right of the row, e.g. "71 / 100". */
+  right?: string
 }
-
-const MAX_BULLETS = 5
-
+export interface CardsSectionView {
+  /** The big number. */
+  count: string
+  /** The small text after it, e.g. "/ 100 cards". */
+  countSuffix: string
+  /** True when the count is not the deck size (amber). */
+  amber: boolean
+  status: CardsStatus
+  legal: boolean
+  problems: CardsProblem[]
+}
+export interface CardsSectionInput {
+  /** Cards in the main deck. */
+  total: number
+  /** The format's deck size; null when the format has none. */
+  deckSize: number | null
+  /** Sleeved cards (any number; capped at 100 for display). */
+  sleeved: number
+  /** Build state from computeDeckReadiness (via railBuildStatus). */
+  readiness: BuildStatusView['state']
+  /** Legality faults from the legality route (empty when none or not yet known). */
+  issues: LegalityIssue[]
+}
+const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 /**
- * Today's legality data (Legal / Not legal from the route) shown in the three-state rail.
- * The route does not check deck size, so when nothing is illegal but the list is not the full size the rail says
- * "Legal so far" and gives the count (display wording only; Gate A adds the real size rule).
+ * Everything the Cards section shows, from existing numbers. Legal only when the list is exactly the deck size
+ * and no card is banned, outside the colour identity or over the copy limit. Playable needs all sleeved AND legal.
  */
-export function legalityView(
-  data: { isLegal: boolean; issues: LegalityIssue[] },
-  totalCards: number,
-  deckSize: number | null,
-): LegalityView {
-  const issues = data.issues ?? []
-  if (!data.isLegal) {
-    const banned = issues.filter((i) => i.reason === 'banned').map((i) => i.cardName)
-    const bullets: string[] = []
-    if (banned.length === 1) bullets.push(`1 banned card: ${banned[0]}`)
-    else if (banned.length > 1) bullets.push(`${banned.length} banned cards: ${banned.join(', ')}`)
-    for (const i of issues) {
-      if (i.reason === 'color_identity') bullets.push(`${i.cardName} is outside the colour identity`)
-      else if (i.reason === 'over_limit') bullets.push(`${i.cardName}: more than one copy`)
-    }
-    const shown = bullets.slice(0, MAX_BULLETS)
-    if (bullets.length > MAX_BULLETS) shown.push(`and ${bullets.length - MAX_BULLETS} more`)
-    return { status: 'not_legal', bullets: shown, subline: null }
+export function cardsSectionView(input: CardsSectionInput): CardsSectionView {
+  const { total, deckSize, issues } = input
+  const target = deckSize ?? total
+  const problems: CardsProblem[] = []
+  const diff = total - target
+  if (diff > 0) problems.push({ key: 'over', text: `${plural(diff, 'card', 'cards')} over` })
+  if (diff < 0) problems.push({ key: 'short', text: `${plural(-diff, 'card', 'cards')} short` })
+  const count = (reason: LegalityIssue['reason']) => issues.filter((i) => i.reason === reason).length
+  const identity = count('color_identity')
+  const banned = count('banned')
+  const copies = count('over_limit')
+  if (identity > 0) problems.push({ key: 'identity', text: `${plural(identity, 'card', 'cards')} outside colour identity` })
+  if (banned > 0) problems.push({ key: 'banned', text: `${plural(banned, 'banned card', 'banned cards')}` })
+  if (copies > 0) problems.push({ key: 'copies', text: `${plural(copies, 'card', 'cards')} with more than one copy` })
+  const legal = problems.length === 0
+  const cap = deckSize ?? total
+  const sleeved = Math.max(0, Math.min(input.sleeved, cap, total))
+  const notSleeved = total >= cap ? cap - sleeved : total - sleeved
+  if (notSleeved > 0) problems.push({ key: 'unsleeved', text: `${plural(notSleeved, 'card', 'cards')} not sleeved`, right: `${sleeved} / ${cap}` })
+  const status: CardsStatus = sleeved === 0 ? 'brewing' : input.readiness === 'playable' && legal ? 'playable' : 'assembling'
+  return {
+    count: `${total}`,
+    countSuffix: deckSize != null ? `/ ${deckSize} cards` : total === 1 ? 'card' : 'cards',
+    amber: deckSize != null && total !== deckSize,
+    status,
+    legal,
+    problems,
   }
-  if (deckSize != null && totalCards !== deckSize) {
-    return { status: 'unverified', bullets: [], subline: `Nothing found illegal. ${totalCards} of ${deckSize} cards.` }
-  }
-  const checked = 'singleton · colour identity · no banned cards'
-  return { status: 'legal', bullets: [], subline: deckSize != null ? `${deckSize} cards · ${checked}` : checked }
-}
-
-/** "Playable needs a legal list first." shows only when it explains the status: Not legal and not Playable. */
-export function showsPlayableNeedsLegal(legality: LegalityViewStatus | null, state: BuildStatusView['state'] | null): boolean {
-  return legality === 'not_legal' && state != null && state !== 'playable'
 }

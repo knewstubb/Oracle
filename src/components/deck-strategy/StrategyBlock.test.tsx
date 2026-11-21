@@ -20,63 +20,43 @@ afterEach(() => {
   vi.unstubAllGlobals()
   Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true })
 })
-function renderBlock(onSeeHistory = vi.fn(), saltScore?: number | null) {
+function renderBlock(onSeeHistory = vi.fn()) {
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   const { unmount } = render(
     <QueryClientProvider client={qc}>
-      <StrategyBlock deckId={7} deckName="Yedora, the Explorer" saltScore={saltScore} onSeeHistory={onSeeHistory} />
+      <StrategyBlock deckId={7} deckName="Yedora, the Explorer" onSeeHistory={onSeeHistory} />
     </QueryClientProvider>,
   )
   return { user: userEvent.setup(), onSeeHistory, qc, unmount }
 }
 describe('Strategy block', () => {
-  it('empty: a dashed "+ Set bracket" link chip (never amber), the summary prompt, and one Edit link that opens a dialog', async () => {
+  it('empty: a dash in the bracket box, the prompt, and one Edit link that opens a dialog', async () => {
     renderBlock()
     const block = await screen.findByTestId('strategy-block')
     expect(block.tagName).toBe('DIV')
-    expect(screen.getByRole('heading', { name: 'Strategy' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Strategy & bracket' })).toBeInTheDocument()
     const edit = screen.getByRole('button', { name: 'Edit strategy' })
     expect(edit).toHaveAttribute('aria-haspopup', 'dialog')
-    const set = screen.getByTestId('set-bracket')
-    expect(set).toHaveTextContent('+ Set bracket')
-    expect(set.className).toMatch(/border-dashed/)
-    expect(set.className).not.toMatch(/amber/)
+    expect(screen.getByTestId('bracket-box')).toHaveTextContent('–')
     expect(block.querySelector('[class*="amber"]')).toBeNull()
-    expect(block).not.toHaveTextContent('Not set')
-    expect(block).toHaveTextContent('Add a one-line summary of how this deck plays')
-    await userEvent.setup().click(set)
+    expect(block).toHaveTextContent('Add a bracket and a one-line summary of how this deck plays')
+    expect(screen.queryByTestId('set-bracket')).toBeNull()
+    await userEvent.setup().click(edit)
     expect(await screen.findByRole('dialog', { name: 'Strategy' })).toBeInTheDocument()
   })
-  it('there is no whole-block button: only Edit, the set-bracket chip and the summary prompt open the window', async () => {
+  it('there is no whole-block button: only Edit opens the window', async () => {
     renderBlock()
     await screen.findByTestId('strategy-block')
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Edit', '+ Set bracket', 'Add a one-line summary of how this deck plays'])
+    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Edit'])
   })
-  it('set: a "Bracket 4" chip and the summary', async () => {
+  it('set: the bracket number in the box and the summary, with no salt chip', async () => {
     getResponse = async () => json(200, SET)
     renderBlock()
     const block = await screen.findByTestId('strategy-block')
-    expect(screen.getByTestId('bracket-chip')).toHaveTextContent('Bracket 4')
-    expect(screen.queryByTestId('set-bracket')).toBeNull()
+    expect(screen.getByTestId('bracket-box')).toHaveTextContent('4')
     expect(block).toHaveTextContent('Plants and recursion')
-    expect(screen.queryByTestId('strategy-block-warning')).toBeNull()
-  })
-  it('salt chip shows with a bracket and without one, in neutral colours, and is absent without a salt score', async () => {
-    getResponse = async () => json(200, SET)
-    const first = renderBlock(vi.fn(), 0.6)
-    const chip = await screen.findByTestId('salt-chip')
-    expect(chip).toHaveTextContent('Salt 0.6')
-    expect(chip.className).not.toMatch(/amber|green|red|signal/)
-    expect(screen.getByTestId('bracket-chip')).toBeInTheDocument()
-    first.unmount()
-    getResponse = async () => json(200, EMPTY)
-    const second = renderBlock(vi.fn(), 1.7)
-    expect(await screen.findByTestId('salt-chip')).toHaveTextContent('Salt 1.7')
-    expect(screen.getByTestId('set-bracket')).toBeInTheDocument()
-    second.unmount()
-    renderBlock(vi.fn(), null)
-    await screen.findByTestId('strategy-block')
     expect(screen.queryByTestId('salt-chip')).toBeNull()
+    expect(screen.queryByTestId('strategy-block-warning')).toBeNull()
   })
   it('bracket exceeded: the same sentence as the window, with an icon', async () => {
     getResponse = async () => json(200, { ...SET, bracket: 3, implied: { minimumBracket: 4, basedOn: '4 Game Changers' } })

@@ -1089,6 +1089,8 @@ function UnifiedListLayout({
 // Narrowest a category section may get before the layout drops a column (px)
 const MIN_SECTION_WIDTH = 390
 const SECTION_GAP = 16
+const MAX_SECTION_COLUMNS = 2
+const MAX_SECTION_COLUMN_WIDTH = 592
 
 function UnifiedGroupsLayout({
   groupedCards,
@@ -1123,7 +1125,7 @@ function UnifiedGroupsLayout({
     if (!el) return
     const update = () => {
       const n = Math.floor((el.clientWidth + SECTION_GAP) / (MIN_SECTION_WIDTH + SECTION_GAP))
-      setColumnCount(Math.max(1, Math.min(3, n)))
+      setColumnCount(Math.max(1, Math.min(MAX_SECTION_COLUMNS, n)))
     }
     update()
     if (typeof ResizeObserver === 'undefined') return
@@ -1149,9 +1151,9 @@ function UnifiedGroupsLayout({
   }, [groupedCards, columnCount])
 
   return (
-    <div ref={containerRef} className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, 1fr))` }}>
+    <div ref={containerRef} className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columnCount}, minmax(0, ${MAX_SECTION_COLUMN_WIDTH}px))` }}>
       {columns.map((column, colIdx) => (
-        <div key={colIdx} className="flex flex-col gap-3">
+        <div key={colIdx} className="flex flex-col gap-4">
           {column.map(([groupName, groupCards]) => {
             return (
               <Fragment key={groupName}>

@@ -101,7 +101,6 @@ Vector-based recommendations remain parked; the trial is closed.
 
 Based on the detailed backlog as recorded on 22 November 2026, not a fresh audit of the app. Older entries sometimes conflict with newer updates; those are kept as "needing a fresh check" rather than marked as current bugs. No priorities or locked decisions have changed.
 
-The detailed record remains here:
 Full task table and history:
 
 `docs/oracle/backlog-details.md`

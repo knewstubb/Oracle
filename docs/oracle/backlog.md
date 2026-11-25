@@ -1,8 +1,14 @@
-# Oracle backlog — simple view
-
+# Oracle backlog
+Updated 22 November 2026 (deck rename, reorder and faster deck opening are finished and no longer listed).
 Updated 19 November 2026 (planning round: briefs and designs drafted for the deck page, Strategy window, card Tags and Claude change reason; all awaiting owner approval).
 
-Unfinished work only, grouped by what you would see in the app. This is a summary, not a new priority order or approval to start work. Completed work and technical history are left out.
+Unfinished work only, grouped by what you would see in the app. This is a summary, not a priority order or approval to start work. Finished work and history are left out.
+
+## Next priority: open question
+Decided so far: clean-up, then rename and reorder decks, then faster deck opening (all done). You then said Deck health is not the biggest blocker, so the next item is open. Candidates: collection and storage tools; Claude doing deck work; the deck page itself (strategy block, sideboard); trusting what is already built by walking through it in the app. Deck health work stays proposed, neither approved nor cancelled.
+
+## Polish waiting for your choice
+- Spacing differences from the Figma design, found by the 2026-11-22 check: the rail titles "Strategy & bracket" and "Deck health" sit 5 px too low (recommended first); the tab underline in the Deck settings window is 5 px too far; spacing and width of the line above Mana production differ; card group headings have less space than the design (that design frame is older, so confirm it first). You have not yet chosen which to fix.
 
 ## Approved work being progressed
 
@@ -17,11 +23,6 @@ Unfinished work only, grouped by what you would see in the app. This is a summar
 - Try the recent Picklist, storage, import, collection and Claude changes in the app.
 - Check card printing, finish, proxy and price details on real cards.
 - Try Claude's search, Deck health and card-category editing.
-- Fix the outstanding automatic-check failures.
-- Save the remaining change records and reports, then clean up finished working copies.
-- Recheck the ramp count for Stax on Stax.
-- Finish the change from "Sleeved / Unsleeved" to "In deck / Planned"; decide whether the action should say "Put in deck".
-- Make Claude's deck-status labels match the app.
 
 ## Collection
 
@@ -32,19 +33,13 @@ Unfinished work only, grouped by what you would see in the app. This is a summar
 
 ## Deck library and deck pages
 
-- Drag decks to reorder them and remember the order.
-- Click a deck name to rename it.
 - Review the icons on deck tiles.
+- Start Deck health and the other side panels loading together with the deck (the second step of faster opening; not built, a later choice).
+- Small polish on reordering decks: tiles sliding into place, respecting reduced-motion settings, a tilted copy while dragging.
 - Audit and refine the deck header.
 - Move the deck header into a sidebar.
-- **DV-01** Deck page with a left side panel (name, commander, strategy block, card count, Deck health, mana curve) replacing the header, slot bar and health footer; left rail chosen 2026-11-19. Brief and design drafted, awaiting your approval. Not built.
-- **DV-02** One Strategy window (target bracket, one-line summary, strategy text, playgroup), opened from the panel; proposed in place of the three-layer Strategy tab (the card-roles plan, CC-26, would be partly superseded only if you approve). Brief and design drafted, awaiting your approval. Not built.
-- **DV-03** Pause the in-app AI chat by hiding it; the code stays so it can come back. Scoped as a small job, awaiting your approval (one question: pause the new-deck brewing chat too). Not built.
-- **DV-04** Store a one-line reason with each Claude change and show it in History. Brief drafted, awaiting your approval; needs a stored-data change you approve first. Not built.
 - Put Deck health beside the slot-usage bar and remove the footer it replaces.
 - Audit Workbench, Analysis and the other deck pages.
-- Make decks open faster.
-- Fix status icons briefly appearing as text when a new deck loads.
 - Add sideboard support; agree how it differs from Maybeboard.
 
 The header, sidebar, Deck health and deck-page reviews should be considered together rather than redesigned separately.
@@ -104,8 +99,9 @@ Vector-based recommendations remain parked; the trial is closed.
 
 ## About this view
 
-Based on the detailed backlog as recorded on 17 November 2026, not a fresh audit of the app. Older entries sometimes conflict with newer updates; those are kept as "needing a fresh check" rather than marked as current bugs. No priorities or locked decisions have changed.
+Based on the detailed backlog as recorded on 22 November 2026, not a fresh audit of the app. Older entries sometimes conflict with newer updates; those are kept as "needing a fresh check" rather than marked as current bugs. No priorities or locked decisions have changed.
 
 The detailed record remains here:
+Full task table and history:
 
 `docs/oracle/backlog-details.md`

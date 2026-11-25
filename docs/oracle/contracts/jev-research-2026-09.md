@@ -149,7 +149,7 @@ Jev is server-side only. The UI would call an existing Next.js API route, which 
 
 ### Rationale
 1. **The upside is unverified.** The speed and cost advantages are compelling for classification at scale, but no independent Oracle benchmark proves they translate to Magic card tasks.
-2. **The current deterministic classifiers are good enough for the current backlog.** The active tasks in `docs/oracle/status.md` focus on allocation, Brew Canvas, and bulk actions; none are blocked by classification latency or cost [Confirmed: `docs/oracle/status.md`].
+2. **The current deterministic classifiers are good enough for the current backlog.** The active tasks in `docs/oracle/backlog-details.md` focus on allocation, Brew Canvas, and bulk actions; none are blocked by classification latency or cost [Confirmed: `docs/oracle/backlog-details.md`].
 3. **The AI audit does not justify a new provider right now.** The audit's focus is remediating D-016 violations in existing generative routes via native tool use. Jev does not help with those violations and is not mentioned or budgeted in the audit [Confirmed: `~/.paseo/worktrees/03dz1jp4/t14-ai-audit/docs/oracle/contracts/ai-audit-2026-09.md` §5].
 4. **Vendor newness.** A model released days before this research is not yet suitable for a production deck-building platform without a pilot and observability.
 5. **D-016 alignment is necessary but not sufficient.** Jev's typed outputs would conform to D-016, but that alone does not overcome the unverified domain accuracy and operational risk.
@@ -177,5 +177,5 @@ Create task **T-19-follow-up: Bounded Jev pilot for category classification** on
 - `src/lib/auto-bracket-cards.ts` [Confirmed]
 - `src/lib/ai-models.ts` [Confirmed]
 - `docs/oracle/decisions.md` D-007, D-016 [Confirmed]
-- `docs/oracle/status.md` [Confirmed]
+- `docs/oracle/backlog-details.md` [Confirmed]
 - `.paseo/agents/architect.md` [Confirmed]

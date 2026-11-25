@@ -75,7 +75,7 @@ D-047, D-048, D-050, D-051, D-053.
   (`near_mint`, `en`, `normal`) [Confirmed: docs/oracle/samples/manabox/*.csv, counted].
   Text exports carry none of the three (contract §2.2).
 - **T-56 (the screens) is not on main.** It lives on branch `test-t56-local`
-  [Confirmed: git; status.md T-56 = REVIEW]. T-55 (server side) is on main.
+  [Confirmed: git; backlog-details.md T-56 = REVIEW]. T-55 (server side) is on main.
   The Developer builds the new row editor on top of whatever T-56 is merged as.
 
 ---
@@ -426,7 +426,7 @@ needed (§1).
   which is not applied and is not in `supabase/migrations/` on main (it exists only in
   archived commit `21058b7`). It is a strict superset of it. Apply this one; do
   not apply both as separate approvals.
-- **What is deployed (status.md):**
+- **What is deployed (backlog-details.md):**
   - `20261011120000_proxy_requested_printing_finish.sql` — **applied** to the hosted
     database 2026-10-11 (T-49). So `deck_cards.requested_finish` exists.
   - `20260926120000_import_maybeboard_relation.sql` and earlier — applied (M1).
@@ -438,7 +438,7 @@ needed (§1).
   the migration would quietly store defaults. Order: owner approves → migration
   applied → deck code merged. Developer adds a read-back test (§11) so a missing
   migration fails loudly.
-- Owner note in status.md (2026-09-25) allows relaxed migration care until MVP;
+- Owner note in backlog-details.md (2026-09-25) allows relaxed migration care until MVP;
   this draft does not rely on it.
 
 ---
@@ -600,7 +600,7 @@ UI (component tests; Designer's spec is the oracle):
 ## 12. Developer tasks, final order
 
 **Branch dependency.** The import screens (T-56) are **not on main**; they are on branch
-`test-t56-local` and status.md has T-56 at REVIEW awaiting the owner's merge approval and
+`test-t56-local` and backlog-details.md has T-56 at REVIEW awaiting the owner's merge approval and
 click-through. Server work (steps 1–6) does not touch those files and can start on main
 now. Screen work (steps 8–10) **must not start until T-56 is merged**, because it rewrites
 files that only exist on that branch (`ImportCardList.tsx`, `types.ts`, `CopyTypeControl.tsx`,

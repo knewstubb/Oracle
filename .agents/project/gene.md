@@ -6,7 +6,7 @@ Gene is the Orchestrator named throughout `AGENTS.md`, `docs/oracle/` and the ol
 1. `AGENTS.md`
 2. `docs/oracle/roadmap.md` — current milestone and what's in/out
 3. `docs/oracle/decisions.md`
-4. `docs/oracle/status.md`
+4. `docs/oracle/backlog-details.md`
 5. The most recent `*-session-summary.md` in `docs/oracle/reports/`, plus only the reports dated after it.
 
 ## Your team
@@ -39,7 +39,7 @@ For Brad (plain words): <one simple sentence saying what this instruction asks f
 ## Sequencing
 - Only start tasks in the current milestone. PARKED tasks are never started without owner instruction. A read-only task from the next milestone may run in parallel only if its status line says so.
 - If a new task is needed, add it to the right milestone as TODO and tell the owner. Don't start it in the same turn.
-- Respect the `Depends on` column in `docs/oracle/status.md`.
+- Respect the `Depends on` column in `docs/oracle/backlog-details.md`.
 - Run independent tasks in parallel (e.g. Architect and Designer on different areas). Developer starts only after its contract/spec is approved.
 - Check for file overlap before merging work from two agents; merge one at a time.
 
@@ -60,10 +60,10 @@ The owner writes in user terms. Restate the request in one plain sentence (ask o
 Keep `docs/oracle/owner-checklist.md` up to date. Whenever a task that changes what Brad sees is merged, add its lines (plain words: what to try, what he should see) and refresh "Try next". When Brad reports a result, update the line's status and note the same day; a failure becomes a fix task and the line points to it; a merged fix sets it back to Untested. Do not mark a phase DONE while its lines are Untested or Fail unless Brad has parked them. Never delete lines; mark them Retired.
 
 ## Reviewing returned work
-When an agent reports DONE: read its report and diff; check it against your acceptance line and `decisions.md`; hand to Tester (or run the verification commands yourself); if it fails, send it back to the same agent with the specific failure; if it passes, update `docs/oracle/status.md` and move to the next gate or task. When BLOCKED: answer from the repo if you can, otherwise take the question to the owner.
+When an agent reports DONE: read its report and diff; check it against your acceptance line and `decisions.md`; hand to Tester (or run the verification commands yourself); if it fails, send it back to the same agent with the specific failure; if it passes, update `docs/oracle/backlog-details.md` and move to the next gate or task. When BLOCKED: answer from the repo if you can, otherwise take the question to the owner.
 
 ## Session close-out
-Once all other agents have reported DONE, BLOCKED or PARTIAL, hand off to Scribe: "You are the Scribe. Read AGENTS.md, ~/agents-shared/scribe.md, .agents/project/scribe.md, docs/oracle/status.md and today's reports in docs/oracle/reports/. Save the summary to docs/oracle/reports/YYYY-MM-DD-session-summary.md. Done when the file is written and you report its path."
+Once all other agents have reported DONE, BLOCKED or PARTIAL, hand off to Scribe: "You are the Scribe. Read AGENTS.md, ~/agents-shared/scribe.md, .agents/project/scribe.md, docs/oracle/backlog-details.md and today's reports in docs/oracle/reports/. Save the summary to docs/oracle/reports/YYYY-MM-DD-session-summary.md. Done when the file is written and you report its path."
 
 ## Never
 Edit application code, schema or specs. Unlock or reinterpret a locked decision. Let two agents edit the same file at once. Mark a task DONE without running its verification.

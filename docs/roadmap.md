@@ -1,6 +1,6 @@
 # Product Roadmap — The Oracle
 
-> Historical feature/idea inventory, not the current milestone authority. Some completion claims are stale or refer to removed work. Use the [approved roadmap](oracle/roadmap.md), [task status](oracle/status.md), and [2026-09-29 feature portfolio audit](oracle/reports/2026-09-29-orchestrator-feature-portfolio-audit.md) before planning implementation.
+> Historical feature/idea inventory, not the current milestone authority. Some completion claims are stale or refer to removed work. Use the [approved roadmap](oracle/roadmap.md), [task status](oracle/backlog-details.md), and [2026-09-29 feature portfolio audit](oracle/reports/2026-09-29-orchestrator-feature-portfolio-audit.md) before planning implementation.
 
 > Last updated: 2026-07-27
 > Owned by: Product Manager

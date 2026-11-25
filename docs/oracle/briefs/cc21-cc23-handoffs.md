@@ -34,4 +34,4 @@ For Brad (plain words): Claude will sort the cards it adds into proper groups li
 ```
 
 ## After they report
-Send the reports back to Gene. Gene reviews, hands each to the Tester, and updates `docs/oracle/status.md`.
+Send the reports back to Gene. Gene reviews, hands each to the Tester, and updates `docs/oracle/backlog-details.md`.

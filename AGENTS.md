@@ -23,7 +23,7 @@ A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archi
 
 ## Stack
 - Next.js (App Router), TypeScript, Tailwind, shadcn/ui
-- Supabase / Postgres (migrations in `supabase/migrations/`; check `docs/oracle/status.md` for what is deployed)
+- Supabase / Postgres (migrations in `supabase/migrations/`; check `docs/oracle/backlog-details.md` for what is deployed)
 - Hosted on Vercel
 - External: Scryfall, EDHREC, Archidekt, Commander Spellbook, Card Kingdom, Anthropic API
 
@@ -41,7 +41,8 @@ A Magic: The Gathering Commander/EDH collection and deck manager. Replaces Archi
 
 ## Repo layout for agent work
 - `docs/oracle/decisions.md` — locked decisions register. Read-only for everyone except the Orchestrator, and the Orchestrator only edits it after the owner approves.
-- `docs/oracle/status.md` — current backlog and task state, maintained by the Orchestrator.
+- `docs/oracle/backlog.md` — short plain-words view of unfinished work, grouped by what the owner sees in the app. Maintained by Gene.
+- `docs/oracle/backlog-details.md` — full task table and history (task state, dependencies, deployed state). Maintained by Gene.
 - `docs/oracle/contracts/` — schema and API contracts (Architect writes).
 - `docs/oracle/specs/` — UX/UI component and interaction specs (UX/UI writes).
 - `docs/oracle/mockups/` — HTML mockups for owner review (UX/UI writes).

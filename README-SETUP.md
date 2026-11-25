@@ -10,7 +10,7 @@ AGENTS.md                      shared context every agent reads (OpenCode reads 
 CLAUDE.md                      one line that imports AGENTS.md, so Claude Code reads the same thing
 .paseo/KICKOFF.md              the first message you paste into the Orchestrator
 docs/oracle/decisions.md       locked decisions register (D-001 … D-017, open items O-001 … O-004)
-docs/oracle/status.md          backlog, seeded with the known outstanding work
+docs/oracle/backlog-details.md   full backlog, seeded with the known outstanding work
 docs/oracle/contracts/         Architect output (empty to start)
 docs/oracle/specs/             UX/UI output
 docs/oracle/mockups/           UX/UI HTML mockups

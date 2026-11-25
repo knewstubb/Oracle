@@ -642,7 +642,7 @@ distinct `(card_name, imported printing)` pairs where the deck has an
 and where at least one of the deck's instances for that printing is
 unresolved.
 
-**Owner rule (2026-09-27, `docs/oracle/status.md` O-005; states doc row 13).**
+**Owner rule (2026-09-27, `docs/oracle/backlog-details.md` O-005; states doc row 13).**
 After "Allocate Cards", the deck conflict badge disappears. Finalize stamps
 `settled_at` on every claim it does not materialise (§7.1, §7.5), so every
 leftover Planned slot drops out of the badge's scope. The slot itself is

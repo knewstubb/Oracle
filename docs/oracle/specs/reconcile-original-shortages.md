@@ -146,7 +146,7 @@ Tab order: page header → sidebar items (top to bottom) → search → sort →
 
 ## 8. Data binding
 
-There is **no T-28 contract file** in the repository to cite; per `status.md`, D-027/D-037 supply the rules for this scope. The page today reads `GET /api/reconcile/overused` → `OveruseResult` [Confirmed: src/app/api/reconcile/overused/route.ts, src/lib/reconcile-overuse.ts]. T-37 must change the calculation and add the fields marked **new**.
+There is **no T-28 contract file** in the repository to cite; per `backlog-details.md`, D-027/D-037 supply the rules for this scope. The page today reads `GET /api/reconcile/overused` → `OveruseResult` [Confirmed: src/app/api/reconcile/overused/route.ts, src/lib/reconcile-overuse.ts]. T-37 must change the calculation and add the fields marked **new**.
 
 | UI element | Field | Status |
 |---|---|---|

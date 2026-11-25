@@ -284,7 +284,7 @@ Tagging cannot prove complete coverage of all emergent Magic interactions. A new
 
 ## 10. Proposed 20-commander coverage matrix
 
-The earlier T-19 16-commander matrix artifact is not present in this checkout [Confirmed: `docs/oracle/status.md`; repository search on 2026-10-02]. Per the owner's follow-up, this contract supplies a fresh **20-commander evaluation matrix** based on `docs/deck-taxonomy.md` and the T-19 research brief. It is a representative test set, not a claim that these are the only viable builds or an endorsement of every archetype as equally popular. Archetype/theme names follow the deck taxonomy; mechanic coverage is the evidence the card-tag pipeline must make retrievable.
+The earlier T-19 16-commander matrix artifact is not present in this checkout [Confirmed: `docs/oracle/backlog-details.md`; repository search on 2026-10-02]. Per the owner's follow-up, this contract supplies a fresh **20-commander evaluation matrix** based on `docs/deck-taxonomy.md` and the T-19 research brief. It is a representative test set, not a claim that these are the only viable builds or an endorsement of every archetype as equally popular. Archetype/theme names follow the deck taxonomy; mechanic coverage is the evidence the card-tag pipeline must make retrievable.
 
 | Commander | Plausible build variants to test (archetype + theme) | Tag families this tests |
 |---|---|---|

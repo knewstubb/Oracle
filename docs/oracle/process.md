@@ -34,7 +34,7 @@ Report in `docs/oracle/reports/`.
 
 ## Standing rules
 - One feature per session. Start a session with "continue <feature>, brief is at <path>".
-- State lives in the repo (`status.md`, briefs, reports), not in chat.
+- State lives in the repo (`backlog-details.md`, briefs, reports), not in chat.
 - Every few weeks Gene checks `decisions.md` against the code and reports conflicts.
 - Agent tasks stay short and bounded.
 - Owner-facing messages follow AGENTS.md: short, plain language, no code.

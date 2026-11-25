@@ -13,7 +13,7 @@ Claude can ask for "green creatures I own that are free", "everything in the Uns
 
 - `search_collection` takes only name, free-only, include-proxies, limit, offset. [Confirmed: `src/lib/connector/tools/search-collection.ts`]
 - With free-only or no-proxies it reads every matching card, 200 at a time, and filters in the app. It stops after **3,000 cards** (`SCAN_CAP`) and says so in a note. [Confirmed: same file] Live: **2,832 distinct cards**, so the owner is 168 cards (about 6%) from the cap. After that, free-only totals would be wrong and later cards would be invisible. [Live]
-- "Free" today means "in no deck". It does **not** leave out In your hand or Missing copies, which breaks the app-wide supply rule (status.md, Picklist slice 1). Copies read from `user_copies` do not even select the in-hand flag, so an in-hand copy shows location "unknown". [Confirmed: `search-collection.ts` `copyCols`, `copyViews`]
+- "Free" today means "in no deck". It does **not** leave out In your hand or Missing copies, which breaks the app-wide supply rule (backlog-details.md, Picklist slice 1). Copies read from `user_copies` do not even select the in-hand flag, so an in-hand copy shows location "unknown". [Confirmed: `search-collection.ts` `copyCols`, `copyViews`]
 - Type, mana value and colours are not on the user's own cards: `user_cards.type_line` and `color_identity` are **empty on all 2,832 live cards**. [Live] They exist only in the shared card library `ref_cards`, matched by exact card name (no id link). [Confirmed: `src/types/supabase.ts`, `card-facts.ts`] Today facts are fetched for the 25 cards on a page only.
 - The connector's database handle can only `select` (no functions, no writes) and only supports equals, in-list, name-like, is-null, not, order, range, limit. [Confirmed: `src/lib/connector/user-client.ts`] Greater-than and less-than do not exist yet.
 - Wishlist: **no collection wishlist exists.** The only wishlist is a yes/no on an import claim, deliberately inert. [Confirmed: `src/app/api/onboarding/reconciliation/instance/wishlist/route.ts`] Not cheap, not read-only data: **deferred** (section 9).
@@ -99,7 +99,7 @@ Input and output types: `connector-collection-search.types.ts`. Strict input: un
 - **D-030** (a failure is never "none"): enforced in 5.3 and in the cards-without-facts coverage note.
 - **D-035** (outside data labelled): prices keep their "Estimate from Scryfall" label; nothing new is shown.
 - **Slice A rules**: select-only handle (extended with gte/lte only), user id on every query, strict input, tool-count snapshot (no new tool; the registry test changes only for new input fields).
-- **Supply rule (status.md, Picklist slice 1)**: this build brings `only_free` into line. No conflict.
+- **Supply rule (backlog-details.md, Picklist slice 1)**: this build brings `only_free` into line. No conflict.
 - No decision is in conflict. Nothing needs changing in `decisions.md`.
 
 ## 8. What gets deleted when this ships

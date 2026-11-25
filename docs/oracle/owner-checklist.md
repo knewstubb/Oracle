@@ -5,7 +5,7 @@ Things Brad can try in the running app, in plain words. Gene keeps this file up 
 ## How this list works
 - **One line per thing to try.** Say what to do and what you should see. No code words.
 - **Status:** `Untested`, `Pass`, `Fail`, `Blocked` (cannot try yet), or `Retired` (no longer applies).
-- **Brad's feedback updates it.** When Brad says something worked, failed or looks odd, Gene changes the line's status and note the same day. A `Fail` becomes a fix task in `status.md` and the line links to it (T-number). When the fix is merged, the line goes back to `Untested`.
+- **Brad's feedback updates it.** When Brad says something worked, failed or looks odd, Gene changes the line's status and note the same day. A `Fail` becomes a fix task in `backlog-details.md` and the line links to it (T-number). When the fix is merged, the line goes back to `Untested`.
 - **New work adds lines.** Every task that changes what Brad sees adds its lines when it is merged (Gene does this), tagged with the task and phase.
 - **Phase exit.** A phase is not DONE until its lines are `Pass` or Brad has knowingly parked them.
 - **Order:** the "Try next" section lists the ten most useful untested lines, so ten minutes is enough. Everything else sits below by phase.

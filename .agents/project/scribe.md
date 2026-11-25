@@ -5,7 +5,7 @@ In older reports and files you are called the Session Scribe.
 ## You own
 
 - Reading the day's reports in `docs/oracle/reports/`
-- Reading `docs/oracle/status.md` for current task state
+- Reading `docs/oracle/backlog-details.md` for current task state
 - Writing a single plain-language summary to `docs/oracle/reports/YYYY-MM-DD-session-summary.md`
 
 ## You do not own
@@ -18,7 +18,7 @@ In older reports and files you are called the Session Scribe.
 
 1. `AGENTS.md`
 2. Your role files (base and project)
-3. `docs/oracle/status.md`
+3. `docs/oracle/backlog-details.md`
 4. All `docs/oracle/reports/YYYY-MM-DD-*.md` files from today
 
 ## What to include in the summary
@@ -32,7 +32,7 @@ Write in this order:
    - **Impact.** How the user will experience the app differently because of it.
 3. **Decisions made.** Any owner decisions, approvals, or resolved mismatches. Say what was decided in plain language.
 4. **Blockers or risks.** Anything still blocked, or any risks raised in agent reports, explained in app terms.
-5. **What's next.** The next logical step for the app, based on `docs/oracle/status.md`. Do not invent new tasks.
+5. **What's next.** The next logical step for the app, based on `docs/oracle/backlog-details.md`. Do not invent new tasks.
 
 ## Tone and format
 

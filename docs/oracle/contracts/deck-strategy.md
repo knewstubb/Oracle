@@ -348,7 +348,7 @@ The report asks these in plain words. Here they are with the choice the contract
 - **Not cut:** the replacement-beside-your-item rule (T4), because "editable by both" needs it; the link table, because the owner decided a job may say what it serves. Both are optional to use.
 
 ## 20. The three corrected decks written with these tables (no new field types, no special case)
-The same four item kinds, the same strategy points and the same optional link are used for all three. I did not find the owner's corrected strategy text for Yedora, Rocco or Murky Business in the repository (it is in the owner's Claude chat of 2026-11-16, per `status.md` RQ-07), so the wording below is **illustrative**, built only from facts already in the specs; the owner's own words replace it. Every item below would show "Proposed by Claude", unconfirmed, with `based_on` cards, until accepted. Bracket is shown as "ask": it is empty on every deck.
+The same four item kinds, the same strategy points and the same optional link are used for all three. I did not find the owner's corrected strategy text for Yedora, Rocco or Murky Business in the repository (it is in the owner's Claude chat of 2026-11-16, per `backlog-details.md` RQ-07), so the wording below is **illustrative**, built only from facts already in the specs; the owner's own words replace it. Every item below would show "Proposed by Claude", unconfirmed, with `based_on` cards, until accepted. Bracket is shown as "ask": it is empty on every deck.
 | | Yedora the Explorer deck | Rocco's Secret Sauce | Murky Business (Myrkul) |
 |---|---|---|---|
 | Bracket | empty: Claude asks | empty: Claude asks | empty: Claude asks |

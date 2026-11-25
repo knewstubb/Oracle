@@ -108,4 +108,4 @@ Based on the detailed backlog as recorded on 17 November 2026, not a fresh audit
 
 The detailed record remains here:
 
-`docs/oracle/status.md`
+`docs/oracle/backlog-details.md`

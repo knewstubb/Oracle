@@ -281,7 +281,7 @@ Conflicts and challenges:
 2. `ref_cards.default_category` already holds an AI role taxonomy, which the brief's card-text approach bypasses. Kept as a cross-check only.
 3. The spec says other-deck marker shows deck name only; the existing lookup `warning` says more. Not shown in Phase 2.
 4. The mockup says "Average is N" for the general guide. The guide is a rule of thumb, not an average; the wording should be "General guide" (Designer to confirm).
-5. status.md says `ref_build_cards` has 150 rows; the DB has 450 [Confirmed]. status.md should be corrected by the Scribe.
+5. backlog-details.md says `ref_build_cards` has 150 rows; the DB has 450 [Confirmed]. backlog-details.md should be corrected by the Scribe.
 6. Tables in this DB mostly have RLS off and the app uses the admin client. The new table follows the safer pattern (RLS on, read-only for users).
 
 ## 7. Tests required

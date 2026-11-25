@@ -99,6 +99,12 @@ A deck's status is worked out from its cards every time they change. Nobody sets
 | Remove | Remove from deck | Take the card off the list; any copy returns to storage (D-039). Never deletes a collection copy. |
 | Break down | Break down | Return every copy in the deck to storage; the list is kept. |
 
+### Deck list words (added with UX-03 and UX-05, owner approved 2026-11-20)
+| Word | Meaning |
+|---|---|
+| **Deck order** | The one saved sequence of the owner's decks, set by dragging. Every list of decks shows it. A new deck goes last. |
+| **Rename** | Changing a deck's name by clicking it on its tile or on the deck page. |
+
 ### Claude connector words (added at Gate 5, owner-approved 2026-11-17)
 
 | Word | Meaning |

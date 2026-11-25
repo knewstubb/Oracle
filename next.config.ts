@@ -25,6 +25,11 @@ const nextConfig: NextConfig = {
   },
   headers: async () => [
     {
+      // The icon font never changes under the same name: let browsers keep it for a year.
+      source: '/fonts/(.*)',
+      headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+    },
+    {
       source: '/(.*)',
       headers: [
         { key: 'X-Frame-Options', value: 'DENY' },

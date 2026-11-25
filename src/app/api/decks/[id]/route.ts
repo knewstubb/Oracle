@@ -14,6 +14,13 @@ import { checkDeckName, hasNameClash } from '@/lib/deck-name'
 
 export const runtime = 'nodejs'
 
+/** Splits a list into groups of at most `size` items, keeping order. */
+function batchesOf<T>(items: T[], size: number): T[][] {
+  const out: T[][] = []
+  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size))
+  return out
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -29,13 +36,30 @@ export async function GET(
 
   const supabase = createAdminClient()
 
-  const { data: deck, error: deckErr } = await supabase
-    .from('decks')
-    .select('*')
-    .eq('id', deckId)
-    .eq('user_id', authResult.id)
-    .maybeSingle()
+  // Wave 1: the deck, its cards and its brew session do not depend on each other, so they are read together.
+  const [deckRes, cardsRes, brewRes] = await Promise.all([
+    supabase
+      .from('decks')
+      .select('*')
+      .eq('id', deckId)
+      .eq('user_id', authResult.id)
+      .maybeSingle(),
+    supabase
+      .from('deck_cards')
+      .select('*')
+      .eq('deck_id', deckId)
+      .order('card_name'),
+    // Get associated brew session if deck is a draft
+    supabase
+      .from('brew_sessions')
+      .select('id')
+      .eq('deck_id', deckId)
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ])
 
+  const { data: deck, error: deckErr } = deckRes
   if (deckErr) {
     return Response.json({ error: deckErr.message }, { status: 500 })
   }
@@ -43,15 +67,11 @@ export async function GET(
     return Response.json({ error: 'Deck not found' }, { status: 404 })
   }
 
-  const { data: cards, error: cardsErr } = await supabase
-    .from('deck_cards')
-    .select('*')
-    .eq('deck_id', deckId)
-    .order('card_name')
-
+  const { data: cards, error: cardsErr } = cardsRes
   if (cardsErr) {
     return Response.json({ error: cardsErr.message }, { status: 500 })
   }
+  const brewSession = brewRes.data
 
   // Fetch mana costs and prices from card_metadata for all cards in this deck
   const cardNames = (cards ?? []).map(c => c.card_name)
@@ -61,144 +81,126 @@ export async function GET(
   const priceMap: Record<string, number> = {}
   const rarityMap: Record<string, string> = {}
   const colorIdentityMap: Record<string, string> = {}
-  if (cardNames.length > 0) {
-    // Build lookup names: include both full DFC names and front-face variants
-    const lookupNames = new Set(cardNames)
-    for (const name of cardNames) {
-      if (name.includes(' // ')) lookupNames.add(frontFaceName(name))
-    }
-    const lookupArray = Array.from(lookupNames)
-
-    for (let i = 0; i < lookupArray.length; i += 200) {
-      const batch = lookupArray.slice(i, i + 200)
-      const { data: metaRows } = await supabase
-        .from('ref_cards')
-        .select('name, mana_cost, type_line, oracle_text, edhrec_rank, color_identity')
-        .in('name', batch)
-      for (const row of metaRows ?? []) {
-        if (row.mana_cost) manaCostMap[row.name] = row.mana_cost
-        if (row.type_line) typeLineMap[row.name] = row.type_line
-        if (row.oracle_text) oracleTextMap[row.name] = row.oracle_text
-        if (row.color_identity != null) colorIdentityMap[row.name] = row.color_identity
-      }
-    }
-
-    // Get prices from ref_printings for cards with scryfall_id
-    const scryfallIdsForPrice = (cards ?? [])
-      .map(c => c.scryfall_id)
-      .filter((id): id is string => id !== null)
-    
-    if (scryfallIdsForPrice.length > 0) {
-      const uniquePriceIds = [...new Set(scryfallIdsForPrice)]
-      for (let i = 0; i < uniquePriceIds.length; i += 200) {
-        const batch = uniquePriceIds.slice(i, i + 200)
-        const { data: priceRows } = await supabase
-          .from('ref_printings')
-          .select('scryfall_id, name, price_usd, rarity')
-          .in('scryfall_id', batch)
-        for (const row of priceRows ?? []) {
-          if (row.price_usd !== null) priceMap[row.name] = row.price_usd
-          if (row.rarity) rarityMap[row.name] = row.rarity
-        }
-      }
-    }
-
-    // For DFC cards in deck_cards: if the full name didn't match but front-face did, propagate
-    for (const name of cardNames) {
-      if (name.includes(' // ') && !manaCostMap[name]) {
-        const front = frontFaceName(name)
-        if (manaCostMap[front]) manaCostMap[name] = manaCostMap[front]
-        if (typeLineMap[front] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[front]
-        if (oracleTextMap[front] && !oracleTextMap[name]) oracleTextMap[name] = oracleTextMap[front]
-        if (colorIdentityMap[front] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[front]
-        if (priceMap[front] !== undefined) priceMap[name] = priceMap[front]
-        if (rarityMap[front]) rarityMap[name] = rarityMap[front]
-      }
-      // Also handle reverse: deck_cards has front-face only, metadata has full name
-      if (!name.includes(' // ') && !manaCostMap[name]) {
-        // Check if any full DFC name starts with this front face
-        const fullName = Object.keys(manaCostMap).find(k => k.startsWith(name + ' // '))
-        if (fullName) {
-          manaCostMap[name] = manaCostMap[fullName]
-          if (typeLineMap[fullName] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[fullName]
-          if (oracleTextMap[fullName] && !oracleTextMap[name]) oracleTextMap[name] = oracleTextMap[fullName]
-          if (colorIdentityMap[fullName] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[fullName]
-          if (priceMap[fullName] !== undefined) priceMap[name] = priceMap[fullName]
-          if (rarityMap[fullName]) rarityMap[name] = rarityMap[fullName]
-        }
-      }
-    }
-
-    // Auto-fill missing card data is no longer needed — all data comes from ref_cards and ref_printings
-    // which are populated by sync jobs, not on-the-fly Scryfall queries
-  }
-
-  // Fetch edition names from ref_printings for cards with scryfall IDs
-  const scryfallIds = (cards ?? []).map(c => c.scryfall_id).filter((id): id is string => id !== null)
   const editionMap: Record<string, { setCode: string; editionName: string }> = {}
-  if (scryfallIds.length > 0) {
-    const uniqueIds = [...new Set(scryfallIds)]
-    for (let i = 0; i < uniqueIds.length; i += 200) {
-      const batch = uniqueIds.slice(i, i + 200)
-      const { data: setRows } = await supabase
-        .from('ref_printings')
-        .select('scryfall_id, set_code, set_name')
-        .in('scryfall_id', batch)
-      for (const row of setRows ?? []) {
-        editionMap[row.scryfall_id] = { setCode: row.set_code, editionName: row.set_name }
-      }
-    }
+  const synergyMap: Record<string, number> = {}
+  const copyMap: Record<number, { finish: string | null; language: string | null }> = {}
+
+  // Build lookup names: include both full DFC names and front-face variants
+  const lookupNames = new Set(cardNames)
+  for (const name of cardNames) {
+    if (name.includes(' // ')) lookupNames.add(frontFaceName(name))
   }
+  const lookupArray = Array.from(lookupNames)
+  // One read of ref_printings serves price, rarity and edition (they use the same ids).
+  const printingIds = [...new Set(
+    (cards ?? []).map(c => c.scryfall_id).filter((id): id is string => id !== null)
+  )]
+  // Current finish/language of each slot's assigned copy (single source for the edit dialog)
+  const copyIds = [...new Set((cards ?? []).map(c => c.copy_id).filter((v): v is number => v != null))]
 
-  // Get associated brew session if deck is a draft
-  const { data: brewSession } = await supabase
-    .from('brew_sessions')
-    .select('id')
-    .eq('deck_id', deckId)
-    .order('updated_at', { ascending: false })
-    .limit(1)
-    .maybeSingle()
-
+  // Wave 2: card data, printings, commander, synergy and copies do not depend on each other.
+  // Each list is read in batches of 200, every batch runs at once, and results are applied in batch order.
+  const metaBatches = batchesOf(lookupArray, 200).map(batch =>
+    supabase
+      .from('ref_cards')
+      .select('name, mana_cost, type_line, oracle_text, edhrec_rank, color_identity')
+      .in('name', batch)
+  )
+  const printingBatches = batchesOf(printingIds, 200).map(batch =>
+    supabase
+      .from('ref_printings')
+      .select('scryfall_id, name, price_usd, rarity, set_code, set_name')
+      .in('scryfall_id', batch)
+  )
+  const copyBatches = batchesOf(copyIds, 200).map(batch =>
+    supabase
+      .from('user_copies')
+      .select('id, finish, language')
+      .in('id', batch)
+      .eq('user_id', authResult.id)
+  )
   // Fetch commander metadata (salt score, EDHREC rank) from ref_commanders
   // Use commander_id if available, otherwise fall back to name lookup
-  let commanderMeta: { id: string; salt_score: number | null; edhrec_rank: number | null; edhrec_deck_count: number | null } | null = null
-  
-  if (deck.commander_id) {
-    const { data } = await supabase
-      .from('ref_commanders')
-      .select('id, salt_score, edhrec_rank, edhrec_deck_count')
-      .eq('id', deck.commander_id)
-      .maybeSingle()
-    commanderMeta = data
-  } else if (deck.commander_name) {
-    const { data } = await supabase
-      .from('ref_commanders')
-      .select('id, salt_score, edhrec_rank, edhrec_deck_count')
-      .ilike('display_name', deck.commander_name)
-      .limit(1)
-      .maybeSingle()
-    commanderMeta = data
-  }
-
-  // Allocation status is meaningful only when a physical copy is sleeved.
-  // Planned rows intentionally stay nullable instead of defaulting to Original.
-  const allocationMap: Record<string, string | null> = {}
-  for (const card of cards ?? []) {
-    allocationMap[card.card_name] = card.copy_id != null
-      ? (card.ownership_status || 'original')
+  const commanderQuery = deck.commander_id
+    ? supabase
+        .from('ref_commanders')
+        .select('id, salt_score, edhrec_rank, edhrec_deck_count')
+        .eq('id', deck.commander_id)
+        .maybeSingle()
+    : deck.commander_name
+      ? supabase
+          .from('ref_commanders')
+          .select('id, salt_score, edhrec_rank, edhrec_deck_count')
+          .ilike('display_name', deck.commander_name)
+          .limit(1)
+          .maybeSingle()
       : null
+  // Fetch synergy scores from the configured commander-context source.
+  const synergyQuery = deck.build_id && cardNames.length > 0
+    ? getCommanderBuildCardRepository().getSynergyScores(deck.build_id, cardNames)
+    : null
+
+  const [metaResults, printingResults, copyResults, commanderRes, scores] = await Promise.all([
+    Promise.all(metaBatches),
+    Promise.all(printingBatches),
+    Promise.all(copyBatches),
+    commanderQuery,
+    synergyQuery,
+  ])
+
+  for (const { data: metaRows } of metaResults) {
+    for (const row of metaRows ?? []) {
+      if (row.mana_cost) manaCostMap[row.name] = row.mana_cost
+      if (row.type_line) typeLineMap[row.name] = row.type_line
+      if (row.oracle_text) oracleTextMap[row.name] = row.oracle_text
+      if (row.color_identity != null) colorIdentityMap[row.name] = row.color_identity
+    }
+  }
+  for (const { data: printingRows } of printingResults) {
+    for (const row of printingRows ?? []) {
+      if (row.price_usd !== null) priceMap[row.name] = row.price_usd
+      if (row.rarity) rarityMap[row.name] = row.rarity
+      editionMap[row.scryfall_id] = { setCode: row.set_code, editionName: row.set_name }
+    }
+  }
+  for (const { data: copyRows } of copyResults) {
+    for (const row of copyRows ?? []) {
+      copyMap[row.id] = { finish: row.finish, language: row.language }
+    }
+  }
+  const commanderMeta: { id: string; salt_score: number | null; edhrec_rank: number | null; edhrec_deck_count: number | null } | null =
+    commanderRes?.data ?? null
+
+  // For DFC cards in deck_cards: if the full name didn't match but front-face did, propagate
+  for (const name of cardNames) {
+    if (name.includes(' // ') && !manaCostMap[name]) {
+      const front = frontFaceName(name)
+      if (manaCostMap[front]) manaCostMap[name] = manaCostMap[front]
+      if (typeLineMap[front] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[front]
+      if (oracleTextMap[front] && !oracleTextMap[name]) oracleTextMap[name] = oracleTextMap[front]
+      if (colorIdentityMap[front] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[front]
+      if (priceMap[front] !== undefined) priceMap[name] = priceMap[front]
+      if (rarityMap[front]) rarityMap[name] = rarityMap[front]
+    }
+    // Also handle reverse: deck_cards has front-face only, metadata has full name
+    if (!name.includes(' // ') && !manaCostMap[name]) {
+      // Check if any full DFC name starts with this front face
+      const fullName = Object.keys(manaCostMap).find(k => k.startsWith(name + ' // '))
+      if (fullName) {
+        manaCostMap[name] = manaCostMap[fullName]
+        if (typeLineMap[fullName] && !typeLineMap[name]) typeLineMap[name] = typeLineMap[fullName]
+        if (oracleTextMap[fullName] && !oracleTextMap[name]) oracleTextMap[name] = oracleTextMap[fullName]
+        if (colorIdentityMap[fullName] !== undefined && colorIdentityMap[name] === undefined) colorIdentityMap[name] = colorIdentityMap[fullName]
+        if (priceMap[fullName] !== undefined) priceMap[name] = priceMap[fullName]
+        if (rarityMap[fullName]) rarityMap[name] = rarityMap[fullName]
+      }
+    }
   }
 
-  // Fetch synergy scores from the configured commander-context source.
-  const synergyMap: Record<string, number> = {}
-  if (deck.build_id && cardNames.length > 0) {
-    const scores = await getCommanderBuildCardRepository()
-      .getSynergyScores(deck.build_id, cardNames)
-
+  if (scores) {
     for (const [cardName, synergyScore] of scores) {
       synergyMap[cardName] = synergyScore
     }
-
     // Handle DFC cards: propagate synergy from front-face to full name
     for (const name of cardNames) {
       if (name.includes(' // ') && synergyMap[name] === undefined) {
@@ -207,20 +209,6 @@ export async function GET(
           synergyMap[name] = synergyMap[front]
         }
       }
-    }
-  }
-
-  // Current finish/language of each slot's assigned copy (single source for the edit dialog)
-  const copyIds = [...new Set((cards ?? []).map(c => c.copy_id).filter((v): v is number => v != null))]
-  const copyMap: Record<number, { finish: string | null; language: string | null }> = {}
-  for (let i = 0; i < copyIds.length; i += 200) {
-    const { data: copyRows } = await supabase
-      .from('user_copies')
-      .select('id, finish, language')
-      .in('id', copyIds.slice(i, i + 200))
-      .eq('user_id', authResult.id)
-    for (const row of copyRows ?? []) {
-      copyMap[row.id] = { finish: row.finish, language: row.language }
     }
   }
 

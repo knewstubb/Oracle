@@ -30,7 +30,6 @@ import { isCompanion } from '@/lib/command-zone'
 import { CommandZoneSlots } from '@/components/CommandZoneSlots'
 import { CommanderActionsProvider, useCommanderActions } from '@/hooks/useCommanderActions'
 import { actionLabel } from '@/lib/commander-card-actions'
-import { type PicklistCard } from '@/components/PicklistV2'
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -355,18 +354,6 @@ function CardsTabInner({ cards, deckId, scrollToCategory, maxCopies = 1, command
   // ── Card Statuses Query ──────────────────────────────────────────────────────
 
   const { data: statusData } = useQuery<CardStatusResponse>(cardStatusesQueryOptions(deckId))
-
-  // ── Picklist data (for progress bar) ─────────────────────────────────────
-
-  const { data: picklistData } = useQuery<{ cards: PicklistCard[]; progress: { resolved: number; total: number } }>({
-    queryKey: deckKeys.picklist(deckId),
-    queryFn: async () => {
-      const res = await fetch(`/api/decks/${deckId}/picklist`)
-      if (!res.ok) throw new Error('Failed to fetch picklist')
-      return res.json()
-    },
-    staleTime: 5 * 1000, // Shorter stale time for more responsive updates
-  })
 
   const [tabMode, setTabMode] = useState<TabMode>('all')
 

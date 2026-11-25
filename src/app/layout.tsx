@@ -9,6 +9,10 @@ import { MainContentWrapper } from "@/components/MainContentWrapper";
 import { isAiChatEnabled } from "@/lib/ai-chat-switch";
 import "./globals.css";
 
+// Marks the page once the icon font has loaded (globals.css hides icons until then). If the font
+// is not declared yet when this runs, load() answers with an empty list, so it tries again shortly.
+const ICON_FONT_READY_SCRIPT = `(function(){var n=0;function go(){if(!document.fonts){document.documentElement.setAttribute('data-icon-font','ready');return}document.fonts.load('1em "Material Symbols Outlined"','check').then(function(f){if(f.length){document.documentElement.setAttribute('data-icon-font','ready')}else if(n++<200){setTimeout(go,50)}}).catch(function(){})}go()})()`;
+
 export const metadata: Metadata = {
   title: "The Oracle",
   description: "Commander deck management and AI-powered analysis",
@@ -39,9 +43,14 @@ export default function RootLayout({
       <head>
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+          rel="preload"
+          href="/fonts/material-symbols-outlined-subset.woff2"
+          as="font"
+          type="font/woff2"
+          crossOrigin="anonymous"
         />
+        {/* Icons stay invisible until the icon font is ready, so an icon name never shows as text. */}
+        <script dangerouslySetInnerHTML={{ __html: ICON_FONT_READY_SCRIPT }} />
         <link
           rel="stylesheet"
           href="https://cdn.jsdelivr.net/npm/mana-font@latest/css/mana.min.css"

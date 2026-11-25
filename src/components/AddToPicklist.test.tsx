@@ -9,7 +9,7 @@ afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.clearAllMocks() })
 
 const cards = [{ copyId: 5, cardName: 'Sol Ring' }, { copyId: 6, cardName: 'Cultivate' }]
 function mount(list: { status: number; json: unknown } = { status: 200, json: { created: [{}, {}], unchanged: [], skipped: [] } }) {
-  const f = vi.fn((url: string) => {
+  const f = vi.fn((url: string, _init?: RequestInit) => {
     const u = String(url)
     if (u === '/api/import/destinations') return Promise.resolve(new Response(JSON.stringify({ storage: [{ locationId: 2, name: 'Box A' }], decks: [{ deckId: 3, name: 'Korvold' }] }), { status: 200 }))
     return Promise.resolve(new Response(JSON.stringify(list.json), { status: list.status }))

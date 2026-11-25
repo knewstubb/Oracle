@@ -12,6 +12,8 @@ import { RailHealth } from './RailHealth'
 import { RailCurve } from './RailCurve'
 import { RailProduction } from './RailProduction'
 import { RailManaByTurn } from './RailManaByTurn'
+import { InlineNameField } from '@/components/InlineNameField'
+import { useRenameDeck } from '@/hooks/useRenameDeck'
 
 export interface DeckRailProps {
   deck: {
@@ -39,6 +41,7 @@ export interface DeckRailProps {
 
 export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCards, secondCommanderScryfallId, totalValue, strategySlot }: DeckRailProps) {
   const [expanded, setExpanded] = useState(false)
+  const renameDeck = useRenameDeck(deck.id)
   const { label, over } = cardCountView(totalCards, deckSize)
   const commanderNames = commanders.map((c) => c.name)
   const hasCommander = commanders.length > 0 && !!deck.commander_scryfall_id
@@ -84,7 +87,14 @@ export function DeckRail({ deck, commanders, cards, totalCards, deckSize, allCar
             </div>
           ) : null}
           <div className="space-y-2 p-4">
-            <h1 className="break-words text-[length:var(--fs-xl)] font-semibold leading-tight">{deck.name}</h1>
+            <h1>
+              <InlineNameField
+                name={deck.name}
+                onSave={renameDeck}
+                reach="page"
+                textClassName="text-[length:var(--fs-xl)] font-semibold leading-tight"
+              />
+            </h1>
             {isPrecon && (
               <span
                 className="mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[length:var(--fs-sm)] font-medium"

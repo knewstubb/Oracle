@@ -9,6 +9,8 @@ import { NextRequest } from 'next/server'
 import type { Database } from '@/types/supabase'
 import { syncDeckColourIdentity } from '@/lib/deck-colour-identity'
 import type { PatchDeckCommanderBody } from '../../../../../docs/oracle/contracts/manabox-import.types'
+import type { DeckRenameError } from '../../../../../docs/oracle/contracts/deck-rename-and-reorder.types'
+import { checkDeckName, hasNameClash } from '@/lib/deck-name'
 
 export const runtime = 'nodejs'
 
@@ -312,6 +314,9 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
  * (`commander_id`, `commander_name`, `commander_scryfall_id`). Setting a
  * commander is a single `UPDATE decks` scoped to the authenticated user, used
  * by the post-import commander picker (D-052) and later changes (contract §15.3).
+ *
+ * A body with `name` renames the deck (contract deck-rename-and-reorder, section 2): trimmed, 1 to 100
+ * characters, not used by another deck of this user (ignoring capitals). Errors are `{ error: DeckRenameError }`.
  */
 export async function PATCH(
   request: NextRequest,
@@ -334,6 +339,10 @@ export async function PATCH(
   }
 
   const supabase = createAdminClient()
+
+  if (body && typeof body === 'object' && 'name' in body) {
+    return renameDeck(supabase, authResult.id, deckId, (body as { name?: unknown }).name)
+  }
 
   // Verify deck ownership and read the format (needed for commander legality).
   const { data: deck, error: deckErr } = await supabase
@@ -451,4 +460,40 @@ export async function PATCH(
   }
 
   return Response.json({ success: true, updated: updatePayload, ...(commanderCard ? { commanderCard } : {}) })
+}
+
+const RENAME_ERROR_STATUS: Record<DeckRenameError, number> = {
+  name_empty: 400,
+  name_too_long: 400,
+  name_taken: 409,
+  not_found: 404,
+  save_failed: 500,
+}
+
+function renameError(error: DeckRenameError) {
+  return Response.json({ error }, { status: RENAME_ERROR_STATUS[error] })
+}
+
+/** Rename: writes only decks.name. No History or Recent changes entry for an owner rename. */
+async function renameDeck(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  deckId: number,
+  rawName: unknown
+) {
+  const checked = checkDeckName(rawName)
+  if (!checked.ok) return renameError(checked.error)
+
+  const { data: decks, error: listErr } = await supabase.from('decks').select('id, name').eq('user_id', userId)
+  if (listErr) return renameError('save_failed')
+  if (!(decks ?? []).some((d) => d.id === deckId)) return renameError('not_found')
+  if (hasNameClash(decks ?? [], deckId, checked.name)) return renameError('name_taken')
+
+  const { error: updateErr } = await supabase
+    .from('decks')
+    .update({ name: checked.name })
+    .eq('id', deckId)
+    .eq('user_id', userId)
+  if (updateErr) return renameError('save_failed')
+  return Response.json({ ok: true, name: checked.name })
 }

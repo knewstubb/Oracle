@@ -145,7 +145,7 @@ describe('DeckTile accessibility', () => {
         colourIdentity={[]}
       />
     )
-    const link = screen.getByRole('link')
+    const link = screen.getByTestId('deck-tile')
     expect(link.className).toContain('motion-reduce:transition-none')
   })
 })
@@ -297,7 +297,7 @@ describe('Reduced motion support', () => {
         colourIdentity={[]}
       />
     )
-    const link = screen.getByRole('link')
+    const link = screen.getByTestId('deck-tile')
     expect(link.className).toContain('motion-reduce:transition-none')
     expect(link.className).toContain('motion-reduce:hover:translate-y-0')
   })

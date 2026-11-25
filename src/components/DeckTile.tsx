@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Construction, Trash2, FlaskConical, FolderInput } from 'lucide-react'
+import { Check, Construction, Trash2, FlaskConical, FolderInput, TextCursorInput } from 'lucide-react'
 import { toast } from 'sonner'
 import { CardImage } from '@/components/CardImage'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog'
@@ -11,6 +11,8 @@ import { Button } from '@/components/ui/button'
 import { validateDeckCount } from '@/lib/format-config'
 import { cn } from '@/lib/utils'
 import { useDeleteDeck } from '@/hooks/useDeleteDeck'
+import { useRenameDeck } from '@/hooks/useRenameDeck'
+import { InlineNameField, type InlineNameFieldHandle } from '@/components/InlineNameField'
 
 export type HealthPipStatus = 'ok' | 'warn' | 'crit'
 /** Automatic deck status (see docs/oracle/specs/vocabulary.md, Deck status). */
@@ -109,6 +111,10 @@ export function DeckTile({
   const queryClient = useQueryClient()
 
   const deleteMutation = useDeleteDeck({ id, name })
+  const renameDeck = useRenameDeck(id)
+  const nameField = useRef<InlineNameFieldHandle>(null)
+  // While the name field is open the rest of the tile is inert: a click there only ends the edit.
+  const [renaming, setRenaming] = useState(false)
   const moveMutation = useMutation({
     mutationFn: async (targetFolderId: number | null) => {
       const res = await fetch(`/api/decks/${id}/folder`, {
@@ -157,12 +163,15 @@ export function DeckTile({
     e.dataTransfer.effectAllowed = 'move'
   }
 
+  const handleRenameClick = () => {
+    setContextMenuPos(null)
+    nameField.current?.startEditing()
+  }
   return (
     <>
-      <Link
-        href={`/decks/${id}`}
-        aria-label={`${name} — ${commanderName}`}
-        draggable
+      <div
+        data-testid="deck-tile"
+        draggable={!renaming}
         onDragStart={handleDragStart}
         className={cn(
           'group relative block w-full aspect-[236/260] min-w-[200px] overflow-hidden rounded-2xl',
@@ -170,7 +179,6 @@ export function DeckTile({
           'transition-all duration-200 ease-out',
           'hover:-translate-y-1 hover:[box-shadow:0px_4px_8px_3px_rgba(0,0,0,0.4),0px_1px_3px_rgba(0,0,0,0.5)]',
           'motion-reduce:transition-none motion-reduce:hover:translate-y-0',
-          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background',
           !isPlayable && 'opacity-80',
         )}
         style={{
@@ -179,6 +187,23 @@ export function DeckTile({
         }}
         onContextMenu={handleContextMenu}
       >
+      {/* The whole tile opens the deck. The name control sits above this link, so it is not nested inside it. */}
+      <Link
+        href={`/decks/${id}`}
+        aria-label={`${name} — ${commanderName}`}
+        draggable={false}
+        onKeyDown={(e) => {
+          if (e.key === 'F2') {
+            e.preventDefault()
+            nameField.current?.startEditing()
+          }
+        }}
+        className={cn(
+          'absolute inset-0 z-[1] rounded-2xl',
+          'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary',
+          renaming && 'pointer-events-none',
+        )}
+      />
       {/* Commander art — 60% of card height */}
       <div className="relative h-[60%] overflow-hidden">
         <CardImage
@@ -225,8 +250,14 @@ export function DeckTile({
         {/* Text content */}
         <div>
           {/* Deck name */}
-          <h3 className="truncate text-[14px] font-semibold text-white leading-[18px]">
-            {name}
+          <h3>
+            <InlineNameField
+              ref={nameField}
+              name={name}
+              onSave={renameDeck}
+              onEditingChange={setRenaming}
+              textClassName="text-[14px] font-semibold text-white leading-[18px]"
+            />
           </h3>
           
           {/* Commander name — muted gray */}
@@ -274,7 +305,7 @@ export function DeckTile({
           </div>
         )}
       </div>
-    </Link>
+    </div>
 
     {/* Right-click context menu */}
     {contextMenuPos && (
@@ -286,6 +317,14 @@ export function DeckTile({
           setShowMoveSubmenu(false)
         }}
       >
+        <button
+          type="button"
+          onClick={handleRenameClick}
+          className="flex w-full items-center gap-2 px-3 py-1.5 text-[length:var(--fs-xs)] text-foreground transition-colors hover:bg-[var(--bg-surface-hover)]"
+        >
+          <TextCursorInput className="size-3" />
+          Rename
+        </button>
         {/* Move to folder option */}
         <div 
           className="relative"

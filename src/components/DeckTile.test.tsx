@@ -52,8 +52,8 @@ describe('DeckTile', () => {
 
   it('renders deck name as heading', () => {
     renderWithProviders(<DeckTile {...defaultProps} />)
-    const heading = screen.getByText('Muldrotha Graveyard')
-    expect(heading.tagName).toBe('H3')
+    const heading = screen.getByRole('heading', { level: 3 })
+    expect(heading).toHaveTextContent('Muldrotha Graveyard')
   })
 
   it('renders commander name as subtitle', () => {
@@ -125,14 +125,14 @@ describe('DeckTile', () => {
 
   it('has M3 elevation shadow and rounded-2xl on tile container', () => {
     const { container } = renderWithProviders(<DeckTile {...defaultProps} />)
-    const link = container.querySelector('a')!
+    const link = screen.getByTestId('deck-tile')
     expect(link.className).toContain('rounded-2xl')
     expect(link.className).toContain('hover:-translate-y-1')
   })
 
   it('respects prefers-reduced-motion on tile container', () => {
     const { container } = renderWithProviders(<DeckTile {...defaultProps} />)
-    const link = container.querySelector('a')!
+    const link = screen.getByTestId('deck-tile')
     expect(link.className).toContain('motion-reduce:transition-none')
     expect(link.className).toContain('motion-reduce:hover:translate-y-0')
   })
@@ -171,10 +171,10 @@ describe('DeckTile', () => {
   })
   it('dims the tile unless it is Playable', () => {
     const brewing = renderWithProviders(<DeckTile {...defaultProps} status="brewing" />)
-    expect(brewing.container.querySelector('a')!.className).toContain('opacity-80')
+    expect(brewing.container.querySelector('[data-testid="deck-tile"]')!.className).toContain('opacity-80')
     brewing.unmount()
     const ready = renderWithProviders(<DeckTile {...defaultProps} status="playable" />)
-    expect(ready.container.querySelector('a')!.className).not.toContain('opacity-80')
+    expect(ready.container.querySelector('[data-testid="deck-tile"]')!.className).not.toContain('opacity-80')
   })
   it('keeps the count text next to the badge', () => {
     renderWithProviders(<DeckTile {...defaultProps} status="assembling" cardCount={55} sleevedCount={14} />)

@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Oracle · Deck rail: Cards and Deck Health, three options each</title>
+<style>
+:root{
+  --bg:#0b0b0d;--surface:#1A1A1E;--hover:#212126;--line:#2a2a2f;--ctl:#8A8A93;
+  --text:#E8E8EA;--text2:#9C9CA3;--text3:#6E6E76;
+  --warn:#EF9F27;--warn-bg:rgba(239,159,39,.13);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;padding:24px}
+h1{font-size:18px;margin:0 0 4px}
+.lead{color:var(--text2);font-size:13px;margin:0 0 20px}
+.row{display:flex;gap:28px;margin-bottom:36px;align-items:flex-start}
+.opt{width:304px;flex:none}
+.opt .tag{font-size:13px;font-weight:650;margin-bottom:2px}
+.opt .why{font-size:12px;color:var(--text2);margin-bottom:10px;min-height:52px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:16px}
+.panel h2{margin:0 0 12px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--text2);font-weight:600}
+.sect{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--text2);font-weight:600;margin:0 0 14px}
+.muted{color:var(--text2)}.dim{color:var(--text3)}
+.warn{color:var(--warn)}
+svg.i{width:16px;height:16px;flex:none;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;vertical-align:-3px}
+.sep{border:0;border-top:1px solid var(--line);margin:12px 0}
+.num{font-variant-numeric:tabular-nums}
+
+/* H1 table */
+table.ht{width:100%;border-collapse:collapse;font-size:13px}
+.ht th{padding-left:10px!important;font-size:11px;font-weight:600;color:var(--text3);text-align:right;padding:0 0 6px;text-transform:uppercase;letter-spacing:.05em}
+.ht th:first-child{text-align:left}
+.ht td{padding:8px 0 8px 10px;border-top:1px solid var(--line);text-align:right}
+.ht td:first-child,.ht th:first-child{text-align:left;padding-left:0!important}
+.ht td.have{font-weight:650;font-size:14px}
+.ht td.need{width:56px;font-weight:650}
+.ht tr.total td{color:var(--text2)}
+
+/* H2 tiles */
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.tile{border:1px solid var(--line);border-radius:8px;padding:10px 10px 9px;background:#16161a}
+.tile.bad{border-color:rgba(239,159,39,.45);background:var(--warn-bg)}
+.tile .l{font-size:12px;color:var(--text2);line-height:1.25;min-height:30px}
+.tile .n{font-size:22px;font-weight:650;line-height:1.1;margin-top:2px}
+.tile .n small{font-size:12px;font-weight:400;color:var(--text2);margin-left:4px}
+.tile .s{font-size:12px;margin-top:3px;display:flex;gap:4px;align-items:center}
+.tile.wide{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center}
+.tile.wide .l{min-height:0}
+
+/* H3 problems first */
+.fix{list-style:none;margin:0 0 4px;padding:0}
+.fix li{display:flex;justify-content:space-between;align-items:baseline;padding:9px 0;border-top:1px solid var(--line);font-size:13px}
+.fix li:first-child{border-top:0}
+.fix .add{font-weight:650;color:var(--warn);white-space:nowrap}
+.fix .sub{display:block;font-size:12px;color:var(--text2)}
+.ok{font-size:13px;color:var(--text2);line-height:1.6}
+.ok b{color:var(--text);font-weight:600}
+.headline{display:flex;gap:8px;align-items:flex-start;font-weight:600;font-size:14px;margin-bottom:10px}
+
+/* Cards */
+.big{font-size:26px;font-weight:650;line-height:1.1}
+.big small{font-size:13px;color:var(--text2);font-weight:400;margin-left:6px}
+dl.kv{display:grid;grid-template-columns:1fr auto;gap:0;margin:0;font-size:13px}
+dl.kv dt,dl.kv dd{margin:0;padding:7px 0;border-top:1px solid var(--line)}
+dl.kv dd{text-align:right;font-weight:600}
+dl.kv dd span{font-weight:400;color:var(--text2);margin-left:4px}
+.status{display:flex;align-items:center;gap:8px;font-weight:600;font-size:15px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:12px;color:var(--text2)}
+.chip b{color:var(--text)}
+.chip.z{opacity:.55}
+.sw{width:10px;height:10px;border-radius:2px;display:inline-block}
+.sw.orig{background:var(--text2)}
+.sw.open{border:1.5px solid var(--text2)}
+.sw.proxy{background:repeating-linear-gradient(45deg,var(--text2) 0 2px,transparent 2px 4px);border:1px solid var(--text2)}
+.sw.claim{background:radial-gradient(var(--text2) 1px,transparent 1.3px) 0 0/3px 3px;border:1px solid var(--text2)}
+.check{list-style:none;margin:0;padding:0}
+.check li{display:grid;grid-template-columns:22px 1fr auto;gap:4px;padding:9px 0;border-top:1px solid var(--line);font-size:13px;align-items:start}
+.check li:first-child{border-top:0}
+.check .t{font-weight:600}
+.check .d{display:block;font-size:12px;color:var(--text2);font-weight:400}
+.check .r{text-align:right;font-weight:600;white-space:nowrap}
+.foot{display:flex;justify-content:space-between;font-size:12px;color:var(--text2);margin-top:10px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 2 20h20L12 3z"/><path d="M12 10v4M12 17h.01"/></symbol>
+  <symbol id="tick" viewBox="0 0 24 24"><path d="m5 12 5 5 9-10"/></symbol>
+  <symbol id="half" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/></symbol>
+  <symbol id="up" viewBox="0 0 24 24"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+</svg>
+
+<h1>Deck rail: Cards and Deck Health</h1>
+<p class="lead">Three ways to show each section without range bars. Amber only where something needs attention; everything else neutral, with an icon and words.</p>
+
+<div class="sect">Deck Health</div>
+<div class="row">
+
+  <!-- H1 -->
+  <div class="opt">
+    <div class="tag">H1 · Plain table</div>
+    <div class="why">Have, target and what's missing in three columns. Easiest to scan and compare; reads like a spreadsheet.</div>
+    <div class="panel">
+      <h2>Deck Health</h2>
+      <table class="ht num">
+        <tr><th>Category</th><th>Have</th><th>Target</th><th>Need</th></tr>
+        <tr><td>Ramp</td><td class="have">7</td><td class="muted">10–12</td><td class="need warn">+3</td></tr>
+        <tr><td>Board Wipes</td><td class="have">0</td><td class="muted">3–6</td><td class="need warn">+3</td></tr>
+        <tr><td>Card Advantage</td><td class="have">9</td><td class="muted">10–12</td><td class="need warn">+1</td></tr>
+        <tr><td>Lands</td><td class="have">38</td><td class="muted">35–38</td><td class="need dim"><svg class="i"><use href="#tick"/></svg></td></tr>
+        <tr><td>Targeted Removal</td><td class="have">11</td><td class="muted">10–12</td><td class="need dim"><svg class="i"><use href="#tick"/></svg></td></tr>
+        <tr class="total"><td>Game Plan &amp; Win Conditions</td><td class="have" style="color:var(--text)">37</td><td></td><td></td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- H2 -->
+  <div class="opt">
+    <div class="tag">H2 · Number tiles</div>
+    <div class="why">Each category is a small tile with a big number. Problem tiles get an amber outline, so the gaps stand out at a glance.</div>
+    <div class="panel">
+      <h2>Deck Health</h2>
+      <div class="tiles num">
+        <div class="tile bad"><div class="l">Ramp</div><div class="n">7<small>/ 10–12</small></div><div class="s warn"><svg class="i"><use href="#warn"/></svg>Light, add 3</div></div>
+        <div class="tile bad"><div class="l">Board Wipes</div><div class="n">0<small>/ 3–6</small></div><div class="s warn"><svg class="i"><use href="#warn"/></svg>Light, add 3</div></div>
+        <div class="tile bad"><div class="l">Card Advantage</div><div class="n">9<small>/ 10–12</small></div><div class="s warn"><svg class="i"><use href="#warn"/></svg>Light, add 1</div></div>
+        <div class="tile"><div class="l">Lands</div><div class="n">38<small>/ 35–38</small></div><div class="s muted"><svg class="i"><use href="#tick"/></svg>On target</div></div>
+        <div class="tile"><div class="l">Targeted Removal</div><div class="n">11<small>/ 10–12</small></div><div class="s muted"><svg class="i"><use href="#tick"/></svg>On target</div></div>
+        <div class="tile"><div class="l">Game Plan &amp; Win Conditions</div><div class="n">37</div><div class="s muted">Total</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- H3 -->
+  <div class="opt">
+    <div class="tag">H3 · To-do first</div>
+    <div class="why">Only the gaps get a row, written as what to add. Categories on target fold into one line. Shortest, and grows only when there's work to do.</div>
+    <div class="panel">
+      <h2>Deck Health</h2>
+      <div class="headline warn"><svg class="i" style="margin-top:2px"><use href="#warn"/></svg>7 cards short across 3 categories</div>
+      <ul class="fix num">
+        <li><span>Ramp<span class="sub">7 now, target 10–12</span></span><span class="add">Add 3</span></li>
+        <li><span>Board Wipes<span class="sub">0 now, target 3–6</span></span><span class="add">Add 3</span></li>
+        <li><span>Card Advantage<span class="sub">9 now, target 10–12</span></span><span class="add">Add 1</span></li>
+      </ul>
+      <hr class="sep">
+      <div class="ok num" style="display:flex;gap:6px"><svg class="i" style="margin-top:3px"><use href="#tick"/></svg><span>On target<br><b>Lands 38</b> · <b>Targeted Removal 11</b></span></div>
+      <div class="ok num">Game Plan &amp; Win Conditions: <b>37</b></div>
+    </div>
+  </div>
+</div>
+
+<div class="sect">Cards</div>
+<div class="row">
+
+  <!-- C1 -->
+  <div class="opt">
+    <div class="tag">C1 · Key facts list</div>
+    <div class="why">Big count on top, then one line per fact. No bar or legend to decode; every number appears once.</div>
+    <div class="panel">
+      <h2>Cards</h2>
+      <div class="big num">101<small>/ 100 planned</small></div>
+      <div class="warn" style="font-size:13px;margin:4px 0 12px;display:flex;gap:6px;align-items:center"><svg class="i"><use href="#warn"/></svg>1 over, remove 1 card</div>
+      <dl class="kv num">
+        <dt>Sleeved</dt><dd>100 <span>Original</span></dd>
+        <dt>Not sleeved</dt><dd>1 <span>Open</span></dd>
+        <dt>Legality</dt><dd><span style="margin:0;color:var(--text)">Nothing illegal found</span></dd>
+        <dt>Est. value</dt><dd>$43.86</dd>
+      </dl>
+      <hr class="sep">
+      <div class="status"><svg class="i"><use href="#half"/></svg>Assembling</div>
+    </div>
+  </div>
+
+  <!-- C2 -->
+  <div class="opt">
+    <div class="tag">C2 · Status headline + chips</div>
+    <div class="why">Deck status leads, with one sentence on what's left. Copy states sit as small pattern chips; empty ones fade.</div>
+    <div class="panel">
+      <h2>Cards</h2>
+      <div class="status"><svg class="i"><use href="#half"/></svg>Assembling</div>
+      <div style="font-size:13px;margin-top:6px" class="num">101 of 100 planned, 100 sleeved.</div>
+      <div class="warn num" style="font-size:13px;display:flex;gap:6px;align-items:center;margin-top:2px"><svg class="i"><use href="#warn"/></svg>1 over, and 1 card not sleeved</div>
+      <div class="chips num">
+        <span class="chip"><i class="sw orig"></i><b>100</b> Original</span>
+        <span class="chip"><i class="sw open"></i><b>1</b> Open</span>
+        <span class="chip z"><i class="sw proxy"></i><b>0</b> Proxy</span>
+        <span class="chip z"><i class="sw claim"></i><b>0</b> In other decks</span>
+      </div>
+      <hr class="sep">
+      <div class="foot"><span><svg class="i"><use href="#tick"/></svg> Legal so far</span><span class="num">Est. value $43.86</span></div>
+    </div>
+  </div>
+
+  <!-- C3 -->
+  <div class="opt">
+    <div class="tag">C3 · Checklist to Playable</div>
+    <div class="why">Shows the three things a deck needs to be Playable and which ones aren't met. Explains why it's still Assembling.</div>
+    <div class="panel">
+      <h2>Cards</h2>
+      <div class="status" style="margin-bottom:10px"><svg class="i"><use href="#half"/></svg>Assembling <span class="muted" style="font-weight:400;font-size:13px">· 2 steps to Playable</span></div>
+      <ul class="check num">
+        <li><svg class="i warn"><use href="#warn"/></svg><span class="t">Exactly 100 cards<span class="d">1 over, remove 1</span></span><span class="r warn">101</span></li>
+        <li><svg class="i warn"><use href="#warn"/></svg><span class="t">All sleeved<span class="d">1 Open in storage</span></span><span class="r">100<span class="muted" style="font-weight:400"> / 101</span></span></li>
+        <li><svg class="i muted"><use href="#tick"/></svg><span class="t">Legal<span class="d">Nothing illegal found</span></span><span class="r muted"></span></li>
+      </ul>
+      <div class="foot"><span>Est. value</span><span class="num">$43.86</span></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

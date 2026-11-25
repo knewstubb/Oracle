@@ -1,0 +1,43 @@
+proposed_tag,kind,recommendation,scryfall_tags_used_with_sub_tags,commander_legal_cards,share_pct,owner_cards,owner_share_pct,edhrec_pool_cards,edhrec_pool_share_pct,note,examples_most_played_first
+Targeted removal,Broad,keep,"removal (minus sweeper, player burn, land removal)",4911,15.0,393,13.7,858,10.9,"Largest tag; includes aura, equipment, vehicle removal",Swords to Plowshares; Path to Exile; Feed the Swarm
+Card draw,Broad,keep,draw,4048,12.4,439,15.3,1296,16.4,,Mind Stone; Solemn Simulacrum; Skullclamp
+Ramp,Broad,keep,ramp,2136,6.5,326,11.3,982,12.4,,Sol Ring; Arcane Signet; Path to Exile
+Recursion,Broad,keep,recursion,2130,6.5,197,6.8,616,7.8,Contains Reanimation (97%); keep one Tag,Reanimate; Eternal Witness; Victimize
+Card selection,Broad,keep,scry + surveil + top-deck-manipulation + loot + rummage,1614,4.9,174,6.0,427,5.4,"Partly overlaps Card draw (loot, rummage) and Discard outlet",Path of Ancestry; Brainstorm; Faithless Looting
+Protection,Broad,keep,protection,1261,3.9,106,3.7,406,5.1,,Swiftfoot Boots; Lightning Greaves; Heroic Intervention
+Tutor,Broad,keep,tutor,1114,3.4,153,5.3,368,4.7,,Path to Exile; Evolving Wilds; Cultivate
+Fixing,Broad,keep,mana-fix + mana-filter + dual-land + tutor-land-basic,1056,3.2,279,9.7,462,5.9,WEAK: see report,Path to Exile; Evolving Wilds; Cultivate
+Board wipe,Broad,keep,sweeper,904,2.8,73,2.5,235,3.0,,Blasphemous Act; Cyclonic Rift; Toxic Deluge
+Hand disruption,Broad,keep,hand-disruption,655,2.0,24,0.8,106,1.3,,Geier Reach Sanitarium; Sword of Feast and Famine; Wheel of Fortune
+Stax / tax,Broad,keep,tax + lockdown + mass-land-denial,643,2.0,61,2.1,178,2.3,WEAK: see report,Rhystic Study; Smothering Tithe; Esper Sentinel
+Counterspell,Broad,keep,counterspell,520,1.6,70,2.4,127,1.6,,Counterspell; An Offer You Can't Refuse; Negate
+Graveyard hate,Broad,keep,hate-graveyard,408,1.2,38,1.3,116,1.5,,Bojuka Bog; Farewell; Scavenger Grounds
+Direct damage or life loss to opponents,Mechanic,keep,burn-player + drain-life + opponent-loses-life + group-slug,2573,7.9,218,7.6,701,8.9,,Blood Artist; Lightning Bolt; Boros Charm
++1/+1 counter maker,Mechanic,keep,gives-pp-counters + repeatable-pp-counters,2491,7.6,278,9.7,783,9.9,,Rhythm of the Wild; The Great Henge; Orcish Bowmasters
+Lifegain,Mechanic,keep,lifegain,2468,7.6,251,8.7,678,8.6,,Swords to Plowshares; Blood Artist; Tireless Provisioner
+Token generator,Mechanic,keep,repeatable-token-generator,1750,5.4,210,7.3,823,10.4,,Smothering Tithe; Black Market Connections; Tireless Provisioner
+Play from exile (impulse),Mechanic,keep,impulse + repeatable-impulse + gives-castable-from-exile + castable-from-exile,1674,5.1,167,5.8,551,7.0,,Jeska's Will; Mosswort Bridge; Professional Face-Breaker
+Anthem / team pump,Mechanic,keep,power-boost-to-all + toughness-boost-to-all + anthem + keyword-anthem,1599,4.9,213,7.4,623,7.9,,Garruk's Uprising; Return of the Wildspeaker; Rhythm of the Wild
+Death trigger,Mechanic,keep,death-trigger,1533,4.7,163,5.7,444,5.6,,Solemn Simulacrum; Skullclamp; Blood Artist
+Mana sink,Mechanic,keep,mana-sink + bottomless-mana-sink,1504,4.6,124,4.3,362,4.6,,Rogue's Passage; War Room; Karn's Bastion
+Sacrifice outlet,Mechanic,keep,sacrifice-outlet,1400,4.3,136,4.7,357,4.5,,Victimize; Deadly Dispute; Ashnod's Altar
+Discard outlet,Mechanic,keep,discard-outlet,1242,3.8,91,3.2,274,3.5,Overlaps Card selection (54%) and Card draw (64%),Faithless Looting; Frantic Search; Windfall
+Counters payoff,Mechanic,keep,counters-matter + pp-counters-matter,1234,3.8,141,4.9,428,5.4,,Hardened Scales; Everflowing Chalice; Inspiring Call
+Cast trigger,Mechanic,keep,cast-trigger-you,1157,3.5,120,4.2,403,5.1,,Path of Ancestry; Storm-Kiln Artist; Beast Whisperer
+Graveyard payoff,Mechanic,keep,cards-in-graveyard-matter + graveyard-fuel,1030,3.2,77,2.7,259,3.3,,Shifting Woodland; Underworld Breach; Cabal Ritual
+Artifact payoff,Mechanic,keep,synergy-artifact,1028,3.1,110,3.8,319,4.0,,Urza's Saga; Deadly Dispute; Storm-Kiln Artist
+Self-mill,Mechanic,keep,mill-self,986,3.0,123,4.3,282,3.6,,"Takenuma, Abandoned Mire; Syr Konrad, the Grim; Consider"
+Copy / clone,Mechanic,keep,copy,918,2.8,69,2.4,393,5.0,,Scute Swarm; Phyrexian Metamorph; Flusterstorm
+Pinger,Mechanic,drop,pinger,706,2.2,56,1.9,169,2.1,DROP: 82% inside Direct damage; 57% already in Targeted removal,"Impact Tremors; Syr Konrad, the Grim; Orcish Bowmasters"
+Tapper,Mechanic,keep,tapper-creature,652,2.0,32,1.1,119,1.5,,Authority of the Consuls; Dispatch; Blind Obedience
+Steal / gain control,Mechanic,keep,theft + control-changing-effects (minus reanimate-from-opponent),608,1.9,30,1.0,206,2.6,,"Etali, Primal Storm; Ragavan, Nimble Pilferer; Dauthi Voidwalker"
+Creature-enters payoff,Mechanic,keep,creaturefall,589,1.8,103,3.6,256,3.2,,Garruk's Uprising; Impact Tremors; The Great Henge
+Spellslinger payoff,Mechanic,keep,synergy-instant + synergy-sorcery,531,1.6,56,1.9,145,1.8,,Storm-Kiln Artist; Archmage Emeritus; Guttersnipe
+Lands matter,Mechanic,drop,lands-matter,511,1.6,86,3.0,198,2.5,DROP: Landfall sits fully inside it,Fabled Passage; Temple of the False God; Cinder Glade
+Mill opponents,Mechanic,keep,mill-opponent + mill-any,435,1.3,26,0.9,165,2.1,Overlaps Self-mill (54%),"Syr Konrad, the Grim; Etali, Primal Storm; Ragavan, Nimble Pilferer"
+Group hug,Mechanic,keep,group-hug + selective-group-hug,399,1.2,21,0.7,153,1.9,,Faerie Mastermind; Loran of the Third Path; Dawn's Truce
+Free cast / cheat into play,Mechanic,keep,free-cast-another,371,1.1,34,1.2,166,2.1,67% inside Play from exile,"Mosswort Bridge; Rishkar's Expertise; Etali, Primal Storm"
+Cost reducer,Mechanic,keep,cost-reducer + discount-self,297,0.9,38,1.3,168,2.1,,Herald's Horn; Foundry Inspector; Jet Medallion
+Landfall,Mechanic,keep,landfall,270,0.8,50,1.7,114,1.4,KEEP,Tireless Provisioner; Scute Swarm; Avenger of Zendikar
+Treasure generator,Mechanic,keep,repeatable-treasures,191,0.6,19,0.7,118,1.5,KEEP (owner named it): fully inside Token generator and 97% inside Ramp,Smothering Tithe; Black Market Connections; Tireless Provisioner
+Blink,Mechanic,keep,flicker,181,0.6,17,0.6,68,0.9,,Ephemerate; Conjurer's Closet; Displacer Kitten

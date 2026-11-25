@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en" class="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oracle — Rename a deck and reorder decks (mockup, Gate 3)</title>
+<style>
+  /* Colours copied from src/styles/tokens.css. No new colours. */
+  :root{
+    --bg-canvas:#131316; --bg-surface:#1A1A1E; --bg-hover:#212126; --border:#35353A; --border-subtle:#262629;
+    --text-primary:#E8E8EA; --text-secondary:#9C9CA3;
+    --accent-primary:#7138CC; --accent-text:#A57CE0; --accent-bg:rgba(113,56,204,.18);
+    --warning:#EF9F27; --warning-bg:rgba(239,159,39,.15); --critical:#E24B4A; --success:#1D9E75;
+    --brewing:#8F51D5;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg-canvas);color:var(--text-primary);font:13px/1.4 "Helvetica Neue",Helvetica,Arial,sans-serif}
+  button,input,select{font:inherit;color:inherit}
+  :focus-visible{outline:2px solid var(--accent-text);outline-offset:2px}
+  .page{max-width:1000px;margin:0 auto;padding:20px 20px 120px}
+  h1.t{font-size:18px;margin:0 0 4px}
+  h2.sec{font-size:11px;font-weight:500;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin:0}
+  .ann{color:var(--text-secondary);font-size:12px;margin:0 0 10px;max-width:780px}
+  .ann b{color:var(--text-primary);font-weight:500}
+  .try{background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:10px;padding:10px 14px;margin:10px 0 18px;font-size:12px;color:var(--text-secondary)}
+  .try b{color:var(--text-primary);font-weight:500}
+  .try ol{margin:4px 0 0;padding-left:18px}
+  .tools{display:flex;gap:14px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);margin-bottom:18px}
+  .tools label{display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+  .btn{height:26px;padding:0 10px;border-radius:7px;border:1px solid var(--border);background:var(--bg-hover);cursor:pointer;font-size:12px}
+  /* Folder chips (same look as src/components/FolderChip.tsx) */
+  .folders{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 22px}
+  .chip{min-width:140px;display:flex;flex-direction:column;align-items:flex-start;gap:4px;padding:12px 16px;border-radius:8px;border:1px solid var(--border);background:var(--bg-surface);cursor:pointer;text-align:left;transition:transform .12s,background .12s,border-color .12s}
+  .chip:hover{background:var(--bg-hover)}
+  .chip .r1{display:flex;gap:8px;align-items:center;font-size:12px;font-weight:500}
+  .chip .r2{font-size:11px;color:var(--text-secondary)}
+  .chip.sel{border-color:var(--accent-primary)}
+  /* Drop on a folder chip: solid purple border, tint, grows a little, words change */
+  .chip.over{border:2px solid var(--accent-text);background:var(--accent-bg);transform:scale(1.05);padding:11px 15px}
+  .chip.over .r2{color:var(--text-primary);font-weight:500}
+  .chip.new{border-style:dashed;justify-content:center;align-items:center;color:var(--text-secondary);cursor:default}
+  body.dragging .chip:not(.new){border-color:var(--accent-text)} /* every folder shows it can take a deck */
+  .fi{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  /* Decks header row */
+  .dh{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  .dh .sp{flex:1}
+  .dh .note{font-size:11px;color:var(--text-secondary);display:none;align-items:center;gap:6px}
+  .dh .note.show{display:inline-flex}
+  .dh .note.flash{color:var(--text-primary)}
+  .dh select{height:32px;border-radius:8px;border:1px solid var(--border);background:var(--bg-surface);padding:0 8px;font-size:12px;font-weight:500;color:var(--text-secondary)}
+  .back{background:none;border:0;padding:0;color:var(--accent-text);font-size:11px;cursor:pointer;margin:-4px 0 10px;display:none}
+  .back:hover{text-decoration:underline}
+  .saving{display:none;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary)}
+  .saving.show{display:inline-flex}
+  .spin{width:11px;height:11px;border:2px solid var(--border);border-top-color:var(--accent-text);border-radius:50%;animation:sp .8s linear infinite;flex:none}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  /* Status sections */
+  section.grp{margin-bottom:22px;transition:opacity .15s}
+  .grp-h{display:flex;align-items:center;gap:8px;padding:8px 4px;border-bottom:1px solid var(--border);margin-bottom:12px;font-size:12px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;color:var(--text-secondary)}
+  .grp-h .bd{width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px}
+  .grp-h .sp{flex:1}
+  .grp-h .why{display:none;text-transform:none;letter-spacing:0;font-weight:400;font-size:11px;color:var(--text-primary)}
+  /* While dragging in a status group: other groups dim and say why */
+  body.dragging section.grp.other{opacity:.45}
+  body.dragging section.grp.other .why{display:inline}
+  body.dragging section.grp.other.hot{opacity:.7;outline:2px solid var(--warning);outline-offset:4px;border-radius:12px}
+  body.dragging section.grp.mine .why{display:inline;color:var(--text-secondary)}
+  /* Tile grid + tile (same as DeckTile) */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;position:relative}
+  .tile{position:relative;display:block;aspect-ratio:236/260;min-width:200px;overflow:hidden;border-radius:16px;background:#1A1A1A;border:1px solid rgba(255,255,255,.1);box-shadow:0 1px 3px rgba(0,0,0,.4),0 4px 8px 3px rgba(0,0,0,.2);color:inherit;text-decoration:none;cursor:pointer;user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  .tile:hover{transform:translateY(-4px)}
+  body.dragging .tile:hover{transform:none}
+  .tile .art{height:60%;position:relative}
+  .tile .art i{position:absolute;inset:0;filter:brightness(.7)}
+  .tile:hover .art i{filter:brightness(1)}
+  .tile .stat{position:absolute;top:8px;right:8px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;color:#fff;font-size:12px;box-shadow:0 0 0 2px rgba(0,0,0,.35)}
+  .tile .ft{height:40%;padding:12px 12px 8px;display:flex;flex-direction:column;justify-content:space-between;background:#1A1A1A}
+  .nm{position:relative;display:block}
+  .nm h3{margin:0;font-size:14px;font-weight:600;line-height:18px;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;z-index:1}
+  /* Rename, idle hover: a quiet outline appears AROUND the name. Nothing moves. */
+  .nm::before{content:"";position:absolute;inset:-3px -6px;border-radius:6px;border:1px solid transparent;pointer-events:none}
+  .nm.can:hover::before{background:var(--bg-hover);border-color:var(--border)}
+  .nm.can{cursor:text}
+  body.dragging .nm::before{display:none}
+  .cmd{margin:2px 0 0;font-size:12px;line-height:15px;color:#808080;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .cnt{margin:8px 0 0;font-size:12px;line-height:15px;color:#808080}
+  .cnt.ok{color:var(--success)}
+  .bar{height:4px;border-radius:99px;display:flex;gap:2px;overflow:hidden}
+  .bar b{flex:1}
+  /* Rename, editing / saving / error: field is laid over the same text, text stays put */
+  .nm.edit h3,.hname.edit h1{visibility:hidden}
+  .nm.edit::before,.hname.edit::before{display:none}
+  .nm input,.hname input{position:absolute;z-index:2;inset:-3px -6px;width:calc(100% + 12px);padding:0 6px;background:var(--bg-canvas);border:1px solid var(--accent-text);border-radius:6px;font:inherit;font-weight:inherit;line-height:inherit;color:#fff;letter-spacing:inherit;outline:none;box-shadow:0 0 0 3px var(--accent-bg)}
+  .nm.saving input,.hname.saving input{border-color:var(--border);box-shadow:none;color:var(--text-secondary);padding-right:26px}
+  .nm .spin,.hname .spin{position:absolute;z-index:3;right:4px;top:50%;margin-top:-5.5px;display:none}
+  .nm.saving .spin,.hname.saving .spin{display:block}
+  .nm.bad input,.hname.bad input{border-color:var(--critical);box-shadow:0 0 0 3px rgba(226,75,74,.15)}
+  /* Drag: picked-up copy follows the pointer */
+  .ghost{position:fixed;z-index:60;pointer-events:none;margin:0;transform:rotate(2.5deg) scale(1.04);opacity:.94;box-shadow:0 18px 36px rgba(0,0,0,.6),0 0 0 2px var(--accent-text);cursor:grabbing}
+  .ghost.back{transition:left .2s ease,top .2s ease,transform .2s ease,opacity .2s ease;transform:none;opacity:.6}
+  /* Drag: the empty spot where it will land. Empty drop zone, so dashed (D-015). */
+  .tile.ph{background:var(--accent-bg);border:2px dashed var(--accent-text);box-shadow:none;transform:none}
+  .tile.ph>*{visibility:hidden}
+  .tile.ph::after{content:"Drop here";position:absolute;inset:0;display:grid;place-items:center;font-size:12px;color:var(--text-primary)}
+  .tag{position:fixed;z-index:70;pointer-events:none;display:none;align-items:center;gap:6px;height:26px;padding:0 10px;border-radius:7px;background:var(--bg-surface);border:1px solid var(--accent-text);font-size:12px;white-space:nowrap;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+  .tag.warn{border-color:var(--warning);background:#2a2113}
+  .tag.show{display:inline-flex}
+  body.dragging,body.dragging *{cursor:grabbing!important}
+  body.dragging.refuse,body.dragging.refuse *{cursor:not-allowed!important}
+  /* Deck page header strip */
+  .deck{border:1px solid var(--border);border-radius:12px;background:var(--bg-canvas);margin:10px 0 28px}
+  .hdr{display:flex;align-items:center;gap:12px;padding:12px 18px;min-height:64px}
+  .av{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2a4a44,#1b2a3a);border:1px solid var(--border);flex:none}
+  .hmeta{min-width:0;flex:1}
+  .hrow{display:flex;gap:8px;align-items:center}
+  .hname{position:relative;min-width:0;display:block}
+  .hname h1{margin:0;font-size:28px;font-weight:500;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative;z-index:1}
+  .hname::before{content:"";position:absolute;inset:-2px -6px;border-radius:6px;border:1px solid transparent;pointer-events:none}
+  .hname.can{cursor:text}
+  .hname.can:hover::before{background:var(--bg-hover);border-color:var(--border)}
+  .hname input{inset:-2px -6px;font-size:28px;line-height:1.25}
+  .hname input{height:calc(100% + 4px)}
+  .nm input{height:calc(100% + 6px)}
+  .badge{display:inline-flex;align-items:center;height:22px;padding:0 8px;border:1px solid var(--border);border-radius:99px;font-size:12px;color:var(--text-secondary)}
+  .hsub{margin-top:4px;color:var(--text-secondary);font-size:12px}
+  /* Toasts (existing sonner pattern) */
+  .toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:80;max-width:380px}
+  .toast{background:var(--bg-surface);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:12px;box-shadow:0 10px 30px rgba(0,0,0,.5);display:flex;gap:10px;align-items:flex-start}
+  .toast.err{border-color:var(--critical)}
+  .toast .ic{flex:none;font-weight:700;margin-top:-1px}
+  .toast.err .ic{color:var(--critical)}
+  .toast button{background:none;border:0;color:var(--text-primary);text-decoration:underline;cursor:pointer;padding:0;margin-left:6px}
+  .sr{position:absolute;left:-9999px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="t">Rename a deck and reorder decks</h1>
+  <p class="ann">Gate 3 mockup for UX-05 and UX-03. It works: drag tiles, drop them on folder chips, click a deck name to rename it. Everything uses the colours, tile, folder chip and message style the app already has. Fake data; nothing is saved.</p>
+  <div class="try">
+    <b>Try this</b>
+    <ol>
+      <li><b>Reorder.</b> Drag a tile. A dashed "Drop here" spot shows where it will land and the other tiles slide aside.</li>
+      <li><b>Folder or order?</b> Drag the same tile over a folder chip. The chip lights up purple and says "Drop to file here". Over the tiles you only see the dashed spot. Never both.</li>
+      <li><b>Group: Status.</b> Switch the group menu to "Group: Status", then drag a Playable tile into the Assembling group. It is refused and goes back.</li>
+      <li><b>Folder open.</b> Click a folder chip. Tiles no longer reorder, and a note says so. Dropping on another folder chip still files the deck.</li>
+      <li><b>Failure.</b> Tick "Make the next save fail", then reorder or rename. The old order or name comes back with a message.</li>
+      <li><b>Rename.</b> Click a deck name (on a tile or in the deck page strip at the bottom). Enter or clicking away saves. Escape cancels. Try an empty name, or "prosper" while a deck called "Prosper" exists.</li>
+    </ol>
+  </div>
+  <div class="tools">
+    <label><input type="checkbox" id="fail"> Make the next save fail</label>
+    <button class="btn" id="reset" type="button">Reset the mockup</button>
+  </div>
+
+  <h2 class="sec">Folders</h2>
+  <div class="folders" id="folders"></div>
+
+  <div class="dh">
+    <h2 class="sec" id="dhTitle">All Decks</h2>
+    <span class="saving" id="saving" role="status"><span class="spin"></span>Saving order…</span>
+    <span class="sp"></span>
+    <span class="note" id="note"><svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg>Reordering is off while a folder is open. Dropping on a folder chip still files a deck.</span>
+    <select id="group" aria-label="Group by"><option value="none">Group: None</option><option value="status">Group: Status</option></select>
+  </div>
+  <button class="back" id="back" type="button">← Show all decks</button>
+  <div id="decks"></div>
+
+  <h2 class="sec" style="margin-top:34px">Deck page (same rename, larger name)</h2>
+  <div class="deck"><div class="hdr"><div class="av"></div><div class="hmeta"><div class="hrow"><span class="hname can" id="hname" title="Rename"><h1 id="h1"></h1></span><span class="badge">Playable</span></div><div class="hsub">Commander · 100/100 (100 sleeved)</div></div></div></div>
+</div>
+<div class="tag" id="tag"></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+const STATUS={playable:{label:'Playable',col:'#1D9E75',ic:'✓'},assembling:{label:'Assembling',col:'#EF9F27',ic:'⚒'},brewing:{label:'Brewing',col:'#8F51D5',ic:'⚗'}};
+const GROUP_ORDER=['playable','assembling','brewing'];
+const SEED=[
+ {id:1,name:'Atraxa Superfriends',cmd:'Atraxa, Praetors\' Voice',st:'playable',f:1,g:['#2a6a5a','#1b3a6a'],cols:['#F8F6D8','#0E68AB','#00733E','#150B00']},
+ {id:2,name:'Korvold',cmd:'Korvold, Fae-Cursed King',st:'playable',f:1,g:['#6a2a3a','#2a6a3a'],cols:['#150B00','#D3202A','#00733E']},
+ {id:3,name:'Prosper',cmd:'Prosper, Tome-Bound',st:'playable',f:2,g:['#6a4a2a','#3a2a5a'],cols:['#150B00','#D3202A']},
+ {id:4,name:'Edgar Markov',cmd:'Edgar Markov',st:'assembling',f:1,g:['#5a2a2a','#2a2a4a'],cols:['#F8F6D8','#150B00','#D3202A']},
+ {id:5,name:'Muldrotha',cmd:'Muldrotha, the Gravetide',st:'assembling',f:null,g:['#2a4a3a','#2a3a6a'],cols:['#150B00','#00733E','#0E68AB']},
+ {id:6,name:'Talrand Tempo',cmd:'Talrand, Sky Summoner',st:'playable',f:2,g:['#2a3a6a','#4a5a8a'],cols:['#0E68AB']},
+ {id:7,name:'Yuriko Ninjas',cmd:'Yuriko, the Tiger\'s Shadow',st:'brewing',f:null,g:['#3a2a4a','#1a1a2a'],cols:['#150B00','#0E68AB']},
+ {id:8,name:'Kinnan',cmd:'Kinnan, Bonder Prodigy',st:'assembling',f:null,g:['#2a5a4a','#3a5a2a'],cols:['#00733E','#0E68AB']},
+ {id:9,name:'Zur Enchantress',cmd:'Zur the Enchanter',st:'brewing',f:null,g:['#4a3a2a','#2a2a3a'],cols:['#F8F6D8','#0E68AB','#150B00']},
+];
+const FOLDERS=[{id:1,name:'Commander night'},{id:2,name:'Budget'}];
+let decks,order,folderSel,groupBy,drag=null,busy=false,suppressClick=false;
+const $=s=>document.querySelector(s);
+const byId=id=>decks.find(d=>d.id===id);
+function reset(){decks=SEED.map(d=>({...d}));order=SEED.map(d=>d.id);folderSel=null;groupBy='none';$('#group').value='none';render();}
+function toast(msg,{err=false,info=false,action=null}={}){
+  const t=document.createElement('div');t.className='toast'+(err?' err':'');
+  t.innerHTML='<span class="ic">'+(err?'!':info?'i':'✓')+'</span><span></span>';
+  t.lastChild.textContent=msg;
+  if(action){const b=document.createElement('button');b.textContent=action.label;b.onclick=()=>{t.remove();action.fn();};t.lastChild.appendChild(b);}
+  $('#toasts').appendChild(t);setTimeout(()=>t.remove(),action?9000:5000);
+}
+/* ---------- rendering ---------- */
+function tile(d){
+  const a=document.createElement('a');a.className='tile';a.href='#';a.dataset.id=d.id;a.setAttribute('aria-label',d.name+' — '+d.cmd);
+  const s=STATUS[d.st];
+  a.innerHTML='<div class="art"><i style="background:linear-gradient(135deg,'+d.g[0]+','+d.g[1]+')"></i><div class="stat" style="background:'+s.col+'" role="img" aria-label="'+s.label+'" title="'+s.label+'">'+s.ic+'</div></div>'+
+   '<div class="ft"><div><span class="nm can" title="Rename" tabindex="0" role="button" aria-label="Rename '+esc(d.name)+'"><h3>'+esc(d.name)+'</h3></span><p class="cmd">'+esc(d.cmd)+'</p><p class="cnt'+(d.st==='playable'?' ok':'')+'">'+(d.st==='playable'?'100/100 (100 sleeved)':d.st==='assembling'?'96/100 (60 sleeved)':'40/100 (0 sleeved)')+'</p></div><div class="bar">'+d.cols.map(c=>'<b style="background:'+c+'"></b>').join('')+'</div></div>';
+  a.addEventListener('click',e=>{e.preventDefault();if(suppressClick){return;}toast('Opens the deck page (not part of this mockup).');});
+  a.draggable=false;a.addEventListener('dragstart',e=>e.preventDefault()); // mockup uses its own pointer drag; the app may use any method
+  a.addEventListener('pointerdown',e=>onDown(e,a,d));
+  const nm=a.querySelector('.nm');
+  nm.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();if(suppressClick)return;startRename(d.id,nm,'tile');});
+  nm.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();e.stopPropagation();startRename(d.id,nm,'tile');}});
+  nm.addEventListener('pointerdown',e=>{});
+  return a;
+}
+function esc(s){return s.replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function visible(){const ids=order.filter(id=>folderSel==null||byId(id).f===folderSel);return ids.map(byId);}
+function render(){
+  // folders
+  const fw=$('#folders');fw.innerHTML='';
+  FOLDERS.forEach(f=>{
+    const n=decks.filter(d=>d.f===f.id).length;
+    const b=document.createElement('button');b.type='button';b.className='chip'+(folderSel===f.id?' sel':'');b.dataset.folder=f.id;
+    b.innerHTML='<span class="r1"><svg class="fi" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>'+esc(f.name)+'</span><span class="r2">'+n+' '+(n===1?'deck':'decks')+'</span>';
+    b.onclick=()=>{folderSel=folderSel===f.id?null:f.id;render();};
+    fw.appendChild(b);
+  });
+  const nf=document.createElement('button');nf.type='button';nf.className='chip new';nf.textContent='+ New folder';fw.appendChild(nf);
+  $('#dhTitle').textContent=folderSel==null?'All Decks':FOLDERS.find(f=>f.id===folderSel).name;
+  $('#note').classList.toggle('show',folderSel!=null);
+  $('#back').style.display=folderSel!=null?'block':'none';
+  // decks
+  const host=$('#decks');host.innerHTML='';
+  const list=visible();
+  if(groupBy==='none'){const g=document.createElement('div');g.className='grid';g.dataset.grid='all';list.forEach(d=>g.appendChild(tile(d)));host.appendChild(g);}
+  else{
+    GROUP_ORDER.forEach(st=>{
+      const items=list.filter(d=>d.st===st);if(!items.length)return;
+      const s=STATUS[st];
+      const sec=document.createElement('section');sec.className='grp';sec.dataset.st=st;
+      sec.innerHTML='<div class="grp-h"><span class="bd" style="background:'+s.col+'" aria-hidden="true">'+s.ic+'</span><span>'+s.label+' ('+items.length+')</span><span class="sp"></span><span class="why"></span></div>';
+      const g=document.createElement('div');g.className='grid';g.dataset.grid=st;items.forEach(d=>g.appendChild(tile(d)));sec.appendChild(g);host.appendChild(sec);
+    });
+  }
+  $('#h1').textContent=byId(1).name;
+}
+$('#group').onchange=e=>{groupBy=e.target.value;render();};
+$('#back').onclick=()=>{folderSel=null;render();};
+$('#reset').onclick=reset;
+/* ---------- drag ---------- */
+function onDown(e,el,d){
+  if(e.button!==0||busy||el.querySelector('input')||e.target.closest('input'))return;
+  const sx=e.clientX,sy=e.clientY;let started=false;
+  const move=ev=>{
+    if(!started){if(Math.hypot(ev.clientX-sx,ev.clientY-sy)<5)return;started=true;begin(ev,el,d);}
+    update(ev);
+  };
+  const up=ev=>{
+    window.removeEventListener('pointermove',move);window.removeEventListener('pointerup',up);window.removeEventListener('pointercancel',up);
+    if(started){suppressClick=true;setTimeout(()=>suppressClick=false,0);finish(ev,ev.type==='pointercancel');}
+  };
+  window.addEventListener('pointermove',move);window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
+}
+function begin(ev,el,d){
+  const r=el.getBoundingClientRect();
+  const ghost=el.cloneNode(true);ghost.classList.add('ghost');ghost.style.width=r.width+'px';ghost.style.height=r.height+'px';
+  ghost.style.left=r.left+'px';ghost.style.top=r.top+'px';document.body.appendChild(ghost);
+  const grid=el.parentElement;
+  drag={id:d.id,el,ghost,grid,offX:ev.clientX-r.left,offY:ev.clientY-r.top,startOrder:order.slice(),home:{parent:grid,next:el.nextSibling},
+    homeRect:r,mode:'none'};
+  el.classList.add('ph');document.body.classList.add('dragging');
+  if(groupBy==='status'){document.querySelectorAll('section.grp').forEach(s=>{const mine=s.dataset.st===d.st;s.classList.add(mine?'mine':'other');
+    s.querySelector('.why').textContent=mine?'Moving within '+STATUS[d.st].label:'Can\u2019t drop here: a deck\u2019s status comes from its cards';});}
+}
+function setTag(text,warn,x,y){const t=$('#tag');t.className='tag show'+(warn?' warn':'');t.textContent=text;t.style.left=(x+16)+'px';t.style.top=(y+18)+'px';}
+function clearTag(){$('#tag').className='tag';}
+function flip(grid,fn){
+  const ts=[...grid.children].filter(x=>x!==drag?.ghost);const before=new Map(ts.map(t=>[t,t.getBoundingClientRect()]));
+  fn();
+  ts.forEach(t=>{const a=before.get(t),b=t.getBoundingClientRect();const dx=a.left-b.left,dy=a.top-b.top;
+    if(dx||dy){t.style.transition='none';t.style.transform='translate('+dx+'px,'+dy+'px)';requestAnimationFrame(()=>{t.style.transition='transform .18s ease';t.style.transform='';setTimeout(()=>t.style.transition='',220);});}});
+}
+function update(ev){
+  const g=drag;g.ghost.style.left=(ev.clientX-g.offX)+'px';g.ghost.style.top=(ev.clientY-g.offY)+'px';
+  document.body.classList.remove('refuse');document.querySelectorAll('.chip.over').forEach(c=>{c.classList.remove('over');const f=FOLDERS.find(f=>f.id==c.dataset.folder);const n=decks.filter(d=>d.f===f.id).length;c.querySelector('.r2').textContent=n+' '+(n===1?'deck':'decks');});
+  document.querySelectorAll('section.grp.hot').forEach(s=>s.classList.remove('hot'));
+  const hit=document.elementFromPoint(ev.clientX,ev.clientY);
+  const chip=hit&&hit.closest('.chip[data-folder]');
+  if(chip){
+    g.mode='folder';g.folder=+chip.dataset.folder;chip.classList.add('over');chip.querySelector('.r2').textContent='Drop to file here';
+    setTag('File in '+FOLDERS.find(f=>f.id===g.folder).name,false,ev.clientX,ev.clientY);
+    homeSlot();return;
+  }
+  // which grid is the pointer over?
+  const grids=[...document.querySelectorAll('.grid')];
+  const over=grids.find(gr=>{const r=gr.getBoundingClientRect();return ev.clientX>=r.left-8&&ev.clientX<=r.right+8&&ev.clientY>=r.top-8&&ev.clientY<=r.bottom+8;});
+  const overSec=hit&&hit.closest('section.grp');
+  if(folderSel!=null&&(over||overSec)){
+    g.mode='off';document.body.classList.add('refuse');setTag('Reordering is off while a folder is open',true,ev.clientX,ev.clientY);
+    $('#note').classList.add('flash');homeSlot();return;
+  }
+  $('#note').classList.remove('flash');
+  if(over&&over===g.grid){
+    g.mode='reorder';
+    const kids=[...over.children].filter(k=>k!==g.el);
+    let target=null,after=false,best=1e9;
+    const gr=over.getBoundingClientRect();const px=ev.clientX-gr.left,py=ev.clientY-gr.top;
+    kids.forEach(k=>{ // layout positions (offset*) ignore the sliding animation, so the target never flickers
+      const cx=k.offsetLeft+k.offsetWidth/2;const inRow=py>=k.offsetTop-8&&py<=k.offsetTop+k.offsetHeight+8;
+      const dd=inRow?Math.abs(px-cx):1000+Math.abs(py-(k.offsetTop+k.offsetHeight/2));
+      if(dd<best){best=dd;target=k;after=px>cx;}});
+    flip(over,()=>{if(!target){over.appendChild(g.el);}else if(after){over.insertBefore(g.el,target.nextSibling);}else{over.insertBefore(g.el,target);}});
+    const nx=g.el.nextElementSibling;
+    setTag(nx?'Move before '+byId(+nx.dataset.id).name:'Move to the end',false,ev.clientX,ev.clientY);
+    return;
+  }
+  if(groupBy==='status'&&overSec&&overSec!==g.grid.parentElement){
+    g.mode='refuse';document.body.classList.add('refuse');overSec.classList.add('hot');
+    const st=STATUS[overSec.dataset.st].label;
+    setTag('Not in '+st+': status comes from a deck\u2019s cards',true,ev.clientX,ev.clientY);homeSlot();return;
+  }
+  g.mode='none';clearTag();homeSlot();
+}
+function homeSlot(){ // put the dashed spot back in the dragged tile's original place
+  const g=drag;if(g.mode==='reorder')return;
+  const h=g.home;if(g.el.nextSibling===h.next&&g.el.parentElement===h.parent)return;
+  flip(h.parent,()=>h.parent.insertBefore(g.el,h.next));
+}
+function finish(ev,cancelled){
+  const g=drag;clearTag();document.body.classList.remove('dragging','refuse');$('#note').classList.remove('flash');
+  document.querySelectorAll('.chip.over').forEach(c=>c.classList.remove('over'));
+  document.querySelectorAll('section.grp').forEach(s=>s.classList.remove('mine','other','hot'));
+  const mode=cancelled?'none':g.mode;
+  const land=()=>{g.ghost.remove();g.el.classList.remove('ph');drag=null;};
+  if(mode==='reorder'){
+    // Work out the new full order. Grouped: only the moved deck changes place in the whole list.
+    let neu;
+    const ids=[...g.grid.children].map(k=>+k.dataset.id);
+    if(groupBy==='none'&&folderSel==null){neu=ids;}
+    else{
+      const rest=g.startOrder.filter(i=>i!==g.id);const idx=ids.indexOf(g.id);
+      if(idx<ids.length-1){rest.splice(rest.indexOf(ids[idx+1]),0,g.id);}
+      else if(idx>0){rest.splice(rest.indexOf(ids[idx-1])+1,0,g.id);}else{rest.push(g.id);}
+      neu=rest;
+    }
+    land();
+    if(neu.join()===g.startOrder.join())return;
+    saveOrder(neu,g.startOrder);return;
+  }
+  if(mode==='folder'){
+    const f=FOLDERS.find(f=>f.id===g.folder);const d=byId(g.id);
+    g.ghost.remove();g.el.classList.remove('ph');drag=null;
+    if(d.f!==f.id){d.f=f.id;toast('Moved to '+f.name);}else{toast(d.name+' is already in '+f.name+'.');}
+    render();return;
+  }
+  // refused, off, or dropped outside: the picked-up copy flies back, nothing changes
+  g.ghost.classList.add('back');g.ghost.style.left=g.homeRect.left+'px';g.ghost.style.top=g.homeRect.top+'px';
+  setTimeout(land,210);
+  if(mode==='refuse')toast('Decks stay in their status group. Status comes from a deck\u2019s cards, so it can\u2019t be set by moving a tile.',{info:true});
+  if(mode==='off')toast('Reordering is off while a folder is open. Show all decks to reorder.',{info:true});
+}
+function saveOrder(neu,old){
+  busy=true;order=neu;$('#saving').classList.add('show');
+  setTimeout(()=>{
+    busy=false;$('#saving').classList.remove('show');
+    if($('#fail').checked){
+      $('#fail').checked=false;order=old;
+      const host=$('#decks');flip2(()=>render());
+      toast('Couldn\u2019t save the new order. Your decks are back where they were.',{err:true,action:{label:'Try again',fn:()=>saveOrder(neu,old)}});
+    }
+  },800);
+}
+function flip2(fn){const ts=[...document.querySelectorAll('.tile')];const b=new Map(ts.map(t=>[t.dataset.id,t.getBoundingClientRect()]));fn();
+  document.querySelectorAll('.tile').forEach(t=>{const a=b.get(t.dataset.id);if(!a)return;const r=t.getBoundingClientRect();const dx=a.left-r.left,dy=a.top-r.top;if(dx||dy){t.style.transition='none';t.style.transform='translate('+dx+'px,'+dy+'px)';requestAnimationFrame(()=>{t.style.transition='transform .25s ease';t.style.transform='';setTimeout(()=>t.style.transition='',280);});}});}
+/* ---------- rename ---------- */
+function startRename(id,wrap,kind){
+  if(wrap.classList.contains('edit')||busy&&false)return;
+  const d=byId(id);const text=wrap.querySelector('h3,h1');
+  const input=document.createElement('input');input.value=d.name;input.maxLength=100;input.setAttribute('aria-label','Deck name');input.spellcheck=false;
+  const sp=document.createElement('span');sp.className='spin';
+  wrap.classList.add('edit');wrap.appendChild(input);wrap.appendChild(sp);
+  let done=false;
+  input.focus();input.select();
+  input.addEventListener('click',e=>{e.preventDefault();e.stopPropagation();});
+  input.addEventListener('pointerdown',e=>e.stopPropagation());
+  input.addEventListener('beforeinput',e=>{if(e.inputType.startsWith('insert')&&input.value.length>=100&&input.selectionStart===input.selectionEnd){toast('Names can be up to 100 characters.');}});
+  const close=()=>{wrap.classList.remove('edit','saving','bad');input.remove();sp.remove();};
+  const fail=(msg,opts)=>{wrap.classList.add('bad');setTimeout(()=>{close();toast(msg,{err:true,...(opts||{})});},180);};
+  const commit=()=>{
+    if(done)return;done=true;
+    const v=input.value.trim();
+    if(v===d.name){close();return;}
+    if(v===''){fail('A deck needs a name.');return;}
+    if(decks.some(o=>o.id!==id&&o.name.toLowerCase()===v.toLowerCase())){fail('You already have a deck with that name.');return;}
+    wrap.classList.add('saving');input.readOnly=true;input.value=v;
+    setTimeout(()=>{
+      if($('#fail').checked){$('#fail').checked=false;wrap.classList.add('bad');
+        setTimeout(()=>{close();toast('Couldn\u2019t rename '+d.name+'. It still has its old name.',{err:true,action:{label:'Try again',fn:()=>{startRename(id,wrap,kind);}}});},250);return;}
+      d.name=v;close();render();
+    },700);
+  };
+  input.addEventListener('keydown',e=>{
+    e.stopPropagation();
+    if(e.key==='Enter'&&!e.isComposing){e.preventDefault();commit();}
+    if(e.key==='Escape'){e.preventDefault();done=true;close();}
+  });
+  input.addEventListener('blur',()=>setTimeout(commit,0));
+}
+const hn=$('#hname');
+hn.addEventListener('click',()=>startRename(1,hn,'header'));
+hn.setAttribute('tabindex','0');hn.setAttribute('role','button');hn.setAttribute('aria-label','Rename deck');
+hn.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();startRename(1,hn,'header');}});
+reset();
+</script>
+</body>
+</html>

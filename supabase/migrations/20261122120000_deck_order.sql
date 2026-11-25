@@ -1,4 +1,4 @@
--- DRAFT FOR OWNER APPROVAL. NOT APPLIED. Do not run until the owner approves. Author: Architect, 2026-11-22.
+-- APPLIED to live 2026-11-22 (owner approved). Rolled-back smoke test first, then applied; verified read-only.
 -- Feature: rename a deck and reorder decks (UX-05, UX-03). Brief: docs/oracle/briefs/deck-rename-and-reorder.md. Audit: docs/oracle/reports/2026-11-20-architect-deck-rename-reorder-audit.md
 -- Contract: docs/oracle/contracts/deck-rename-and-reorder.md
 -- Numbered after the latest applied migration, 20261121100000_deck_health_settings (docs/oracle/status.md, supabase/migrations/).

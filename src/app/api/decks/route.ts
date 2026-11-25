@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase'
+import { orderDecks } from '@/lib/deck-order'
 import { requireAuth } from '@/lib/auth'
 import { isBasicLand } from '@/lib/basic-lands'
 import { fetchAllDeckCardRows, isCountableCard, type DeckCardRow } from '@/lib/deck-list-data'
@@ -46,11 +47,12 @@ export async function GET() {
     conflictCountsResult,
   ] = await Promise.all([
     // 1. Fetch decks
-    supabase
-      .from('decks')
-      .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, format, folder_id')
-      .eq('user_id', userId)
-      .order('name'),
+    orderDecks(
+      supabase
+        .from('decks')
+        .select('id, name, commander_name, commander_scryfall_id, colour_identity, card_count, last_synced_at, deck_type, format, folder_id')
+        .eq('user_id', userId)
+    ),
     
     // 2. Fetch folders
     supabase

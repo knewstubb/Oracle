@@ -2,6 +2,7 @@ import { z } from 'zod'
 import type { DeckSummary } from '../../../../docs/oracle/contracts/claude-connector-slice-a.types'
 import { DECKS_PAGE_MAX, fitRows } from '../limits'
 import type { BracketInfo } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
+import { orderDecks } from '../../deck-order'
 import { normaliseColours } from './deck-colours'
 import { loadStrategyBrackets, resolveBracket } from './bracket'
 import { countByDeck, type OwnershipSlotRow } from './list-deck-cards-by-ownership'
@@ -61,7 +62,7 @@ export async function listDecks(ctx: ToolContext, input: z.infer<typeof listDeck
   const offset = input.offset ?? 0
   try {
     const q = ctx.db.select('decks', DECK_COLUMNS, { count: 'exact' }).eq('user_id', ctx.userId)
-    const r = await must(q.order('name', { ascending: true }).range(offset, offset + limit - 1))
+    const r = await must(orderDecks(q).range(offset, offset + limit - 1))
     if (typeof r.count !== 'number') throw new LookupFailed()
     const total = r.count
     const decks = rows<DeckRow>(r)

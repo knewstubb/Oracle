@@ -7,6 +7,7 @@
  *
  * Returns: Array<{ deckId, deckName, deckStatus }>
  */
+import { orderDecks } from '@/lib/deck-order'
 import { parseColourLetters } from '@/lib/command-zone'
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
@@ -38,10 +39,9 @@ export async function GET(request: NextRequest) {
       : []
 
     // Fetch all decks (all decks claim cards equally now)
-    const { data: allDecks } = await supabase
-      .from('decks')
-      .select('id, name, colour_identity, format')
-      .eq('user_id', userId)
+    const { data: allDecks } = await orderDecks(
+      supabase.from('decks').select('id, name, colour_identity, format').eq('user_id', userId)
+    )
 
     // Filter to decks whose commander CI is a superset of the card's CI
     // Only applies to Commander format — other formats have no CI restriction

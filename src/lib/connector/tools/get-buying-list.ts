@@ -4,6 +4,7 @@
 import { z } from 'zod'
 import type { BuyingListDeckPart, BuyingListItem, BuyingListResult } from '../../../../docs/oracle/contracts/claude-connector-cc18-buying-list.types'
 import { fitRows } from '../limits'
+import { deckRanks } from '../../deck-order'
 import { isPriceDataStale } from '../../price-store'
 import { fetchAll, LookupFailed, lookupFailed, notFound, pageNote, tooLarge, type ToolContext, type ToolOutput } from './common'
 import { parseCategories } from './get-deck'
@@ -29,13 +30,14 @@ export async function getBuyingList(ctx: ToolContext, input: z.infer<typeof getB
   const limit = input.limit ?? 50
   const offset = input.offset ?? 0
   try {
-    const deckRows = await fetchAll<{ id: number; name: string }>(() => {
-      let q = ctx.db.select('decks', 'id, name').eq('user_id', ctx.userId)
+    const deckRows = await fetchAll<{ id: number; name: string; position: number | null }>(() => {
+      let q = ctx.db.select('decks', 'id, name, position').eq('user_id', ctx.userId)
       if (input.deck_id !== undefined) q = q.eq('id', input.deck_id)
       return q.order('id', { ascending: true })
     })
     if (input.deck_id !== undefined && deckRows.length === 0) return notFound()
     const deckName = new Map(deckRows.map((d) => [d.id, d.name]))
+    const deckRank = deckRanks(deckRows) // the owner's saved deck order
     const statuses = includeProxies ? ['not_owned', 'proxy'] : ['not_owned']
 
     const slots = deckRows.length
@@ -66,7 +68,7 @@ export async function getBuyingList(ctx: ToolContext, input: z.infer<typeof getB
     }
 
     const all: BuyingListItem[] = [...lines.entries()].map(([k, l]) => {
-      const decks = [...l.parts.values()].sort((a, b) => a.deckName.localeCompare(b.deckName) || a.deckId - b.deckId)
+      const decks = [...l.parts.values()].sort((a, b) => (deckRank.get(a.deckId) ?? 0) - (deckRank.get(b.deckId) ?? 0))
       const notOwned = decks.reduce((s, d) => s + d.notOwned, 0)
       const proxyUpgrade = decks.reduce((s, d) => s + d.proxyUpgrade, 0)
       const unit = price.get(k) ?? null

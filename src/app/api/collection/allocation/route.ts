@@ -12,6 +12,7 @@
  * Response: { cards: AllocationRow[], stats: CollectionStats, decks: DeckInfo[] }
  */
 
+import { orderDecks } from '@/lib/deck-order'
 import { NextRequest } from 'next/server'
 import { createAdminClient } from '@/lib/supabase'
 import { requireAuth } from '@/lib/auth'
@@ -52,10 +53,9 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')
 
     // Get all decks with card counts
-    const { data: decksData, error: decksErr } = await supabase
-      .from('decks')
-      .select('id, name, card_count')
-      .order('name')
+    const { data: decksData, error: decksErr } = await orderDecks(
+      supabase.from('decks').select('id, name, card_count')
+    )
 
     if (decksErr) throw decksErr
 

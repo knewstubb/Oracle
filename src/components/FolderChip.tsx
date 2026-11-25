@@ -12,6 +12,10 @@ export interface FolderChipProps {
   count: number
   color?: string | null
   isSelected?: boolean
+  /** A deck tile is being carried: every chip shows it accepts a drop. */
+  carrying?: boolean
+  /** Called while the carried tile is over this chip, and again with false when it leaves or drops. */
+  onDropTarget?: (over: boolean) => void
   onClick?: () => void
 }
 
@@ -21,6 +25,8 @@ export function FolderChip({
   count,
   color,
   isSelected,
+  carrying,
+  onDropTarget,
   onClick,
 }: FolderChipProps) {
   const [isDragOver, setIsDragOver] = useState(false)
@@ -52,21 +58,30 @@ export function FolderChip({
     if (e.dataTransfer.types.includes('application/x-deck-id')) {
       e.preventDefault()
       e.dataTransfer.dropEffect = 'move'
+      if (!isDragOver) onDropTarget?.(true)
       setIsDragOver(true)
     }
   }
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent) => {
+    // Moving between the chip's own children is not leaving the chip.
+    if (e.currentTarget.contains(e.relatedTarget as Node | null)) return
     setIsDragOver(false)
+    onDropTarget?.(false)
   }
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault()
     setIsDragOver(false)
+    onDropTarget?.(false)
     const deckId = e.dataTransfer.getData('application/x-deck-id')
-    if (deckId) {
-      moveMutation.mutate(parseInt(deckId, 10))
+    if (!deckId) return
+    // Already in this folder: say so instead of re-filing silently.
+    if (e.dataTransfer.getData('application/x-deck-folder') === String(id)) {
+      toast.info(`${e.dataTransfer.getData('text/plain') || 'This deck'} is already in ${name}.`)
+      return
     }
+    moveMutation.mutate(parseInt(deckId, 10))
   }
 
   return (
@@ -82,7 +97,8 @@ export function FolderChip({
         isSelected
           ? 'border-[var(--accent-primary)]'
           : 'border-[var(--border-default)]',
-        isDragOver && 'border-[var(--accent-primary)] scale-105'
+        carrying && !isDragOver && 'border-[var(--accent-primary-text)]',
+        isDragOver && 'border-2 border-[var(--accent-primary-text)] bg-[var(--accent-primary)]/20 scale-105'
       )}
     >
       <div className="flex items-center gap-2">
@@ -95,7 +111,7 @@ export function FolderChip({
         </span>
       </div>
       <span className="text-[length:var(--fs-xs)] text-muted-foreground">
-        {count} {count === 1 ? 'deck' : 'decks'}
+        {isDragOver ? 'Drop to file here' : `${count} ${count === 1 ? 'deck' : 'decks'}`}
       </span>
     </button>
   )

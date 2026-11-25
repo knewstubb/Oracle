@@ -10,6 +10,7 @@
  * Every read is paged past the 1000-row limit. Any failed read returns 500 so the page shows an error, never
  * "Nothing to pick" (D-030).
  */
+import { compareDecks } from '@/lib/deck-order'
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
@@ -44,7 +45,7 @@ export async function GET(request: NextRequest) {
 
   try {
     const [deckRows, locRows, stepRows] = await Promise.all([
-      fetchAllRows<{ id: number; name: string }>((a, b) => db.from('decks').select('id, name').eq('user_id', userId).order('id').range(a, b)),
+      fetchAllRows<{ id: number; name: string; position: number }>((a, b) => db.from('decks').select('id, name, position').eq('user_id', userId).order('id').range(a, b)),
       fetchAllRows<{ id: number; name: string; is_default: boolean }>((a, b) =>
         db.from('user_locations').select('id, name, is_default').eq('user_id', userId).order('id').range(a, b)),
       fetchAllRows<Record<string, any>>((a, b) => {
@@ -58,7 +59,8 @@ export async function GET(request: NextRequest) {
       }),
     ])
 
-    const decks = new Map<number, string>(deckRows.map((d) => [d.id, d.name]))
+    // Insertion order = the owner's saved deck order; buildAllDecksPicklist lists decks in that order.
+    const decks = new Map<number, string>([...deckRows].sort(compareDecks).map((d) => [d.id, d.name]))
     const locations = new Map<number, { name: string; isUnsorted: boolean }>(locRows.map((l) => [l.id, { name: l.name, isUnsorted: l.is_default }]))
     const plannedDeckIds = deckRows.map((d) => d.id).filter((id) => !deckFilter || deckFilter.includes(id))
 

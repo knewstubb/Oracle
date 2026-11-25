@@ -6,6 +6,7 @@ const h = vi.hoisted(() => ({
   deckCards: [{ deck_id: 1, card_name: 'Sol Ring', copy_id: null, categories: null }] as unknown[],
   manaBatchSizes: [] as number[],
   deckCardReads: [] as [number, number][],
+  deckOrderColumns: [] as string[],
 }))
 
 vi.mock('@/lib/auth', () => ({
@@ -23,13 +24,22 @@ vi.mock('@/lib/supabase', () => ({
         return {
           select: () => ({
             eq: () => ({
-              order: () => ({
-                then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
-                  resolve({
-                    data: [{ id: 1, name: 'Korvold', commander_name: 'Korvold, Fae-Cursed King', format: 'commander', folder_id: null }],
-                    error: null,
-                  }),
-              }),
+              // The list asks for the saved order: position, then name, then id.
+              order: (column: string) => {
+                h.deckOrderColumns.push(column)
+                const q: Record<string, unknown> = {
+                  order: (c: string) => {
+                    h.deckOrderColumns.push(c)
+                    return q
+                  },
+                  then: (resolve: (value: { data: unknown[]; error: null }) => unknown) =>
+                    resolve({
+                      data: [{ id: 1, name: 'Korvold', commander_name: 'Korvold, Fae-Cursed King', format: 'commander', folder_id: null }],
+                      error: null,
+                    }),
+                }
+                return q
+              },
             }),
           }),
         }
@@ -132,6 +142,11 @@ describe('GET /api/decks', () => {
     expect((await response.json()).decks[0].pipDistribution).toBeUndefined()
   })
 
+  it('lists decks in the saved order: position, then name, then id', async () => {
+    h.deckOrderColumns.length = 0
+    await GET()
+    expect(h.deckOrderColumns).toEqual(['position', 'name', 'id'])
+  })
   it('reads every deck card past the 1,000-row cap', async () => {
     h.deckCards = Array.from({ length: 2300 }, (_, i) => ({
       deck_id: 1, card_name: `Card ${i}`, copy_id: 1, categories: null,

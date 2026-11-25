@@ -7,6 +7,7 @@ import { DECK_CARDS_PAGE_MAX, fitRows } from '../limits'
 import type { WithFacts } from '../../../../docs/oracle/contracts/connector-card-facts-and-deck-health.types'
 import { fetchCardFacts, factsFor } from './card-facts'
 import { fetchPrintingFacts, rarityField, type PrintingFactFields } from './card-printing-facts'
+import { deckRanks } from '../../deck-order'
 import { estimatePrice } from '../../owned-copy-lookup'
 import { isPriceDataStale } from '../../price-store'
 import { fetchAll, fetchAllIn, LookupFailed, lookupFailed, notFound, pageNote, tooLarge, escapeLike, type ToolContext, type ToolOutput } from './common'
@@ -104,13 +105,14 @@ export async function listDeckCardsByOwnership(ctx: ToolContext, input: z.infer<
   const limit = input.limit ?? DECK_CARDS_PAGE_MAX
   const offset = input.offset ?? 0
   try {
-    const deckRows = await fetchAll<{ id: number; name: string }>(() => {
-      let q = ctx.db.select('decks', 'id, name').eq('user_id', ctx.userId)
+    const deckRows = await fetchAll<{ id: number; name: string; position: number | null }>(() => {
+      let q = ctx.db.select('decks', 'id, name, position').eq('user_id', ctx.userId)
       if (input.deck_id !== undefined) q = q.eq('id', input.deck_id)
       return q.order('id', { ascending: true })
     })
     if (input.deck_id !== undefined && deckRows.length === 0) return notFound()
     const deckName = new Map(deckRows.map((d) => [d.id, d.name]))
+    const deckRank = deckRanks(deckRows) // the owner's saved deck order
 
     const slots = deckRows.length
       ? (
@@ -157,7 +159,7 @@ export async function listDeckCardsByOwnership(ctx: ToolContext, input: z.infer<
       else t.valueIfBoughtUsd = round2(t.valueIfBoughtUsd + c.valueIfBoughtUsd)
       perDeck.set(c.deckId, t)
     }
-    const decks = [...perDeck.values()].sort((a, b) => b.matching - a.matching || a.deckName.localeCompare(b.deckName) || a.deckId - b.deckId)
+    const decks = [...perDeck.values()].sort((a, b) => b.matching - a.matching || (deckRank.get(a.deckId) ?? 0) - (deckRank.get(b.deckId) ?? 0))
     const rank = new Map(decks.map((d, i) => [d.deckId, i]))
     all.sort((a, b) => (rank.get(a.deckId) as number) - (rank.get(b.deckId) as number) || a.name.localeCompare(b.name) || a.slotId - b.slotId)
 

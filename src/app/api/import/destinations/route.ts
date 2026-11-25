@@ -6,6 +6,7 @@
  * Never offered: Missing, In your hand, and the hidden per-deck location rows (type 'deck').
  * Read only. A failure answers 500 so the screen can say "could not load" and keep Unsorted usable (D-030).
  */
+import { orderDecks } from '@/lib/deck-order'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
 import { DECK_DESTINATION_ENABLED } from '@/lib/import-destination'
@@ -45,11 +46,9 @@ export async function GET() {
 
     const decks: DestinationsResponse['decks'] = []
     if (DECK_DESTINATION_ENABLED) {
-      const { data: deckRows, error: deckErr } = await supabase
-        .from('decks')
-        .select('id, name, format')
-        .eq('user_id', userId)
-        .order('name', { ascending: true })
+      const { data: deckRows, error: deckErr } = await orderDecks(
+        supabase.from('decks').select('id, name, format').eq('user_id', userId)
+      )
       if (deckErr) throw new Error(deckErr.message)
 
       const slotsByDeck = new Map<number, DestinationSlotRow[]>()

@@ -81,6 +81,9 @@ export interface AllDecksPicklist {
 const byName = (a: { placeName: string }, b: { placeName: string }) => a.placeName.localeCompare(b.placeName)
 
 export function buildAllDecksPicklist(items: readonly WalkItem[], names: WalkNames, planned: readonly PlannedSlot[] = []): AllDecksPicklist {
+  // Decks are listed in the order of names.decks (the owner's saved deck order); a deck missing from it goes last.
+  const order = new Map([...names.decks.keys()].map((id, i) => [id, i]))
+  const deckRank = (id: number) => order.get(id) ?? Number.MAX_SAFE_INTEGER
   const deckName = (id: number | null) => (id === null ? null : names.decks.get(id) ?? 'a deck')
   const loc = (id: number | null) => (id === null ? null : names.locations.get(id) ?? { name: 'a box', isUnsorted: false })
   const boxes = new Map<string, WalkStop>()
@@ -190,7 +193,7 @@ export function buildAllDecksPicklist(items: readonly WalkItem[], names: WalkNam
     placeIn: sort(places, false),
     unowned: sort(unowned, false),
     counts,
-    decks: [...progress.values()].sort((a, b) => a.deckName.localeCompare(b.deckName)),
+    decks: [...progress.values()].sort((a, b) => deckRank(a.deckId) - deckRank(b.deckId)),
   }
 }
 

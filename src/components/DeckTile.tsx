@@ -48,6 +48,8 @@ export interface DeckTileProps {
   hasBrew?: boolean  // Has an active brew session
   folderId?: number | null
   folders?: DeckFolder[]  // Available folders for context menu
+  /** True while a saved-order change is being written: the tile cannot be picked up for a moment. */
+  dragLocked?: boolean
 }
 
 const COLOUR_BAR_MAP: Record<string, { hex: string; label: string }> = {
@@ -88,6 +90,7 @@ export function DeckTile({
   hasBrew,
   folderId,
   folders = [],
+  dragLocked = false,
 }: DeckTileProps) {
   const sorted = COLOUR_ORDER.filter((c) => colourIdentity.includes(c))
   const colourLabel = sorted.map((c) => COLOUR_BAR_MAP[c]?.label).filter(Boolean).join(', ')
@@ -159,6 +162,7 @@ export function DeckTile({
   // Drag handlers for folder drag-and-drop
   const handleDragStart = (e: React.DragEvent) => {
     e.dataTransfer.setData('application/x-deck-id', String(id))
+    e.dataTransfer.setData('application/x-deck-folder', folderId == null ? '' : String(folderId))
     e.dataTransfer.setData('text/plain', name)
     e.dataTransfer.effectAllowed = 'move'
   }
@@ -171,7 +175,7 @@ export function DeckTile({
     <>
       <div
         data-testid="deck-tile"
-        draggable={!renaming}
+        draggable={!renaming && !dragLocked}
         onDragStart={handleDragStart}
         className={cn(
           'group relative block w-full aspect-[236/260] min-w-[200px] overflow-hidden rounded-2xl',

@@ -364,9 +364,9 @@ All 16 requests are recorded separately below. **TODO means queued, not authoris
 |---|---|---|---|---|---|
 | UX-01 | Collection location switcher: a row of locations above the card list, with a fixed **All cards** option and **Proxies** alongside the locations | 4 — Collection and storage | Product brief, Designer, Developer | none | TODO — queued |
 | UX-02 | Clicking a collection card opens a modal where key details can be updated; agree which details during the brief/design | 4 — Collection and storage | Product brief, Designer, Developer | none | TODO — queued |
-| UX-03 | Drag decks to reorder them in the library; retain the chosen order when returning | 6 — Deck lists | Product brief, Designer, Developer | none | Brief drafted (docs/oracle/briefs/deck-rename-and-reorder.md), awaiting owner approval (Gate 1) |
+| UX-03 | Drag decks to reorder them in the library; retain the chosen order when returning | 6 — Deck lists | Product brief, Designer, Developer | none | Gate 1 APPROVED 2026-11-20 (docs/oracle/briefs/deck-rename-and-reorder.md); Gate 3 design in progress (drag mockup required; no mockup for rename field) |
 | UX-04 | Audit and refine the deck header bar; coordinate with UX-14's sidebar request so these do not become competing redesigns | 6 — Deck lists | Designer | none | TODO — queued |
-| UX-05 | Click a deck's name to rename it | 6 — Deck lists | Product brief, Designer, Developer | none | Brief drafted (docs/oracle/briefs/deck-rename-and-reorder.md), awaiting owner approval (Gate 1) |
+| UX-05 | Click a deck's name to rename it | 6 — Deck lists | Product brief, Designer, Developer | none | Gate 1 APPROVED 2026-11-20 (docs/oracle/briefs/deck-rename-and-reorder.md); Gate 3 design in progress (drag mockup required; no mockup for rename field) |
 | UX-06 | Review the icons used on deck tiles in the library for clarity and consistency | 6 — Deck lists | Designer | none | TODO — queued |
 | UX-07 | Standardise buttons systemwide: appearance, sizes, emphasis and interaction states; align with the existing shared vocabulary and building blocks (T-26), not a second system | 3 — Shared building blocks | Designer, Developer | none | TODO — queued |
 | UX-08 | Audit the Tools menu: what belongs there, labels, grouping and ease of finding actions | 3 — Shared building blocks | Designer | none | TODO — queued |

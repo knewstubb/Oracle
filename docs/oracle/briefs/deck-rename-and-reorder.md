@@ -1,5 +1,5 @@
 # Brief: Rename a deck and reorder decks (UX-05, UX-03)
-Status: DRAFT, awaiting owner approval (Gate 1). Date: 2026-11-20. Task size: medium.
+Status: APPROVED (Gate 1), owner answers recorded 2026-11-20. Date: 2026-11-20. Task size: medium.
 Audit: `docs/oracle/reports/2026-11-20-architect-deck-rename-reorder-audit.md`
 
 ## Scenarios
@@ -9,6 +9,7 @@ Audit: `docs/oracle/reports/2026-11-20-architect-deck-rename-reorder-audit.md`
 4. **New deck.** The owner (or Claude) creates a deck. It appears at the end of the order.
 5. **Same order everywhere.** Any other place that lists decks, including Claude's deck list through the connector, shows the same saved order.
 6. **Filter on.** Tiles cannot be dragged. Rename still works.
+7. **Grouped by status.** Tiles can be dragged within their group only. A drag across groups is refused clearly (design at Gate 3).
 
 ## Owner decisions (confirmed 2026-11-20)
 Rename:
@@ -21,7 +22,7 @@ Reorder:
 - Drag the whole tile and drop it; tiles shift to make room. No drag handle.
 - One saved order for every deck list, including Claude's. It persists.
 - A new deck goes to the end.
-- Dragging works only when no filter is active.
+- Dragging works only when no filter is active. With Group: Status on, dragging works within a status group only (answer 2).
 
 ## What must never happen
 - A deck is lost, duplicated or changed in any way except its name or its place in the order.
@@ -33,6 +34,17 @@ Reorder:
 ## Words (to add to the shared vocabulary when approved)
 - **Deck order**: the one saved sequence of the owner's decks, set by dragging.
 - **Rename**: changing a deck's name from its tile or the deck page.
+
+## Owner answers (2026-11-20)
+Gate 1 APPROVED. The questions below are kept as asked; each answer is recorded here.
+1. **A.** Saved order replaces A to Z. Before the first drag, decks start in today's A to Z order. "Group: Status" keeps working; within each group tiles follow the saved order.
+2. **B (changed from the recommendation).** Reordering works within a status group. The order is saved for the whole list. Moving a tile between status groups stays impossible. Example: with Group: Status on, drag within Playable only. Gate 3 design must show what happens when a drag is attempted across groups.
+3. **A.** Mouse drag now. Keyboard and touch reordering later. Rename works with keyboard and touch from day one.
+4. **A.** A rename by the owner does not appear in History or Recent changes.
+5. **A.** Names up to 100 characters. No two decks share a name, ignoring capitals. A clash refuses the save, restores the old name and shows a message. Read-only check of the live data on 2026-11-20: 24 decks, 0 share a name, so no existing deck is affected.
+6. **A.** Claude will get to rename decks later, as a separate future task. Its renames will show in Recent changes with Undo (rule D-034a). Not built in this feature. The stored data and the rename design must leave room for it (for example a rename can be recorded with who made it) without building it.
+7. **A.** Keep both. Dropping a tile on a folder chip still files the deck; dropping among tiles reorders. Gate 3 design must make the two drop targets unmistakable.
+8. **A.** No mockup for the inline rename field (the owner's description above is the design). A short mockup for the drag behaviour is required at Gate 3.
 
 ## Owner questions (recommendation first)
 1. **Sorting vs your saved order.** Today the library is A to Z, with an optional "Group: Status". Should the saved order replace A to Z?

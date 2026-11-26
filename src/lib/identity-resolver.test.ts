@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import type { ScryfallBulkIndex } from './scryfall-bulk-cache'
 import {
   mapCondition,
   mapFinishToFoil,
   resolveIdentities,
   resolveOracleIdFromCardName,
   type ParsedCSVRow,
+  type ScryfallBulkIndex,
 } from './identity-resolver'
 
 // Mock the Supabase client module

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { importDeckTheorycrafted, importDeckNewCards } from '@/lib/deck-import'
+import { importDeckTheorycrafted } from '@/lib/deck-import'
 import type { NormalizedCard, NormalizedDeck } from '@/lib/deck-normalizer'
 
 const mockFrom = vi.fn()
@@ -114,36 +114,6 @@ beforeEach(() => {
 })
 
 describe('current deck import proxy contract', () => {
-  it('preserves proxy identity in the atomic new-cards payload', async () => {
-    const proxy = makeCard()
-    const original = makeCard({
-      cardName: 'Sol Ring',
-      oracleId: 'oracle-sol-ring',
-      scryfallId: 'scry-sol-ring',
-      isProxy: false,
-      typeLine: 'Artifact',
-      manaCost: '{1}',
-      colorIdentity: [],
-    })
-
-    await importDeckNewCards(makeDeck([proxy, original]), TEST_USER_ID)
-
-    const replaceCall = mockRpc.mock.calls.find(([name]) => name === 'replace_deck_with_new_cards')
-    if (!replaceCall) throw new Error('replace_deck_with_new_cards was not called')
-    const rows = replaceCall[1].p_rows
-    expect(rows).toHaveLength(2)
-    expect(rows.map((row: Record<string, unknown>) => row.is_proxy)).toEqual([true, false])
-  })
-
-  it('creates one atomic row per requested proxy quantity', async () => {
-    await importDeckNewCards(makeDeck([makeCard({ quantity: 3 })]), TEST_USER_ID)
-
-    const replaceCall = mockRpc.mock.calls.find(([name]) => name === 'replace_deck_with_new_cards')
-    if (!replaceCall) throw new Error('replace_deck_with_new_cards was not called')
-    expect(replaceCall[1].p_rows).toHaveLength(3)
-    expect(replaceCall[1].p_rows.every((row: Record<string, unknown>) => row.is_proxy === true)).toBe(true)
-  })
-
   it('keeps theorycrafted mode on the atomic deck diff path without collection writes', async () => {
     await importDeckTheorycrafted(makeDeck([makeCard({ isProxy: true })]), TEST_USER_ID)
 

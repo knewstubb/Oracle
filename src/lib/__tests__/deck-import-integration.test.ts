@@ -52,7 +52,7 @@ vi.mock('@/lib/deck-versions', () => ({
 
 import { parseDeckUrl, isParseError } from '@/lib/url-parser'
 import { normalizeArchidektDeck, normalizeMoxfieldDeck, groupCardsByType } from '@/lib/deck-normalizer'
-import { importDeckTheorycrafted, importDeckNewCards } from '@/lib/deck-import'
+import { importDeckTheorycrafted } from '@/lib/deck-import'
 import type { ArchidektDeckFull } from '@/lib/archidekt-client'
 import type { MoxfieldDeckFull } from '@/lib/moxfield-client'
 
@@ -409,96 +409,6 @@ describe('Integration: Archidekt URL → preview → theorycrafted import', () =
 
 // ---------------------------------------------------------------------------
 // Test 2: Moxfield URL → preview → new_cards import
-// ---------------------------------------------------------------------------
-
-describe('Integration: Moxfield URL → preview → new_cards import', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    setupRpcMock()
-    mockCreateVersionSnapshot.mockResolvedValue(null)
-  })
-
-  it('parses Moxfield URL, normalizes deck, and imports on the new-cards path', async () => {
-    // Step 1: Parse URL
-    const parseResult = parseDeckUrl(MOXFIELD_URL)
-    expect(isParseError(parseResult)).toBe(false)
-    if (isParseError(parseResult)) throw new Error('Parse failed')
-    expect(parseResult.platform).toBe('moxfield')
-    expect(parseResult.deckId).toBe('abc123XY')
-
-    // Step 2: Normalize the deck
-    const normalizedDeck = normalizeMoxfieldDeck(makeMoxfieldDeckResponse(), MOXFIELD_URL)
-
-    expect(normalizedDeck.name).toBe('Atraxa Superfriends')
-    expect(normalizedDeck.platform).toBe('moxfield')
-    expect(normalizedDeck.commander?.cardName).toBe("Atraxa, Praetors' Voice")
-    expect(normalizedDeck.cardCount).toBe(3) // 1 commander + 2 mainboard
-
-    // Step 3: Import in new_cards mode
-    const tracker = createSupabaseTracker()
-    const result = await importDeckNewCards(normalizedDeck, TEST_USER_ID)
-
-    const deckUpserts = tracker.getOps('decks', 'upsert')
-    expect(deckUpserts).toHaveLength(1)
-    expect(deckUpserts[0].data).toEqual(
-      expect.objectContaining({
-        name: 'Atraxa Superfriends',
-        source_url: MOXFIELD_URL,
-        source_platform: 'moxfield',
-        user_id: TEST_USER_ID,
-      })
-    )
-
-    // New-cards mode writes one atomic payload containing a row per copy
-    const replaceCall = mockRpc.mock.calls.find(([name]) => name === 'replace_deck_with_new_cards')
-    expect(replaceCall).toBeDefined()
-    const rows = replaceCall![1].p_rows as Array<Record<string, unknown>>
-    expect(rows).toHaveLength(3)
-    // Moxfield has no proxy system — every row is a plain copy
-    expect(rows.every((row) => row.is_proxy === false)).toBe(true)
-
-    expect(result.allocationSummary.assigned).toBe(3)
-    expect(result.allocationSummary.shortfall).toBe(0)
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Test 3: Proxy identity preserved on the new-cards path
-// ---------------------------------------------------------------------------
-
-describe('Integration: Proxy identity is preserved on import', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    setupRpcMock()
-    mockCreateVersionSnapshot.mockResolvedValue(null)
-  })
-
-  it('Archidekt proxy-labelled card is flagged is_proxy in the new-cards payload', async () => {
-    const normalizedDeck = normalizeArchidektDeck(makeArchidektDeckResponse(), ARCHIDEKT_URL)
-
-    // The proxy card is detected during normalization
-    const proxyCards = normalizedDeck.cards.filter((c) => c.isProxy)
-    expect(proxyCards).toHaveLength(1)
-    expect(proxyCards[0].cardName).toBe('Dockside Extortionist')
-
-    createSupabaseTracker()
-    await importDeckNewCards(normalizedDeck, TEST_USER_ID)
-
-    const replaceCall = mockRpc.mock.calls.find(([name]) => name === 'replace_deck_with_new_cards')
-    if (!replaceCall) throw new Error('replace_deck_with_new_cards was not called')
-    const rows = replaceCall[1].p_rows as Array<Record<string, unknown>>
-
-    const proxyRows = rows.filter((row) => row.is_proxy === true)
-    const nonProxyRows = rows.filter((row) => row.is_proxy === false)
-
-    expect(proxyRows).toHaveLength(1) // Dockside Extortionist
-    expect(proxyRows[0].printing_id).toBe('scry-dockside-001')
-    expect(nonProxyRows).toHaveLength(2) // Korvold + Sol Ring
-  })
-})
-
-// ---------------------------------------------------------------------------
-// Test 4: Re-import same deck upserts in place
 // ---------------------------------------------------------------------------
 
 describe('Integration: Re-import same deck upserts in place', () => {

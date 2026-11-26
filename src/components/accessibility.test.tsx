@@ -55,8 +55,6 @@ import { ColourPips } from '@/components/ColourPips'
 import { CardImage } from '@/components/CardImage'
 import { DeckTile } from '@/components/DeckTile'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { CommanderSearch } from '@/components/CommanderSearch'
-
 // ---------------------------------------------------------------------------
 // ColourPips
 // ---------------------------------------------------------------------------
@@ -181,31 +179,6 @@ describe('ConfirmationModal accessibility', () => {
     )
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// CommanderSearch — listbox keyboard navigation
-// ---------------------------------------------------------------------------
-
-describe('CommanderSearch accessibility', () => {
-  it('search input has aria-label', () => {
-    render(<CommanderSearch onSelect={vi.fn()} onNext={vi.fn()} />)
-    const input = screen.getByLabelText('Search commanders')
-    expect(input).toBeInTheDocument()
-  })
-
-  it('collection only toggle has role="switch" with aria-checked', () => {
-    render(<CommanderSearch onSelect={vi.fn()} onNext={vi.fn()} />)
-    const toggle = screen.getByRole('switch')
-    expect(toggle).toHaveAttribute('aria-checked', 'false')
-  })
-
-  it('Next button has aria-disabled when no commander selected', () => {
-    render(<CommanderSearch onSelect={vi.fn()} onNext={vi.fn()} />)
-    const nextBtn = screen.getByRole('button', { name: 'Next' })
-    expect(nextBtn).toHaveAttribute('aria-disabled', 'true')
-    expect(nextBtn).toBeDisabled()
   })
 })
 

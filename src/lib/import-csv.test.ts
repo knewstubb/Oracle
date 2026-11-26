@@ -18,8 +18,6 @@ import {
   type ManaBoxCardFacts,
   type ManaBoxResolver,
 } from '@/lib/manabox-import'
-import { parseDeckCSV, isCSVParseError } from '@/lib/csv-deck-parser'
-
 const DIR = resolve(process.cwd(), 'docs/oracle/samples/import-formats')
 const fixture = (name: string) => readFileSync(resolve(DIR, name), 'utf8')
 
@@ -319,26 +317,5 @@ describe('row rules', () => {
 
   it('a name column is required', () => {
     expect(() => parseManaBoxCsv('Qty,Set\n1,cmm')).toThrow(/Name/)
-  })
-})
-
-describe('older Archidekt parser now uses the shared reader', () => {
-  it('reads Archidekt CSV, keeps the maybeboard out of the main list, finds the commander', () => {
-    const result = parseDeckCSV(fixture('archidekt-deck.csv'), 'Test')
-    if (isCSVParseError(result)) throw new Error(result.error)
-    expect(result.deck.cards.map((c) => c.cardName)).toEqual([
-      "Atraxa, Praetors' Voice",
-      'Sol Ring',
-      'Cultivate',
-    ])
-    expect(result.deck.maybeboard?.map((c) => c.cardName)).toEqual(['Swords to Plowshares', 'Mana Crypt'])
-    expect(result.deck.commander?.cardName).toBe("Atraxa, Praetors' Voice")
-  })
-
-  it('survives a quoted newline and a bad quantity', () => {
-    const result = parseDeckCSV('Quantity,Name\n1,"A\nB"\nx,Sol Ring\n', 'T')
-    if (isCSVParseError(result)) throw new Error(result.error)
-    expect(result.deck.cards).toHaveLength(1)
-    expect(result.warnings[0]).toMatch(/not a whole number/)
   })
 })

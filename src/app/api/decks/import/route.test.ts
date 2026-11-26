@@ -16,13 +16,8 @@ vi.mock('@/lib/auth', () => ({
 // ---------------------------------------------------------------------------
 
 const mockImportTheorycrafted = vi.fn()
-const mockImportBuilt = vi.fn()
-const mockImportNewCards = vi.fn()
-
 vi.mock('@/lib/deck-import', () => ({
   importDeckTheorycrafted: (...args: unknown[]) => mockImportTheorycrafted(...args),
-  importDeckBuilt: (...args: unknown[]) => mockImportBuilt(...args),
-  importDeckNewCards: (...args: unknown[]) => mockImportNewCards(...args),
 }))
 
 const mockImportManaBox = vi.fn()
@@ -86,8 +81,6 @@ describe('POST /api/decks/import', () => {
       allocationSummary: { assigned: 1, shortfall: 0, errors: [] },
     }
     mockImportTheorycrafted.mockResolvedValue(defaultResult)
-    mockImportBuilt.mockResolvedValue(defaultResult)
-    mockImportNewCards.mockResolvedValue(defaultResult)
   })
 
   // --- Auth ---
@@ -155,30 +148,7 @@ describe('POST /api/decks/import', () => {
 
     expect(response.status).toBe(200)
     expect(mockImportTheorycrafted).toHaveBeenCalled()
-    expect(mockImportBuilt).not.toHaveBeenCalled()
-    expect(mockImportNewCards).not.toHaveBeenCalled()
   })
-
-  it('routes to importDeckBuilt for built mode', async () => {
-    const deck = makeDeck()
-    const response = await POST(makeRequest({ deck, mode: 'built' }))
-
-    expect(response.status).toBe(200)
-    expect(mockImportBuilt).toHaveBeenCalled()
-    expect(mockImportTheorycrafted).not.toHaveBeenCalled()
-    expect(mockImportNewCards).not.toHaveBeenCalled()
-  })
-
-  it('routes to importDeckNewCards for new_cards mode', async () => {
-    const deck = makeDeck()
-    const response = await POST(makeRequest({ deck, mode: 'new_cards' }))
-
-    expect(response.status).toBe(200)
-    expect(mockImportNewCards).toHaveBeenCalled()
-    expect(mockImportTheorycrafted).not.toHaveBeenCalled()
-    expect(mockImportBuilt).not.toHaveBeenCalled()
-  })
-
   // --- Success responses ---
 
   it('returns deckId and allocationSummary on success', async () => {
@@ -198,7 +168,7 @@ describe('POST /api/decks/import', () => {
   })
 
   it('returns 200 even when allocation has errors in the summary', async () => {
-    mockImportBuilt.mockResolvedValue({
+    mockImportTheorycrafted.mockResolvedValue({
       deckId: 99,
       allocationSummary: {
         assigned: 5,
@@ -207,7 +177,7 @@ describe('POST /api/decks/import', () => {
       },
     })
 
-    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'built' }))
+    const response = await POST(makeRequest({ deck: makeDeck(), mode: 'theorycrafted' }))
     expect(response.status).toBe(200)
 
     const data = await response.json()

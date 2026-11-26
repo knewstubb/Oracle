@@ -4,10 +4,8 @@
  * Accepts a normalized deck and import mode, routes to the appropriate
  * import executor, and returns the deck ID with allocation summary.
  *
- * Import modes:
- * - new_cards: Add cards to collection and assign to deck slots (for purchased decks)
- * - built: Create deck_cards then auto-pull from existing collection (user has physical deck)
- * - theorycrafted: Create deck_cards only, no allocation (brewing/theorycrafteding)
+ * Import mode: theorycrafted (create deck_cards only, no allocation). Requests that carry
+ * per-row copies or defaults go to the ManaBox deck import instead.
  *
  * Returns 200 even when allocation has errors (errors included in summary).
  * Returns 500 only on actual failures (deck creation, DB writes, etc.).
@@ -15,7 +13,7 @@
 
 import { NextRequest } from 'next/server'
 import { requireAuth } from '@/lib/auth'
-import { importDeckTheorycrafted, importDeckBuilt, importDeckNewCards } from '@/lib/deck-import'
+import { importDeckTheorycrafted } from '@/lib/deck-import'
 import type { ImportMode } from '@/lib/deck-import'
 import { importManaBoxDeck, type ManaBoxDeckCard } from '@/lib/manabox-deck-import'
 import type { NormalizedDeck } from '@/lib/deck-normalizer'
@@ -29,7 +27,7 @@ import type {
 } from '../../../../../docs/oracle/contracts/import-row-editing.types'
 import type { ManaBoxUnmatchedLine } from '../../../../../docs/oracle/contracts/manabox-import.types'
 
-const VALID_MODES: ImportMode[] = ['new_cards', 'built', 'theorycrafted']
+const VALID_MODES: ImportMode[] = ['theorycrafted']
 
 interface DeckImportBody {
   deck?: NormalizedDeck
@@ -135,19 +133,7 @@ export async function POST(request: NextRequest) {
   try {
     const importOpts = { format: deckFormat || 'commander' }
     
-    let result
-    switch (mode) {
-      case 'new_cards':
-        result = await importDeckNewCards(deck, userId, importOpts)
-        break
-      case 'built':
-        result = await importDeckBuilt(deck, userId, importOpts)
-        break
-      case 'theorycrafted':
-        result = await importDeckTheorycrafted(deck, userId, importOpts)
-        break
-    }
-
+    const result = await importDeckTheorycrafted(deck, userId, importOpts)
     return Response.json({
       deckId: result.deckId,
       allocationSummary: result.allocationSummary,

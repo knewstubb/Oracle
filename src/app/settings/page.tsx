@@ -18,6 +18,9 @@ import {
 } from '@/components/ui/dialog'
 
 export default function SettingsPage() {
+  // Clear All Data only shows when the app runs on the owner's own computer (a dev server). The reset route
+  // refuses in production with the same check, so the hosted site never offers a button that cannot work.
+  const isLocal = process.env.NODE_ENV !== 'production'
   const [confirmOpen, setConfirmOpen] = useState(false)
 
   const resetMutation = useMutation({
@@ -66,9 +69,12 @@ export default function SettingsPage() {
           <h2 className="text-[length:var(--fs-lg)] font-medium text-destructive">
             Developer Tools
           </h2>
-          <p className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">
-            These actions are destructive and cannot be undone.
-          </p>
+          {isLocal && (
+            <p className="mt-1 text-[length:var(--fs-sm)] text-muted-foreground">
+              These actions are destructive and cannot be undone.
+            </p>
+          )}
+          {isLocal && (
           <div className="mt-4">
             <Button
               variant="destructive"
@@ -83,8 +89,9 @@ export default function SettingsPage() {
               Use this to start again from an empty account.
             </p>
           </div>
+          )}
 
-          <div className="mt-6 pt-4 border-t border-[var(--border-subtle)]">
+          <div className={isLocal ? 'mt-6 pt-4 border-t border-[var(--border-subtle)]' : 'mt-4'}>
             <Link
               href="/settings/components"
               className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-default)] px-3 py-2 text-[length:var(--fs-sm)] font-medium text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-surface-hover)] hover:text-[var(--text-primary)]"

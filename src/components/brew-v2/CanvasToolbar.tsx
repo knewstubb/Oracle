@@ -12,16 +12,12 @@ export interface CanvasToolbarProps {
   onZoomIn: () => void
   onZoomOut: () => void
 
-  // Layout mode
-  layoutMode: 'free-form' | 'piled' | 'curve'
-  onLayoutModeChange: (mode: 'free-form' | 'piled' | 'curve') => void
-
   // View density
   viewDensity: 'card' | 'name'
   onViewDensityChange: (view: 'card' | 'name') => void
   isAutoSwitched: boolean // When true, "Auto" option is highlighted
   onClearViewOverride: () => void // Resets to auto view density mode
-  disableViewDensity?: boolean // When true, density controls are visually disabled (e.g. Curve mode)
+  disableViewDensity?: boolean // When true, density controls are visually disabled 
 
   // Group by category
   onGroupByCategory?: () => void
@@ -90,8 +86,6 @@ export function CanvasToolbar({
   zoomLevel,
   onZoomIn,
   onZoomOut,
-  layoutMode,
-  onLayoutModeChange,
   viewDensity,
   onViewDensityChange,
   isAutoSwitched,
@@ -101,12 +95,6 @@ export function CanvasToolbar({
 }: CanvasToolbarProps) {
   const isAtMin = zoomLevel <= MIN_ZOOM
   const isAtMax = zoomLevel >= MAX_ZOOM
-
-  const layoutOptions: SegmentOption<'free-form' | 'piled' | 'curve'>[] = [
-    { value: 'free-form', label: 'Free-form' },
-    { value: 'piled', label: 'Piled' },
-    { value: 'curve', label: 'Curve' },
-  ]
 
   const viewOptions: SegmentOption<'auto' | 'card' | 'name'>[] = [
     { value: 'auto', label: 'Auto' },
@@ -128,13 +116,6 @@ export function CanvasToolbar({
 
   return (
     <div className="flex items-center gap-3 px-3 py-1.5 border-b border-border/50 bg-background/80 backdrop-blur-sm">
-      {/* Layout mode segmented control */}
-      <SegmentedControl
-        options={layoutOptions}
-        value={layoutMode}
-        onChange={onLayoutModeChange}
-      />
-
       {/* View density segmented control */}
       <div className={disableViewDensity ? 'opacity-50 pointer-events-none' : ''}>
         <SegmentedControl
@@ -148,7 +129,7 @@ export function CanvasToolbar({
       <div className="flex-1" />
 
       {/* Group by category button */}
-      {onGroupByCategory && layoutMode === 'free-form' && (
+      {onGroupByCategory && (
         <button
           type="button"
           onClick={onGroupByCategory}

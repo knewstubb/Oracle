@@ -19,7 +19,6 @@ import { CombosPanel } from '@/components/CombosPanel'
 import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
 import { PicklistV2 } from '@/components/PicklistV2'
-import { WorkbenchTab } from '@/components/WorkbenchTab'
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
 import { StrategyBlock } from '@/components/deck-strategy/StrategyBlock'
 import { DeckSettingsHost } from '@/components/deck-strategy/DeckSettingsHost'
@@ -323,7 +322,6 @@ export default function DeckViewPage() {
                 <TabsTrigger value="cards">Cards</TabsTrigger>
                 <TabsTrigger value="picklist">Picklist</TabsTrigger>
                 {/* Non-essential tabs hidden on mobile */}
-                <TabsTrigger value="workbench" className="hidden sm:inline-flex">Workbench</TabsTrigger>
                 <TabsTrigger value="analysis" className="hidden sm:inline-flex">Analysis</TabsTrigger>
                 <TabsTrigger value="combos" className="hidden sm:inline-flex">Combos</TabsTrigger>
                 <TabsTrigger value="upgrade" className="hidden sm:inline-flex">Upgrade</TabsTrigger>
@@ -346,15 +344,6 @@ export default function DeckViewPage() {
               deckTarget={getFormatConfig(deck.format).deckSize}
             />
           </div>
-        </TabsContent>
-
-        <TabsContent value="workbench" className="min-h-0 flex-1 @[800px]:overflow-hidden @[800px]:pr-3">
-          <WorkbenchTab
-            deckId={deck.id}
-            cards={cards}
-            commanderName={deck.commander_name}
-            commanderScryfallId={deck.commander_scryfall_id}
-          />
         </TabsContent>
 
         <TabsContent value="analysis" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-scroll @[800px]:px-0 @[800px]:pr-1 @[800px]:pt-0 deck-hover-scrollbar">

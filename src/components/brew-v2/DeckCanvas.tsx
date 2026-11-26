@@ -10,8 +10,6 @@ import { useCanvasDrag } from './useCanvasDrag'
 import { useMarqueeSelect } from './useMarqueeSelect'
 import { CanvasDeckCard } from './CanvasDeckCard'
 import { CommanderCard } from './CommanderCard'
-import { PiledColumn } from './PiledColumn'
-import { CurveView } from './CurveView'
 import { getNextOpenPosition, CARD_DIMENSIONS, CANVAS_GAP } from './canvas-utils'
 
 // ---------------------------------------------------------------------------
@@ -40,9 +38,6 @@ export interface DeckCanvasProps {
   /** Called when secondary categories are updated (optional) */
   onSecondaryCategories?: (cardName: string, additional: string[]) => void
 
-  /** Initial layout mode (default: 'free-form') */
-  initialLayoutMode?: 'free-form' | 'piled' | 'curve'
-
   /** Whether to show the toolbar (default: true) */
   showToolbar?: boolean
 
@@ -63,7 +58,7 @@ export interface DeckCanvasProps {
 /**
  * A reusable canvas component for displaying and interacting with deck cards.
  * Supports:
- * - Three layout modes: free-form, piled, curve
+ * - Free-form layout
  * - Pan (space+drag) and zoom (scroll wheel)
  * - Marquee multi-selection
  * - Drag to reposition cards
@@ -82,16 +77,11 @@ export function DeckCanvas({
   onDragReassign,
   onDiscussCard,
   onSecondaryCategories,
-  initialLayoutMode = 'free-form',
   showToolbar = true,
   toolbarExtra,
   overlayContent,
   transparentBackground = false,
 }: DeckCanvasProps) {
-  // ---- Layout mode state ----
-  const [layoutMode, setLayoutMode] = useState<'free-form' | 'piled' | 'curve'>(initialLayoutMode)
-  const prevLayoutModeRef = useRef<'free-form' | 'piled' | 'curve'>(initialLayoutMode)
-
   // ---- Pan state (space+drag) ----
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 })
   const panOffsetRef = useRef(panOffset)
@@ -125,14 +115,8 @@ export function DeckCanvas({
     }
   }, [])
 
-  // ---- Mode toggle: position preservation (piled → free-form) ----
-  // Also handles initial free-form mode if positions are missing
+  // ---- Assign positions to cards that have none ----
   useEffect(() => {
-    const prevMode = prevLayoutModeRef.current
-    prevLayoutModeRef.current = layoutMode
-
-    // Only act in free-form mode
-    if (layoutMode !== 'free-form') return
     if (cards.length === 0) return
 
     const cardsNeedingPosition: string[] = []
@@ -143,15 +127,12 @@ export function DeckCanvas({
       const existing = canvasPositions[posId]
       if (!existing) {
         cardsNeedingPosition.push(posId)
-      } else if (prevMode === 'piled' && existing.category && existing.category !== card.primary_category) {
-        // Only reset category on piled→free-form transition
-        cardsNeedingPosition.push(posId)
       }
     }
 
     if (cardsNeedingPosition.length === 0) return
     
-    console.log('[DeckCanvas] Assigning positions for', cardsNeedingPosition.length, 'cards (prevMode:', prevMode, ')')
+    console.log('[DeckCanvas] Assigning positions for', cardsNeedingPosition.length, 'cards')
 
     const existingPositions = Object.values(canvasPositions).filter(
       (pos) => !cardsNeedingPosition.includes(pos.id)
@@ -183,7 +164,7 @@ export function DeckCanvas({
         category: card.primary_category,
       })
     }
-  }, [layoutMode, cards, canvasPositions, onPositionUpdate])
+  }, [cards, canvasPositions, onPositionUpdate])
 
   // ---- Zoom hook ----
   const {
@@ -357,13 +338,13 @@ export function DeckCanvas({
 
   // ---- Render content based on layout mode ----
   const renderContent = () => {
-    console.log('[DeckCanvas] renderContent - cards:', cards.length, 'positions:', Object.keys(canvasPositions).length, 'layoutMode:', layoutMode)
+    console.log('[DeckCanvas] renderContent - cards:', cards.length, 'positions:', Object.keys(canvasPositions).length)
     
-    // Commander card (always shown in free-form mode if present)
+    // Commander card (shown if present)
     const isCommanderDragging = draggingId === 'commander'
     const commanderOffset = isCommanderDragging ? dragOffset : null
 
-    const commanderCard = commander && layoutMode === 'free-form' ? (
+    const commanderCard = commander ? (
       <div
         key="committed-commander"
         className="absolute"
@@ -384,38 +365,6 @@ export function DeckCanvas({
       </div>
     ) : null
 
-    if (layoutMode === 'curve') {
-      return <CurveView cards={cards} zoomLevel={zoomLevel} />
-    }
-
-    if (layoutMode === 'piled') {
-      const grouped = cards.reduce<Record<string, DeckCard[]>>(
-        (acc, card) => {
-          const cat = card.primary_category
-          if (!acc[cat]) acc[cat] = []
-          acc[cat].push(card)
-          return acc
-        },
-        {}
-      )
-
-      return (
-        <div className="flex gap-4 p-4" data-testid="piled-columns">
-          {Object.entries(grouped).map(([category, categoryCards]) => (
-            <PiledColumn
-              key={category}
-              category={category}
-              cards={categoryCards}
-              healthStatus="unmonitored"
-              onDragIn={(cardName) => onDragReassign(cardName, category)}
-              isDragTarget={false}
-            />
-          ))}
-        </div>
-      )
-    }
-
-    // Free-form mode
     console.log('[DeckCanvas] Rendering free-form mode with', cards.length, 'cards, positions:', Object.keys(canvasPositions).length)
     
     // Compute fallback positions for cards without saved positions
@@ -491,14 +440,11 @@ export function DeckCanvas({
           zoomLevel={zoomLevel}
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
-          layoutMode={layoutMode}
-          onLayoutModeChange={setLayoutMode}
           viewDensity={effectiveView}
           onViewDensityChange={handleViewDensityChange}
           isAutoSwitched={isAutoSwitched}
           onClearViewOverride={clearOverride}
-          disableViewDensity={layoutMode === 'curve'}
-          onGroupByCategory={layoutMode === 'free-form' ? handleGroupByCategory : undefined}
+          onGroupByCategory={handleGroupByCategory}
         />
       )}
 

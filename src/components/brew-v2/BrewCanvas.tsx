@@ -247,7 +247,6 @@ export function BrewCanvas({
           onDragReassign={onDragReassign}
           onDiscussCard={onDiscussCard}
           onSecondaryCategories={onSecondaryCategories}
-          initialLayoutMode="free-form"
           overlayContent={archiveOverlay}
         />
         {recommitDialog}
@@ -264,8 +263,6 @@ export function BrewCanvas({
         zoomLevel={zoomLevel}
         onZoomIn={zoomIn}
         onZoomOut={zoomOut}
-        layoutMode="free-form"
-        onLayoutModeChange={() => {}}
         viewDensity={effectiveView}
         onViewDensityChange={setManualView}
         isAutoSwitched={isAutoSwitched}

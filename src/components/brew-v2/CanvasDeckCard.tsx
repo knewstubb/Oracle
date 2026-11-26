@@ -58,7 +58,7 @@ const OWNERSHIP_DOT_COLOURS: Record<DeckCard['ownership_status'], string> = {
 /**
  * Renders a deck card on the brew canvas in either Card_View (180px, full-frame)
  * or Name_View (168px, compact row). Positioned via CSS translate3d from
- * canvasPositions (free-form) or computed position (piled).
+ * canvasPositions.
  *
  * - In Card_View: category tag above art, name overlay on dark scrim
  * - In Name_View: ownership dot + name + right-aligned CMC + category text

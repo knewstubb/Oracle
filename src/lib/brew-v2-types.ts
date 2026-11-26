@@ -177,7 +177,7 @@ export interface CanvasCardPosition {
   type: 'candidate' | 'decision' | 'deck'
   /** Timestamp of last position update (for conflict resolution) */
   updatedAt: number
-  /** Category at position-creation time (for detecting category changes during piled mode) */
+  /** Category at position-creation time (for detecting category changes) */
   category?: string
 }
 
@@ -201,8 +201,6 @@ export interface CanvasState {
   zoomLevel: number
   /** Pan offset in viewport pixels */
   panOffset: { x: number; y: number }
-  /** Active layout mode */
-  layoutMode: 'free-form' | 'piled' | 'curve'
   /** Active card density view */
   viewDensity: 'card' | 'name'
   /** Whether the user manually selected a view (prevents auto-switch) */

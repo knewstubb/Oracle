@@ -4,7 +4,7 @@ import { attemptLocalAutoLogin, getLocalAutoLoginCredentials } from '@/lib/local
 import { isConnectorPublicPath } from '@/lib/connector/public-paths'
 import { safeNextPath } from '@/lib/safe-next'
 
-const PUBLIC_ROUTES = ['/login', '/auth/callback', '/api/cards/search', '/api/cards/autocomplete']
+const PUBLIC_ROUTES = ['/login', '/auth/callback', '/api/cards/search']
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl

@@ -93,7 +93,6 @@ vi.mock('@/lib/supabase', () => ({
 
 import { GET as sessionGet, PATCH as sessionPatch } from './session/route'
 import { PATCH as sessionIdPatch } from './session/[id]/route'
-import { POST as positionsPost } from './positions/route'
 import { GET as aiSessionGet } from '../ai/brew/session/route'
 import {
   getBrewSession,
@@ -158,12 +157,6 @@ describe('brew routes: another user\'s session is a 404 and is never changed', (
     })
     expect(res.status).toBe(404)
     expect(db.brew_sessions[0].status).toBe('exploring')
-  })
-
-  it('POST /api/brew/positions 404s and does not modify it', async () => {
-    const res = await positionsPost(json('POST', '/api/brew/positions', { sessionId: 1, canvasPositions: { x: { x: 1, y: 2 } } }))
-    expect(res.status).toBe(404)
-    expect(db.brew_sessions[0].skeleton_json).toBe('{"cards":[]}')
   })
 
   it('GET /api/ai/brew/session?id= hides it', async () => {

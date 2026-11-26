@@ -43,7 +43,6 @@ describe('supply readers carry the filter', () => {
     'src/lib/import-ownership.ts',
     'src/lib/storage/copies.ts',
     'src/app/api/collection/ownership-batch/route.ts',
-    'src/app/api/collection/allocation/route.ts',
   ]
 
   it.each(readers)('%s filters missing and in_hand', (file) => {

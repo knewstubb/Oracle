@@ -38,7 +38,7 @@ describe('SmartSearch', () => {
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
   })
 
-  it('opens when open-search event is dispatched (Cmd+K)', () => {
+  it('opens when open-search event is dispatched', () => {
     render(<SmartSearch />)
     openSearch()
     expect(screen.getByRole('dialog', { name: 'Smart search' })).toBeInTheDocument()

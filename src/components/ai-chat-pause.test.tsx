@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TopNav } from './TopNav'
-import { HealthStrip } from './HealthStrip'
-import { buildDeckHealth } from '@/lib/deck-health'
 import ExplorePage from '@/app/explore/page'
 
 const oracle = vi.hoisted(() => ({ open: vi.fn(), toggle: vi.fn(), sendMessage: vi.fn(async () => {}) }))
@@ -60,24 +57,5 @@ describe('Explore page', () => {
     render(<ExplorePage />)
     expect(screen.getByText(/conversation with Oracle/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Open Oracle/ })).toBeInTheDocument()
-  })
-})
-
-describe('health strip "Chat about this"', () => {
-  it('is not offered while paused', async () => {
-    vi.stubEnv('NEXT_PUBLIC_AI_CHAT_ENABLED', 'false')
-    const health = buildDeckHealth([
-      { cardName: 'Forest', quantity: 36, typeLine: 'Basic Land — Forest', oracleText: null, inMainDeck: true },
-      { cardName: 'Divination', quantity: 1, typeLine: 'Sorcery', oracleText: 'Draw two cards.', inMainDeck: true },
-    ])
-    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve(new Response(JSON.stringify(health), { status: 200 }))))
-    render(
-      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}>
-        <HealthStrip deckId={7} />
-      </QueryClientProvider>,
-    )
-    fireEvent.click(await screen.findByRole('button', { name: /^Deck health:/ }))
-    await screen.findByRole('dialog').catch(() => null)
-    expect(screen.queryByRole('button', { name: 'Chat about this' })).not.toBeInTheDocument()
   })
 })

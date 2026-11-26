@@ -59,7 +59,6 @@ describe('import modal layout (spec import-modal-redesign §3)', () => {
       'OracleChat',
       'CardLocator',
       'SmartSearch',
-      'MobileHeader',
       'brew-v2/CommanderDetailModal',
       'explore/CommanderBrowser',
       'MobileCardPreview',

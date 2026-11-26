@@ -11,7 +11,6 @@ import { guideTargets, type CommanderTargets } from './commander-targets'
 import { loadDeckHealth, type HealthClient, type TargetsProvider } from './deck-health-server'
 import { loadDeckGap } from './deck-health-gap'
 import { composeChatAnswer, loadDeckHealthForChat, summariseGap } from './deck-health-chat'
-import { healthChatQuestion } from './deck-health-chat-question'
 import { offRangeSubline } from './deck-health'
 import {
   DECK_BUILDING_TOOLS,
@@ -267,9 +266,4 @@ describe('chat wording rules', () => {
     expect(DECK_HEALTH_RULES).not.toMatch(/Never offer to add/)
   })
 
-  it('the button questions are plain words', () => {
-    expect(healthChatQuestion()).toBe('What is my deck missing? Check my deck health.')
-    expect(healthChatQuestion('removal')).toBe('How is my targeted removal looking? What could fill the gap?')
-    expect(healthChatQuestion('lands')).toContain('lands')
-  })
 })

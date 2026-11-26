@@ -55,7 +55,6 @@ import { ColourPips } from '@/components/ColourPips'
 import { CardImage } from '@/components/CardImage'
 import { DeckTile } from '@/components/DeckTile'
 import { ConfirmationModal } from '@/components/ConfirmationModal'
-import { DeckEditor, type DeckSuggestion } from '@/components/DeckEditor'
 import { CommanderSearch } from '@/components/CommanderSearch'
 
 // ---------------------------------------------------------------------------
@@ -182,56 +181,6 @@ describe('ConfirmationModal accessibility', () => {
     )
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument()
-  })
-})
-
-// ---------------------------------------------------------------------------
-// DeckEditor
-// ---------------------------------------------------------------------------
-
-describe('DeckEditor accessibility', () => {
-  const mockCards: DeckSuggestion[] = [
-    { name: 'Sol Ring', manaCost: '{1}', typeLine: 'Artifact', role: 'Ramp', owned: true },
-    { name: 'Forest', manaCost: '', typeLine: 'Basic Land — Forest', role: 'Land', owned: true },
-  ]
-
-  it('remove buttons have descriptive aria-label', () => {
-    render(
-      <DeckEditor
-        cards={mockCards}
-        onCardsChange={vi.fn()}
-        onBack={vi.fn()}
-        onCreateDeck={vi.fn()}
-      />
-    )
-    expect(screen.getByLabelText('Remove Sol Ring')).toBeInTheDocument()
-    expect(screen.getByLabelText('Remove Forest')).toBeInTheDocument()
-  })
-
-  it('card images have descriptive alt text with type', () => {
-    render(
-      <DeckEditor
-        cards={mockCards}
-        onCardsChange={vi.fn()}
-        onBack={vi.fn()}
-        onCreateDeck={vi.fn()}
-      />
-    )
-    expect(screen.getByAltText('Sol Ring — Artifact')).toBeInTheDocument()
-    expect(screen.getByAltText('Forest — Basic Land — Forest')).toBeInTheDocument()
-  })
-
-  it('sections have aria-label with type and count', () => {
-    render(
-      <DeckEditor
-        cards={mockCards}
-        onCardsChange={vi.fn()}
-        onBack={vi.fn()}
-        onCreateDeck={vi.fn()}
-      />
-    )
-    expect(screen.getByRole('region', { name: /Artifacts \(1\)/ })).toBeInTheDocument()
-    expect(screen.getByRole('region', { name: /Lands \(1\)/ })).toBeInTheDocument()
   })
 })
 

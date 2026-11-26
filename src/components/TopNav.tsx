@@ -184,9 +184,6 @@ export function TopNav() {
             >
               <Search className="w-4 h-4" />
               <span className="flex-1 text-left">Search cards...</span>
-              <kbd className="hidden lg:inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-muted text-[10px] font-mono text-muted-foreground">
-                <span className="text-xs">⌘</span>K
-              </kbd>
             </button>
           </div>
 

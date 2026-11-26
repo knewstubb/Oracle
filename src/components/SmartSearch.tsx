@@ -51,7 +51,7 @@ export function SmartSearch({ currentDeckCards = [] }: SmartSearchProps) {
     [currentDeckCards]
   )
 
-  // Listen for open-search custom event (from Sidebar Cmd+K)
+  // Listen for open-search custom event (from the top nav search box)
   useEffect(() => {
     function handleOpenSearch() {
       setOpen(true)

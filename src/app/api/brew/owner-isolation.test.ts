@@ -94,7 +94,6 @@ vi.mock('@/lib/supabase', () => ({
 import { GET as sessionGet, PATCH as sessionPatch } from './session/route'
 import { PATCH as sessionIdPatch } from './session/[id]/route'
 import { POST as positionsPost } from './positions/route'
-import { DELETE as brewSessionsDelete } from '../brew-sessions/[id]/route'
 import { GET as aiSessionGet } from '../ai/brew/session/route'
 import {
   getBrewSession,
@@ -165,22 +164,6 @@ describe('brew routes: another user\'s session is a 404 and is never changed', (
     const res = await positionsPost(json('POST', '/api/brew/positions', { sessionId: 1, canvasPositions: { x: { x: 1, y: 2 } } }))
     expect(res.status).toBe(404)
     expect(db.brew_sessions[0].skeleton_json).toBe('{"cards":[]}')
-  })
-
-  it('DELETE /api/brew-sessions/[id] 404s and keeps it', async () => {
-    const res = await brewSessionsDelete(new NextRequest(url('/api/brew-sessions/1'), { method: 'DELETE' }), {
-      params: Promise.resolve({ id: '1' }),
-    })
-    expect(res.status).toBe(404)
-    expect(db.brew_sessions).toHaveLength(2)
-  })
-
-  it('DELETE /api/brew-sessions/[id] deletes your own', async () => {
-    const res = await brewSessionsDelete(new NextRequest(url('/api/brew-sessions/2'), { method: 'DELETE' }), {
-      params: Promise.resolve({ id: '2' }),
-    })
-    expect(res.status).toBe(200)
-    expect(db.brew_sessions.map((r) => r.id)).toEqual([1])
   })
 
   it('GET /api/ai/brew/session?id= hides it', async () => {

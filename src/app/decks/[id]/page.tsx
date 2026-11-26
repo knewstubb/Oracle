@@ -16,7 +16,6 @@ import { DeckMenu } from '@/components/deck-rail/DeckMenu'
 import { CardsTab } from '@/components/CardsTab'
 import { AnalysisTab } from '@/components/AnalysisTab'
 import { CombosPanel } from '@/components/CombosPanel'
-import { UpgradeTab } from '@/components/UpgradeTab'
 import { StrategyTab } from '@/components/StrategyTab'
 import { PicklistV2 } from '@/components/PicklistV2'
 import { VersionHistoryPanel } from '@/components/VersionHistoryPanel'
@@ -311,7 +310,6 @@ export default function DeckViewPage() {
                 {/* Non-essential tabs hidden on mobile */}
                 <TabsTrigger value="analysis" className="hidden sm:inline-flex">Analysis</TabsTrigger>
                 <TabsTrigger value="combos" className="hidden sm:inline-flex">Combos</TabsTrigger>
-                <TabsTrigger value="upgrade" className="hidden sm:inline-flex">Upgrade</TabsTrigger>
                 <TabsTrigger value="strategy" className="hidden sm:inline-flex">Strategy</TabsTrigger>
               </TabsList>
             </div>
@@ -345,10 +343,6 @@ export default function DeckViewPage() {
 
         <TabsContent value="combos" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-scroll @[800px]:px-0 @[800px]:pr-1 @[800px]:pt-0 deck-hover-scrollbar">
           <CombosPanel deckId={deck.id} />
-        </TabsContent>
-
-        <TabsContent value="upgrade" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-scroll @[800px]:px-0 @[800px]:pr-1 @[800px]:pt-0 deck-hover-scrollbar">
-          <UpgradeTab deckId={deck.id} />
         </TabsContent>
 
         <TabsContent value="strategy" className="min-h-0 flex-1 px-6 py-6 @[800px]:overflow-y-scroll @[800px]:px-0 @[800px]:pr-1 @[800px]:pt-0 deck-hover-scrollbar">

@@ -22,7 +22,6 @@ vi.mock('@/components/CardsTab', () => ({ CardsTab: () => <div><label>Add card<i
 vi.mock('@/components/PicklistV2', () => ({ PicklistV2: () => <div>Picklist panel</div> }))
 vi.mock('@/components/AnalysisTab', () => ({ AnalysisTab: () => <div>Analysis panel</div> }))
 vi.mock('@/components/CombosPanel', () => ({ CombosPanel: () => <div>Combos panel</div> }))
-vi.mock('@/components/UpgradeTab', () => ({ UpgradeTab: () => <div>Upgrade panel</div> }))
 vi.mock('@/components/StrategyTab', () => ({ StrategyTab: () => <div>Strategy panel</div> }))
 
 import DeckViewPage from './page'
@@ -141,11 +140,11 @@ describe('Deck page with the left rail', () => {
     expect(screen.getByRole('button', { name: /Hide deck summary/ })).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('keeps the build picker and switches between all six tabs, with Add card on the Cards tab', async () => {
+  it('keeps the build picker and switches between all five tabs, with Add card on the Cards tab', async () => {
     const { user } = await renderPage()
     expect(screen.getByRole('button', { name: 'Build picker' })).toBeInTheDocument()
     expect(screen.getByRole('textbox', { name: 'Add card' })).toBeInTheDocument()
-    const tabs = ['Cards', 'Picklist', 'Analysis', 'Combos', 'Upgrade', 'Strategy']
+    const tabs = ['Cards', 'Picklist', 'Analysis', 'Combos', 'Strategy']
     expect(screen.getAllByRole('tab').map((t) => t.textContent)).toEqual(tabs)
     for (const name of tabs.slice(1)) {
       await user.click(screen.getByRole('tab', { name }))

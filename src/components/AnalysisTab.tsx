@@ -3,7 +3,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { DeckCard } from '@/components/CardGrid'
-import { getDeckSizeLabel, getFormatConfig } from '@/lib/format-config'
 import type { DeckRatingsContent } from '@/lib/rating-engine'
 import {
   parseManaCost,
@@ -22,8 +21,6 @@ import {
 interface AnalysisTabProps {
   cards: DeckCard[]
   deckId: number
-  format?: string
-  bracket: string | null
 }
 
 interface AttributeRating {
@@ -56,35 +53,6 @@ function getActiveCards(cards: DeckCard[]): DeckCard[] {
 
 function isLand(card: DeckCard): boolean {
   return parsePrimaryCategory(card.categories) === 'Land'
-}
-
-/**
- * Compute mana curve buckets (1, 2, 3, 4, 5, 6+) from actual mana costs.
- * Falls back to category-based estimates if mana_cost is not available.
- */
-function computeManaCurve(cards: DeckCard[]): number[] {
-  const buckets = [0, 0, 0, 0, 0, 0] // indices 0-5 → CMC 1, 2, 3, 4, 5, 6+
-  for (const card of cards) {
-    if (isLand(card)) continue
-    
-    // Use actual mana cost if available, otherwise estimate from category
-    let cmc: number
-    if (card.mana_cost) {
-      cmc = calculateCMC(card.mana_cost)
-    } else {
-      const cat = parsePrimaryCategory(card.categories)
-      cmc = estimateCmcFromCategory(cat)
-    }
-    
-    if (cmc <= 0) continue
-    const qty = card.quantity || 1
-    if (cmc >= 6) {
-      buckets[5] += qty
-    } else {
-      buckets[cmc - 1] += qty
-    }
-  }
-  return buckets
 }
 
 /**
@@ -191,7 +159,7 @@ function getCategoryStatus(category: string, count: number): { label: string; co
 // Component
 // ---------------------------------------------------------------------------
 
-export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps) {
+export function AnalysisTab({ cards, deckId }: AnalysisTabProps) {
   // Fetch ratings data if available (provides more accurate scores)
   const { data: ratings } = useQuery<DeckRatingsContent | null>({
     queryKey: ['decks', deckId, 'ratings'],
@@ -230,25 +198,6 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
     () => active.filter((c) => isLand(c)).reduce((sum, c) => sum + (c.quantity || 1), 0),
     [active]
   )
-
-  const nonLandCount = useMemo(() => totalCards - landCount, [totalCards, landCount])
-
-  // Avg CMC — using actual mana costs when available
-  const avgCmc = useMemo(() => {
-    const nonLand = active.filter((c) => !isLand(c))
-    const totalCmc = nonLand.reduce((sum, c) => {
-      const cmc = c.mana_cost 
-        ? calculateCMC(c.mana_cost)
-        : estimateCmcFromCategory(parsePrimaryCategory(c.categories))
-      return sum + cmc * (c.quantity || 1)
-    }, 0)
-    const count = nonLand.reduce((sum, c) => sum + (c.quantity || 1), 0)
-    return count > 0 ? totalCmc / count : 0
-  }, [active])
-
-  // Mana curve
-  const manaCurve = useMemo(() => computeManaCurve(active), [active])
-  const maxBucket = useMemo(() => Math.max(...manaCurve, 1), [manaCurve])
 
   // Attribute ratings
   const attributeRatings = useMemo(() => {
@@ -324,15 +273,12 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
 
   return (
     <div className="mx-auto max-w-[var(--content-max-width)] pb-12" style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      {/* ─── Top row: 4 stat cards ─── */}
+      {/* ─── Top row: Proxies (the rail shows card count, average mana value and bracket) ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-        <StatCard label="Total cards" value={totalCards.toString()} sub={`${getDeckSizeLabel(format)} target`} />
-        <StatCard label="Avg. CMC" value={avgCmc > 0 ? avgCmc.toFixed(2) : '—'} sub="Non-land spells" />
         <StatCard label="Proxies" value={proxyCount.toString()} accent="amber" sub={`${totalCards - proxyCount} originals`} />
-        <StatCard label="Bracket" value={bracket ?? '—'} sub="Power level" />
       </div>
 
-      {/* ─── Two-column row: Attributes + Mana Curve ─── */}
+      {/* ─── Attribute ratings (the mana curve lives in the rail) ─── */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         {/* Left: Attribute ratings */}
         <section
@@ -354,29 +300,6 @@ export function AnalysisTab({ cards, deckId, bracket, format }: AnalysisTabProps
           </div>
         </section>
 
-        {/* Right: Mana curve */}
-        <section
-          style={{
-            background: 'rgba(255,255,255,0.02)',
-            border: '0.5px solid rgba(255,255,255,0.07)',
-            borderRadius: '10px',
-            padding: '16px',
-          }}
-          aria-label="Mana curve"
-        >
-          <h3 style={{ fontSize: '12px', fontWeight: 500, color: 'rgba(255,255,255,0.5)', marginBottom: '14px' }}>
-            Mana curve
-          </h3>
-          <ManaCurveChart buckets={manaCurve} maxBucket={maxBucket} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px' }}>
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>
-              Lands: {landCount} · Non-land: {nonLandCount}
-            </span>
-            <span style={{ fontSize: '10px', color: 'rgba(255,255,255,0.25)' }}>
-              CMC {avgCmc > 0 ? avgCmc.toFixed(2) : '—'} avg
-            </span>
-          </div>
-        </section>
       </div>
 
       {/* ─── Two-column row: Mana Base Analysis + Category Distribution ─── */}
@@ -642,73 +565,6 @@ function AttributeBar({ label, score }: { label: string; score: number }) {
   )
 }
 
-function ManaCurveChart({ buckets, maxBucket }: { buckets: number[]; maxBucket: number }) {
-  const labels = ['1', '2', '3', '4', '5', '6+']
-  const chartHeight = 80 // px
-
-  return (
-    <div style={{ position: 'relative', display: 'flex', alignItems: 'flex-end', gap: '6px', height: `${chartHeight + 20}px`, paddingBottom: '20px' }}>
-      {buckets.map((count, i) => {
-        const heightPercent = maxBucket > 0 ? (count / maxBucket) * 100 : 0
-        const barHeight = Math.max(2, (heightPercent / 100) * chartHeight)
-
-        return (
-          <div
-            key={i}
-            style={{
-              flex: 1,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '4px',
-              height: '100%',
-              justifyContent: 'flex-end',
-            }}
-          >
-            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.4)' }}>
-              {count > 0 ? count : ''}
-            </span>
-            <div
-              style={{
-                width: '100%',
-                height: `${barHeight}px`,
-                borderRadius: '2px 2px 0 0',
-                backgroundColor: '#1D9E75',
-                opacity: count > 0 ? 1 : 0.2,
-                minHeight: '2px',
-              }}
-              role="meter"
-              aria-label={`CMC ${labels[i]}: ${count} cards`}
-              aria-valuenow={count}
-              aria-valuemin={0}
-              aria-valuemax={maxBucket}
-            />
-            <span style={{ fontSize: '9px', color: 'rgba(255,255,255,0.25)' }}>{labels[i]}</span>
-          </div>
-        )
-      })}
-      {/* Axis line */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '20px',
-          left: 0,
-          right: 0,
-          height: '0.5px',
-          background: 'rgba(255,255,255,0.08)',
-        }}
-      />
-    </div>
-  )
-}
-
-/**
- * Color Coverage Gaps Widget
- * 
- * Shows detailed analysis of multi-pip requirements and whether the mana base
- * can reliably support them. Groups double/triple pip cards by color and curve
- * position, providing actionable recommendations.
- */
 function ColorCoverageGaps({
   colorRequirements,
   landSources,

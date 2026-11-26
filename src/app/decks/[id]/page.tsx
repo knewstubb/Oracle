@@ -334,7 +334,6 @@ export default function DeckViewPage() {
             <AnalysisTab
               cards={cards}
               deckId={deck.id}
-              bracket={deck.bracket}
             />
           </div>
         </TabsContent>

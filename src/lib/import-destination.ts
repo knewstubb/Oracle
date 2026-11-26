@@ -10,12 +10,6 @@
 
 import type { ImportDestination } from '../../docs/oracle/contracts/know-where-cards-are.types'
 
-/**
- * Deck destination (slice I2) is on: the all-or-nothing database function `insert_user_copies_to_deck`
- * was applied 2026-11-16 (migration 20261116062746).
- */
-export const DECK_DESTINATION_ENABLED = true
-
 /** A destination the server refuses. Nothing has been written when this is thrown. */
 export class ImportDestinationError extends Error {
   constructor(
@@ -109,9 +103,6 @@ export async function resolveImportDestination(
     return { kind: 'storage', id: data.id, name: data.name }
   }
 
-  if (!DECK_DESTINATION_ENABLED) {
-    throw new ImportDestinationError('Importing straight into a deck is not available yet. Choose Unsorted or a box.', 503)
-  }
   const { data, error } = await supabase
     .from('decks')
     .select('id, name, user_id')

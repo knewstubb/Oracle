@@ -9,7 +9,6 @@
 import { orderDecks } from '@/lib/deck-order'
 import { requireAuth } from '@/lib/auth'
 import { createAdminClient } from '@/lib/supabase'
-import { DECK_DESTINATION_ENABLED } from '@/lib/import-destination'
 import { countEmptySlots, destinationDeckStatus, type DestinationSlotRow } from '@/lib/import-destinations-list'
 import type { DestinationsResponse } from '../../../../../docs/oracle/contracts/know-where-cards-are.types'
 
@@ -45,39 +44,37 @@ export async function GET() {
     }
 
     const decks: DestinationsResponse['decks'] = []
-    if (DECK_DESTINATION_ENABLED) {
-      const { data: deckRows, error: deckErr } = await orderDecks(
-        supabase.from('decks').select('id, name, format').eq('user_id', userId)
-      )
-      if (deckErr) throw new Error(deckErr.message)
+    const { data: deckRows, error: deckErr } = await orderDecks(
+      supabase.from('decks').select('id, name, format').eq('user_id', userId)
+    )
+    if (deckErr) throw new Error(deckErr.message)
 
-      const slotsByDeck = new Map<number, DestinationSlotRow[]>()
-      for (let from = 0; ; from += PAGE) {
-        const { data, error } = await supabase
-          .from('deck_cards')
-          .select('deck_id, copy_id, is_generic, generic_sleeved, categories')
-          .eq('user_id', userId)
-          .order('id', { ascending: true })
-          .range(from, from + PAGE - 1)
-        if (error) throw new Error(error.message)
-        for (const row of data ?? []) {
-          const list = slotsByDeck.get(row.deck_id) ?? []
-          list.push(row)
-          slotsByDeck.set(row.deck_id, list)
-        }
-        if ((data ?? []).length < PAGE) break
+    const slotsByDeck = new Map<number, DestinationSlotRow[]>()
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await supabase
+        .from('deck_cards')
+        .select('deck_id, copy_id, is_generic, generic_sleeved, categories')
+        .eq('user_id', userId)
+        .order('id', { ascending: true })
+        .range(from, from + PAGE - 1)
+      if (error) throw new Error(error.message)
+      for (const row of data ?? []) {
+        const list = slotsByDeck.get(row.deck_id) ?? []
+        list.push(row)
+        slotsByDeck.set(row.deck_id, list)
       }
+      if ((data ?? []).length < PAGE) break
+    }
 
-      for (const deck of deckRows ?? []) {
-        const slots = slotsByDeck.get(deck.id) ?? []
-        decks.push({
-          deckId: deck.id,
-          name: deck.name,
-          format: deck.format,
-          emptySlots: countEmptySlots(slots),
-          status: destinationDeckStatus(slots, deck.format),
-        })
-      }
+    for (const deck of deckRows ?? []) {
+      const slots = slotsByDeck.get(deck.id) ?? []
+      decks.push({
+        deckId: deck.id,
+        name: deck.name,
+        format: deck.format,
+        emptySlots: countEmptySlots(slots),
+        status: destinationDeckStatus(slots, deck.format),
+      })
     }
 
     // 0 = the Unsorted location is not created yet; the insert function creates it on the first import.

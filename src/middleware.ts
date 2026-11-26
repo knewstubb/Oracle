@@ -1,6 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { attemptLocalAutoLogin, getLocalAutoLoginCredentials } from '@/lib/local-auto-login'
+import { attemptLocalAutoLogin, getLocalAutoLoginCredentials, SIGNED_OUT_COOKIE } from '@/lib/local-auto-login'
 import { isConnectorPublicPath } from '@/lib/connector/public-paths'
 import { safeNextPath } from '@/lib/safe-next'
 
@@ -13,7 +13,8 @@ export async function middleware(request: NextRequest) {
   if (isConnectorPublicPath(pathname)) return NextResponse.next()
 
   // Local-only opt-in auto sign-in (null unless dev + both env vars set)
-  const autoLogin = getLocalAutoLoginCredentials()
+  // Skipped after the user chose Log out, until they sign in manually again
+  const autoLogin = request.cookies.has(SIGNED_OUT_COOKIE) ? null : getLocalAutoLoginCredentials()
 
   // Allow public routes to pass through without auth check
   if (!(autoLogin && pathname.startsWith('/login')) && PUBLIC_ROUTES.some((route) => pathname.startsWith(route))) {

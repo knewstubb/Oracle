@@ -25,6 +25,9 @@ interface PasswordSignInClient {
   }
 }
 
+/** Cookie set by Log out so local auto sign-in does not immediately sign the user back in. */
+export const SIGNED_OUT_COOKIE = 'oracle-signed-out'
+
 /** Returns credentials when auto sign-in is active, otherwise null. */
 export function getLocalAutoLoginCredentials(
   env: LocalAutoLoginEnv = process.env as LocalAutoLoginEnv

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createBrowserClient } from '@/lib/supabase'
 import { safeNextPath } from '@/lib/safe-next'
+import { SIGNED_OUT_COOKIE } from '@/lib/local-auto-login'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 
@@ -31,6 +32,7 @@ export function LoginForm({ next }: { next?: string } = {}) {
         return
       }
 
+      document.cookie = `${SIGNED_OUT_COOKIE}=; path=/; max-age=0`
       router.push(safeNextPath(next))
       router.refresh()
     } catch {

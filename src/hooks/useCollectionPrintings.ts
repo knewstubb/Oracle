@@ -99,6 +99,9 @@ export function useCollectionPrintings(params: CollectionPrintingsParams = {}): 
     gcTime: 60 * 60 * 1000, // 1 hour — keep in memory for fast navigation
     placeholderData: (prev) => prev, // Keep previous data visible while loading next page
     refetchOnWindowFocus: false, // Don't refetch on tab switch
+    // A failed answer shows the error at once. With the default 3 retries a slow sort (Qty takes
+    // about 13 s) kept the "Updating results" spinner up for about a minute before the error came (D-030).
+    retry: false,
     enabled,
   })
 }

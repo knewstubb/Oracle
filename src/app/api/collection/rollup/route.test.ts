@@ -317,4 +317,93 @@ describe('GET /api/collection/rollup — B1 price-freshness read', () => {
     expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Forest', 'Snow-Covered Swamp'])
     expect(orCalls).toEqual([])
   })
+  describe('status filter (All in deck / Some in deck / None in deck / Short)', () => {
+    // Sol Ring: 2 originals, both in decks. Arcane Signet: 2 originals, 1 in a deck. Command Tower: 1 original, in no deck.
+    // Lightning Greaves: 1 original filling a 2-copy slot. Proxy Thing: no originals (no status).
+    const queueStatusReads = () => {
+      queue('user_copies', {
+        data: [
+          { id: 11, card_id: 1 }, { id: 12, card_id: 1 },
+          { id: 21, card_id: 2 }, { id: 22, card_id: 2 },
+          { id: 31, card_id: 3 },
+          { id: 41, card_id: 4 },
+        ],
+        error: null,
+      })
+      queue('deck_cards', {
+        data: [
+          { id: 1, copy_id: 11, quantity: 1 }, { id: 2, copy_id: 12, quantity: 1 },
+          { id: 3, copy_id: 21, quantity: 1 },
+          { id: 4, copy_id: 41, quantity: 2 },
+          { id: 5, copy_id: 999, quantity: 1 }, // another kind of copy: ignored
+        ],
+        error: null,
+      })
+    }
+    const NAMES: Record<number, string> = { 1: 'Sol Ring', 2: 'Arcane Signet', 3: 'Command Tower', 4: 'Lightning Greaves', 5: 'Proxy Thing' }
+    const queueListAndPage = (pageIds: number[]) => {
+      queue('user_cards', { data: [{ id: 2 }, { id: 3 }, { id: 4 }, { id: 5 }, { id: 1 }], error: null }) // all ids, name order
+      queue('user_cards', {
+        data: pageIds.map((id) => ({ id, card_name: NAMES[id], oracle_id: `o-${id}`, color_identity: null, type_line: null })),
+        error: null,
+      })
+      queue('user_copies', { data: [], error: null }) // page enrichment
+    }
+    it.each([
+      ['fullyPlaced', [1]],
+      ['partiallyAvailable', [2]],
+      ['unplaced', [3]],
+      ['overAllocated', [4]],
+    ] as const)('status=%s lists only cards with that status', async (status, ids) => {
+      queueStatusReads()
+      queueListAndPage([...ids])
+      const res = await callGET({ status })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.totalCount).toBe(ids.length)
+      expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(ids.map((id) => NAMES[id]))
+    })
+    it('several statuses: a card matches any of them, in name order', async () => {
+      queueStatusReads()
+      queueListAndPage([3, 4])
+      const res = await callGET({ status: 'overAllocated,unplaced' })
+      const body = await res.json()
+      expect(body.totalCount).toBe(2)
+      expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Command Tower', 'Lightning Greaves'])
+    })
+    it('no status: no status reads, the count comes from the card list', async () => {
+      queue('user_cards', { count: 5, error: null })
+      queue('user_cards', { data: [], error: null })
+      queue('user_copies', { data: null, error: { message: 'a status read would fail here' } })
+      const res = await callGET({ page: '9' })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.totalCount).toBe(5)
+    })
+    it('with a colour filter: only cards that pass both', async () => {
+      queueStatusReads()
+      queue('connector_collection_copies', { data: [], error: null }) // copies the view cannot judge: none
+      queue('connector_collection_copies', {
+        data: [{ card_id: 3, card_name: 'Command Tower' }, { card_id: 1, card_name: 'Sol Ring' }],
+        count: 2,
+        error: null,
+      })
+      queue('user_cards', { data: [{ id: 1, card_name: 'Sol Ring', oracle_id: 'o-1', color_identity: null, type_line: null }], error: null })
+      queue('user_copies', { data: [], error: null })
+      // The colour path reads the view first, then the status; the status reads are queued per table, so order holds.
+      const res = await callGET({ colors: 'C', colorMode: 'exact', status: 'fullyPlaced' })
+      const body = await res.json()
+      expect(body.totalCount).toBe(1)
+      expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Sol Ring'])
+    })
+    it('an unknown status is refused (400)', async () => {
+      const res = await callGET({ status: 'claimed' })
+      expect(res.status).toBe(400)
+    })
+    it('a failed status read is an error (500), never an empty list', async () => {
+      queue('user_copies', { data: null, error: { message: 'copies read failed' } })
+      const res = await callGET({ status: 'unplaced' })
+      expect(res.status).toBe(500)
+    })
+  })
 })

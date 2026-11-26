@@ -125,6 +125,11 @@ export default function CollectionPage() {
     setCurrentPage(1)
     setPrintingPage(1)
   }, [])
+  const handleStatusChange = useCallback((statuses: StatusFilter[]) => {
+    setActiveStatuses(statuses)
+    setCurrentPage(1)
+    setPrintingPage(1)
+  }, [])
   const handleTagsChange = useCallback((keys: string[]) => {
     setSelectedTags(keys)
     setCurrentPage(1)
@@ -163,6 +168,7 @@ export default function CollectionPage() {
       basic: basicOnly,
       tags: selectedTags,
       tagsMatch,
+      statuses: activeStatuses,
       enabled: viewResolved && !isPrintingView,
     })
 
@@ -184,6 +190,7 @@ export default function CollectionPage() {
     basic: basicOnly,
     tags: selectedTags,
     tagsMatch,
+    statuses: activeStatuses,
     enabled: viewResolved && isPrintingView,
   })
 
@@ -333,7 +340,7 @@ export default function CollectionPage() {
                 colorMode={colorMode}
                 onColorModeChange={handleColorModeChange}
                 activeStatuses={activeStatuses}
-                onStatusChange={setActiveStatuses}
+                onStatusChange={handleStatusChange}
                 sortContext={isPrintingView ? 'printing' : 'rollup'}
                 basicOnly={basicOnly}
                 onBasicOnlyChange={handleBasicOnlyChange}

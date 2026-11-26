@@ -730,6 +730,34 @@ describe('F2: single search pause and atomic query/page transitions', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/of 777 /))
     expect(screen.getByRole('radio', { name: 'Includes' }).getAttribute('aria-checked')).toBe('true')
   })
+  it.each([
+    ['grid', rollupCalls],
+    ['list', printingCalls],
+  ] as const)('choosing a status asks the server for that status at page 1 and shows its answer; clearing it drops the filter (%s view)', async (view, calls) => {
+    const answer = (call: FetchCall) => (call.searchParams.get('status') ? 12 : 300)
+    rollupHandler = (call) => Promise.resolve(jsonResponse(rollupEnvelope([rollupRow('Sol Ring', 1)], call.searchParams.get('status') ? 1 : 2, answer(call))))
+    printingsHandler = (call) => Promise.resolve(jsonResponse(printingEnvelope([printingRow('Sol Ring', 1)], call.searchParams.get('status') ? 1 : 2, answer(call))))
+    localStorageMock.setItem('oracle:collection:viewMode', view)
+    renderPage()
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 300 /))
+    fireEvent.click(screen.getByLabelText('Next page'))
+    await waitFor(() => expect(calls().some((c) => c.searchParams.get('page') === '2')).toBe(true))
+    fireEvent.click(screen.getByRole('button', { name: 'None in deck' }))
+    await waitFor(() => {
+      const call = calls().find((c) => c.searchParams.get('status') === 'unplaced')
+      expect(call).toBeDefined()
+      expect(call?.searchParams.get('page')).toBe('1')
+    })
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 12 /))
+    // A second status is added (any of); the server gets both.
+    fireEvent.click(screen.getByRole('button', { name: 'Short' }))
+    await waitFor(() => expect(calls().some((c) => c.searchParams.get('status') === 'overAllocated,unplaced')).toBe(true))
+    // Clearing both: the unfiltered answer (page 1, already cached from the first load) is shown again.
+    fireEvent.click(screen.getByRole('button', { name: 'None in deck (active)' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Short (active)' }))
+    await waitFor(() => expect(document.body.textContent).toMatch(/of 300 /))
+    expect(screen.getByRole('button', { name: 'None in deck' })).toHaveAttribute('aria-pressed', 'false')
+  })
   it('C27-F2-03: a colour filter change while a search is pending uses the last committed search, immediately, at page 1', async () => {
     rollupHandler = paginatedRollupHandler(3)
     localStorageMock.setItem('oracle:collection:viewMode', 'grid')

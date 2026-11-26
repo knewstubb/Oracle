@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
+import type { StatusFilter } from '@/lib/collection-filters'
 
 // ---------------------------------------------------------------------------
 // Types (mirrors API response shape from /api/collection/rollup)
@@ -69,6 +70,8 @@ export interface CollectionRollupParams {
   /** Tag keys the card must have (stored keys), and whether it needs all of them or any. */
   tags?: string[]
   tagsMatch?: 'all' | 'any'
+  /** Card statuses to show (any of); empty = all cards. */
+  statuses?: StatusFilter[]
   /** Whether the main rollup query should run. Defaults to `true`, preserving existing callers. */
   enabled?: boolean
 }
@@ -98,12 +101,14 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     basic = false,
     tags: tagsParam = [],
     tagsMatch = 'all',
+    statuses: statusesParam = [],
     enabled = true,
   } = params
 
   // Same colours in any click order are the same request (and the same cache entry)
   const colors = [...colorsParam].sort()
   const tags = [...tagsParam].sort()
+  const statuses = [...statusesParam].sort()
   // Build query string
   const queryString = new URLSearchParams({
     tab,
@@ -115,11 +120,12 @@ export function useCollectionRollup(params: CollectionRollupParams = {}) {
     ...(colors.length > 0 ? { colors: colors.join(','), colorMode } : {}),
     ...(basic ? { basic: 'true' } : {}),
     ...(tags.length > 0 ? { tags: tags.join(','), tagsMatch } : {}),
+    ...(statuses.length > 0 ? { status: statuses.join(',') } : {}),
   }).toString()
 
   // Main rollup query — keyed by all filter/pagination params
   const rollupQuery = useQuery<CollectionRollupResponse>({
-    queryKey: ['collection', 'rollup', tab, page, pageSize, search, sort, sortDir, colors.join(','), colorMode, basic, tags.join(','), tagsMatch],
+    queryKey: ['collection', 'rollup', tab, page, pageSize, search, sort, sortDir, colors.join(','), colorMode, basic, tags.join(','), tagsMatch, statuses.join(',')],
     queryFn: async ({ signal }) => {
       // signal: a request that is no longer wanted (the filter changed again) is cancelled
       const res = await fetch(`/api/collection/rollup?${queryString}`, { signal })

@@ -106,29 +106,9 @@ export function truncateName(name: string, maxLength: number = 40): string {
 
 /* ─── Overallocation Detection ──────────────────────────────────────── */
 
-/**
- * Returns true if a printing is allocated to more decks than the owned quantity.
- */
-export function isOverallocated(quantity: number, usedByCount: number): boolean {
-  return usedByCount > quantity
-}
 
 /* ─── Tooltip Content ───────────────────────────────────────────────── */
 
-/**
- * Produces the tooltip content for a Used By cell.
- * Sorts deck names alphabetically, caps visible list at 20,
- * and computes remaining count.
- */
-export function getTooltipContent(decks: DeckReference[]): {
-  visibleDecks: string[]
-  remainingCount: number
-} {
-  const sorted = [...decks].sort((a, b) => a.deckName.localeCompare(b.deckName))
-  const visibleDecks = sorted.slice(0, 20).map((d) => d.deckName)
-  const remainingCount = Math.max(0, sorted.length - 20)
-  return { visibleDecks, remainingCount }
-}
 
 /* ─── Row Grouping ──────────────────────────────────────────────────── */
 
@@ -210,17 +190,3 @@ export function computeAllocationState(
 
 /* ─── Price Lookup ──────────────────────────────────────────────────── */
 
-/**
- * Looks up the price for a specific printing and foil status.
- * The key format is `${scryfallPrintingId}:${isFoil ? 'foil' : 'normal'}`.
- * Returns null if no entry exists.
- */
-export function lookupPrice(
-  priceMap: Map<string, number>,
-  scryfallPrintingId: string,
-  isFoil: boolean
-): number | null {
-  const key = `${scryfallPrintingId}:${isFoil ? 'foil' : 'normal'}`
-  const price = priceMap.get(key)
-  return price !== undefined ? price : null
-}

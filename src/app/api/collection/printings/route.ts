@@ -16,6 +16,7 @@ import {
 } from '@/lib/collection-colour-filter'
 import { hasSupertype, parseTypeLine } from '@/lib/type-line'
 import { InvalidTagFilter, loadTagFilterOracleIds, parseTagFilter } from '@/lib/collection-tag-filter'
+import { InvalidStatusFilter, loadCardIdsWithStatus, parseStatusFilter } from '@/lib/collection-status-filter'
 import { NextRequest } from 'next/server'
 
 /**
@@ -34,6 +35,8 @@ import { NextRequest } from 'next/server'
  *   - includeProxies: 'true' | 'false' (default: 'false')
  *   - basic: 'true' = only Basic cards
  *   - tags: comma-separated Tag keys; tagsMatch: 'all' (default) | 'any'
+ *   - status: comma-separated card statuses (any of); a copy is listed when its card's status, worked out from the
+ *     card's originals, is one of them (see collection-status-filter.ts)
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -132,6 +135,13 @@ export async function GET(request: NextRequest) {
     if (e instanceof InvalidTagFilter) return Response.json({ error: e.message }, { status: 400 })
     throw e
   }
+  let statusFilter: ReturnType<typeof parseStatusFilter>
+  try {
+    statusFilter = parseStatusFilter(searchParams.get('status'))
+  } catch (e) {
+    if (e instanceof InvalidStatusFilter) return Response.json({ error: e.message }, { status: 400 })
+    throw e
+  }
 
   try {
     const offset = (page - 1) * pageSize
@@ -159,17 +169,23 @@ export async function GET(request: NextRequest) {
           .order('card_name', { ascending: sortDir === 'asc' })
           .order('copy_id', { ascending: true })
       }
-      // Tag filter: the database cannot join the Tag table to the view, so the copies that pass the other filters are
-      // listed (copy and card identity only), limited to the tagged cards here, then paged. Only the page's copies are read in full.
+      // Tag and status filters: the database cannot join the Tag table or work out a status in the view, so the copies
+      // that pass the other filters are listed (copy and card identity only), limited to the tagged cards and the cards
+      // with a chosen status here, then paged. Only the page's copies are read in full.
       let taggedCopyIds: number[] | null = null
-      if (tagFilter) {
-        const tagged = await loadTagFilterOracleIds(tagFilter)
+      if (tagFilter || statusFilter) {
+        const tagged = tagFilter ? await loadTagFilterOracleIds(tagFilter) : null
+        const statusIds = statusFilter ? await loadCardIdsWithStatus(supabase, userId, statusFilter, false) : null
         taggedCopyIds = []
         for (let from = 0; ; from += 1000) {
-          const r = await filteredView('copy_id, oracle_id', false).range(from, from + 999)
+          const r = await filteredView('copy_id, card_id, oracle_id', false).range(from, from + 999)
           if (r.error) throw r.error
-          const got = (r.data ?? []) as Array<{ copy_id: number; oracle_id: string | null }>
-          for (const g of got) if (g.oracle_id && tagged.has(g.oracle_id)) taggedCopyIds.push(g.copy_id)
+          const got = (r.data ?? []) as Array<{ copy_id: number; card_id: number; oracle_id: string | null }>
+          for (const g of got) {
+            if (tagged && !(g.oracle_id && tagged.has(g.oracle_id))) continue
+            if (statusIds && !statusIds.has(g.card_id)) continue
+            taggedCopyIds.push(g.copy_id)
+          }
           if (got.length < 1000) break
         }
       }
@@ -407,6 +423,10 @@ export async function GET(request: NextRequest) {
     if (tagFilter) {
       const tagged = await loadTagFilterOracleIds(tagFilter)
       enrichedCopies = enrichedCopies.filter((c) => !!c.oracle_id && tagged.has(c.oracle_id))
+    }
+    if (statusFilter) {
+      const statusIds = await loadCardIdsWithStatus(supabase, userId, statusFilter, false)
+      enrichedCopies = enrichedCopies.filter((c) => statusIds.has(c.card_id))
     }
     const pageTotalCount = enrichedCopies.length
 

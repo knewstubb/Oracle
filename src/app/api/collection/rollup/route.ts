@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/auth'
 import { asViewClient, colourOrExpression, matchingFactlessCopyIds, parseColourFilter } from '@/lib/collection-colour-filter'
 import { hasSupertype, parseTypeLine } from '@/lib/type-line'
 import { InvalidTagFilter, loadTagFilterOracleIds, parseTagFilter } from '@/lib/collection-tag-filter'
+import { InvalidStatusFilter, loadCardIdsWithStatus, parseStatusFilter } from '@/lib/collection-status-filter'
 import { NextRequest } from 'next/server'
 
 /**
@@ -26,6 +27,7 @@ import { NextRequest } from 'next/server'
  *   - colorMode: 'exact' | 'includes' | 'at_most' (default: 'includes')
  *   - basic: 'true' = only cards with the Basic supertype (read from the card library type line)
  *   - tags: comma-separated Tag keys; tagsMatch: 'all' (default) | 'any'
+ *   - status: comma-separated fullyPlaced | partiallyAvailable | unplaced | overAllocated (any of; see collection-status-filter.ts)
  *
  * Response: { rows, totalCount, page, pageSize, lastPriceRefresh, isPriceStale }
  *
@@ -130,6 +132,13 @@ export async function GET(request: NextRequest) {
     if (e instanceof InvalidTagFilter) return Response.json({ error: e.message }, { status: 400 })
     throw e
   }
+  let statusFilter: ReturnType<typeof parseStatusFilter>
+  try {
+    statusFilter = parseStatusFilter(searchParams.get('status'))
+  } catch (e) {
+    if (e instanceof InvalidStatusFilter) return Response.json({ error: e.message }, { status: 400 })
+    throw e
+  }
 
   try {
     // ──── Step 1: Count + paginate cards ────────────────────
@@ -164,9 +173,21 @@ export async function GET(request: NextRequest) {
 
     let totalCount: number
     let cards: PageCard[]
+    // The page's cards, in the order of pageIds.
+    const loadPageCards = async (pageIds: number[]): Promise<PageCard[]> => {
+      if (pageIds.length === 0) return []
+      const { data, error } = await supabase
+        .from('user_cards')
+        .select('id, card_name, oracle_id, color_identity, type_line')
+        .eq('user_id', userId)
+        .in('id', pageIds)
+      if (error) throw error
+      const byId = new Map((data || []).map((c) => [c.id, c as PageCard]))
+      return pageIds.map((id) => byId.get(id)).filter((c): c is PageCard => !!c)
+    }
 
-    if (!colourFilter && !basicOnly && !tagFilter) {
-      // No colour or Basic filter: count and page are independent, so they run together.
+    if (!colourFilter && !basicOnly && !tagFilter && !statusFilter) {
+      // No colour, Basic, Tag or status filter: count and page are independent, so they run together.
       let countQuery = supabase
         .from('user_cards')
         .select('id', { count: 'exact', head: true })
@@ -183,6 +204,24 @@ export async function GET(request: NextRequest) {
       if (pageRes.error) throw pageRes.error
       totalCount = countRes.count ?? 0
       cards = (pageRes.data || []) as PageCard[]
+    } else if (!colourFilter && !basicOnly && !tagFilter) {
+      // Status filter only: list the user's cards in name order (ids only), keep those with a chosen status, then page.
+      const statusIds = await loadCardIdsWithStatus(supabase, userId, statusFilter!, isProxyFilter)
+      const ordered: number[] = []
+      for (let from = 0; ; from += 1000) {
+        let q = supabase
+          .from('user_cards')
+          .select('id')
+          .eq('user_id', userId)
+        q = applyFilters(q)
+        const r = await q.order(sortColumn, { ascending }).order('id', { ascending: true }).range(from, from + 999)
+        if (r.error) throw r.error
+        const got = (r.data ?? []) as Array<{ id: number }>
+        for (const g of got) if (statusIds.has(g.id)) ordered.push(g.id)
+        if (got.length < 1000) break
+      }
+      totalCount = ordered.length
+      cards = await loadPageCards(ordered.slice(offset, offset + pageSize))
     } else {
       // Colour and/or Basic filter. user_cards.color_identity is empty for every card, so colour comes from the
       // connector_collection_copies view (see collection-colour-filter.ts). One row per copy, so the
@@ -226,21 +265,11 @@ export async function GET(request: NextRequest) {
       // Tag filter: the shared Tag read says which cards carry the Tags; a failed read throws (error state), never "no cards".
       const tagged = tagFilter ? await loadTagFilterOracleIds(tagFilter) : null
       const exact = tagged ? basicMatches.filter((m) => !!m.oracle_id && tagged.has(m.oracle_id)) : basicMatches
-      const cardIds = [...new Set(exact.map((m) => m.card_id))]
+      // Status filter: the same any-of rule as above, on the cards that passed the other filters.
+      const statusIds = statusFilter ? await loadCardIdsWithStatus(supabase, userId, statusFilter, isProxyFilter) : null
+      const cardIds = [...new Set(exact.map((m) => m.card_id))].filter((id) => !statusIds || statusIds.has(id))
       totalCount = cardIds.length
-      const pageIds = cardIds.slice(offset, offset + pageSize)
-      if (pageIds.length === 0) {
-        cards = []
-      } else {
-        const { data, error } = await supabase
-          .from('user_cards')
-          .select('id, card_name, oracle_id, color_identity, type_line')
-          .eq('user_id', userId)
-          .in('id', pageIds)
-        if (error) throw error
-        const byId = new Map((data || []).map((c) => [c.id, c as PageCard]))
-        cards = pageIds.map((id) => byId.get(id)).filter((c): c is PageCard => !!c)
-      }
+      cards = await loadPageCards(cardIds.slice(offset, offset + pageSize))
     }
 
     if (totalCount === 0) {

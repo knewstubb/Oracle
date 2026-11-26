@@ -278,17 +278,17 @@ describe('CollectionToolbar', () => {
   describe('Status filter', () => {
     it('renders all status options', () => {
       renderToolbar()
-      expect(screen.getByText('Fully Placed')).toBeInTheDocument()
-      expect(screen.getByText('Partially Available')).toBeInTheDocument()
-      expect(screen.getByText('Unplaced')).toBeInTheDocument()
-      expect(screen.getByText('Over-Allocated')).toBeInTheDocument()
+      expect(screen.getByText('All in deck')).toBeInTheDocument()
+      expect(screen.getByText('Some in deck')).toBeInTheDocument()
+      expect(screen.getByText('None in deck')).toBeInTheDocument()
+      expect(screen.getByText('Short')).toBeInTheDocument()
     })
 
     it('toggles status on click', () => {
       const onStatusChange = vi.fn()
       renderToolbar({ activeStatuses: [], onStatusChange })
 
-      fireEvent.click(screen.getByText('Unplaced'))
+      fireEvent.click(screen.getByText('None in deck'))
       expect(onStatusChange).toHaveBeenCalledWith(['unplaced'])
     })
 
@@ -296,7 +296,7 @@ describe('CollectionToolbar', () => {
       const onStatusChange = vi.fn()
       renderToolbar({ activeStatuses: ['fullyPlaced', 'unplaced'], onStatusChange })
 
-      fireEvent.click(screen.getByLabelText('Fully Placed (active)'))
+      fireEvent.click(screen.getByLabelText('All in deck (active)'))
       expect(onStatusChange).toHaveBeenCalledWith(['unplaced'])
     })
   })

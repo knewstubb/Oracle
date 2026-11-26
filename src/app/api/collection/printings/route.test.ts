@@ -242,4 +242,53 @@ describe('GET /api/collection/printings — B1 price-freshness read', () => {
       expect(expr).toContain('is_colourless.eq.true')
     })
   })
+  describe('status filter', () => {
+    // Card 10 (Sol Ring): 1 original, in a deck. Card 20 (Command Tower): 1 original, in no deck.
+    const queueStatusReads = () => {
+      queue('user_copies', { data: [{ id: 1, card_id: 10 }, { id: 2, card_id: 20 }], error: null })
+      queue('deck_cards', { data: [{ id: 1, copy_id: 1, quantity: 1 }], error: null })
+    }
+    it('fast path: lists only the copies of cards with a chosen status', async () => {
+      queueStatusReads()
+      queue('connector_collection_copies', {
+        data: [
+          { copy_id: 1, card_id: 10, oracle_id: 'o-10' },
+          { copy_id: 2, card_id: 20, oracle_id: 'o-20' },
+        ],
+        error: null,
+      }) // the copy list
+      queue('connector_collection_copies', {
+        data: [{ copy_id: 2, card_id: 20, printing_id: null, finish: 'nonfoil', is_proxy: false, card_name: 'Command Tower' }],
+        error: null,
+      }) // the page
+      queue('ref_printings', { data: [], error: null })
+      queue('deck_cards', { data: [], error: null })
+      queue('user_copies', { data: [{ id: 2, created_at: null }], error: null })
+      const res = await callGET({ status: 'unplaced' })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.totalCount).toBe(1)
+      expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Command Tower'])
+    })
+    it('other sorts: the same rule on the full list', async () => {
+      queue('user_copies', {
+        data: [
+          { id: 1, card_id: 10, printing_id: null, finish: 'nonfoil', is_proxy: false, created_at: null, user_cards: { card_name: 'Sol Ring', oracle_id: 'o-10' } },
+          { id: 2, card_id: 20, printing_id: null, finish: 'nonfoil', is_proxy: false, created_at: null, user_cards: { card_name: 'Command Tower', oracle_id: 'o-20' } },
+        ],
+        error: null,
+      }) // all copies (fallback path reads them first)
+      queueStatusReads()
+      queue('deck_cards', { data: [], error: null }) // page deck usage
+      const res = await callGET({ sort: 'price', status: 'fullyPlaced' })
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.totalCount).toBe(1)
+      expect(body.rows.map((r: { cardName: string }) => r.cardName)).toEqual(['Sol Ring'])
+    })
+    it('an unknown status is refused (400)', async () => {
+      const res = await callGET({ status: 'open' })
+      expect(res.status).toBe(400)
+    })
+  })
 })

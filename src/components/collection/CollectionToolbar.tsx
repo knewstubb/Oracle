@@ -59,10 +59,10 @@ const PRINTING_SORT_FIELDS: PrintingSortField[] = [
 ]
 
 const STATUS_OPTIONS: { value: StatusFilterType; label: string }[] = [
-  { value: 'fullyPlaced', label: 'Fully Placed' },
-  { value: 'partiallyAvailable', label: 'Partially Available' },
-  { value: 'unplaced', label: 'Unplaced' },
-  { value: 'overAllocated', label: 'Over-Allocated' },
+  { value: 'fullyPlaced', label: 'All in deck' },
+  { value: 'partiallyAvailable', label: 'Some in deck' },
+  { value: 'unplaced', label: 'None in deck' },
+  { value: 'overAllocated', label: 'Short' },
 ]
 
 const COLOR_OPTIONS: { value: string; label: string; hex: string }[] = [

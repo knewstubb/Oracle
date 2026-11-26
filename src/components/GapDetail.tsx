@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, Circle, MessageCircle, Plus } from 'lucide-react'
+import { AlertTriangle, Ban, Check, ChevronLeft, ChevronRight, Circle, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Button } from '@/components/ui/button'
@@ -19,8 +19,6 @@ export interface GapDetailProps {
   deckId: number
   role: HealthRoleKey
   onBack: () => void
-  /** Opens the Oracle chat with a question about this role. Omitted: no button. */
-  onChat?: () => void
   /** Shown inside a row's detail view: no back button, heading or count line (the row view already shows them). */
   embedded?: boolean
 }
@@ -197,7 +195,7 @@ export function gapErrorReason(err: unknown): string {
   return 'unknown error'
 }
 
-export function GapDetail({ deckId, role, onBack, onChat, embedded = false }: GapDetailProps) {
+export function GapDetail({ deckId, role, onBack, embedded = false }: GapDetailProps) {
   const [showInDeck, setShowInDeck] = useState(false)
   const [pinned, setPinned] = useState<Record<string, GapCard>>({})
   const { data, error, isPending, isError, refetch } = useQuery<DeckHealthGap>({
@@ -292,12 +290,6 @@ export function GapDetail({ deckId, role, onBack, onChat, embedded = false }: Ga
                   For reference only: <span data-testid="gap-source-line">{data.sourceLine || 'No EDHREC average for this commander'}</span>
                 </p>
               </>
-            )}
-            {onChat && (
-              <Button variant="outline" size="sm" onClick={onChat} className="mt-2 h-8 px-2.5 text-[length:var(--fs-sm)]">
-                <MessageCircle aria-hidden="true" />
-                Chat about this
-              </Button>
             )}
           </div>
 

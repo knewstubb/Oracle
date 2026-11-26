@@ -2,7 +2,7 @@
  * Backfill commander_id on decks from their build_id
  * 
  * Some decks have build_id set but commander_id is null,
- * causing the Strategy tab to not load insights.
+ * causing the deck page to not load insights.
  * 
  * This script derives commander_id from ref_commander_builds.
  */

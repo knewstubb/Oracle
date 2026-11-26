@@ -31,14 +31,14 @@ The stack is Next.js 16 (App Router), React 19, Supabase (Postgres + Auth), TanS
 | Remove Notion Dependency | shipped | Infrastructure | `specs/remove-notion-dependency/` | 2026-05 |
 | UI Overhaul | shipped | Design System | `specs/ui-overhaul/` | 2026-05 |
 | UI Token Pass | shipped | Design System | `specs/ui-token-pass/` | 2026-06 |
-| Brew Mode V2 | shipped | User-facing | `specs/brew-mode-v2/` | 2026-05 |
-| Brew Canvas Redesign | shipped | User-facing | `specs/brew-canvas-redesign/` | 2026-06 |
-| Brew AI Tools | shipped | User-facing | `specs/brew-ai-tools/` | 2026-05 |
-| Brew Model Selector | shipped | User-facing | `specs/brew-model-selector/` | 2026-06 |
-| Brew Session Autosave | shipped | User-facing | `specs/brew-session-autosave/` | 2026-06 |
+| Brew Mode V2 | removed 2026-11 | User-facing | `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-mode-v2/` | 2026-05 |
+| Brew Canvas Redesign | removed 2026-11 | User-facing | `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-canvas-redesign/` | 2026-06 |
+| Brew AI Tools | removed 2026-11 | User-facing | `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-ai-tools/` | 2026-05 |
+| Brew Model Selector | removed 2026-11 | User-facing | `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-model-selector/` | 2026-06 |
+| Brew Session Autosave | removed 2026-11 | User-facing | `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-session-autosave/` | 2026-06 |
 | Debrief Mode | cut | User-facing | `specs/_archive/debrief-mode/` | 2026-05 |
 | Monitor Mode (Deck Health) | shipped | User-facing | `specs/monitor-mode/` | 2026-05 |
-| Upgrade Tab Expansion | shipped | User-facing | `specs/upgrade-tab-expansion/` | 2026-06 |
+| Upgrade Tab Expansion | removed 2026-11 | User-facing | `docs/oracle/archive/removed-features-2026-11/kiro-specs/upgrade-tab-expansion/` | 2026-06 |
 | Precon Mod Tracker | cut | User-facing | `specs/_archive/precon-mod-tracker/` | 2026-06 |
 | Generic Basic Lands | shipped | User-facing | `specs/generic-basic-lands/` | 2026-07 |
 | Cards Tab Workshop | shipped | User-facing | `specs/cards-tab-workshop/` | 2026-07 |
@@ -407,7 +407,7 @@ AI-assisted deck building via a two-phase canvas interface. Phase 1 (Exploring):
 - Save creates a real deck with status = brew
 
 ### Refs
-- Full spec: `specs/brew-mode-v2/requirements.md`
+- Full spec: `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-mode-v2/requirements.md` (archived; feature removed 2026-11)
 
 ---
 
@@ -428,7 +428,7 @@ Spatial card canvas for the deck building phase. Cards render as draggable tiles
 - Card tiles show art + name + category + status dot
 
 ### Refs
-- Full spec: `specs/brew-canvas-redesign/requirements.md`
+- Full spec: `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-canvas-redesign/requirements.md` (archived; feature removed 2026-11)
 
 ---
 
@@ -449,7 +449,7 @@ Tool-use loop giving the AI access to external MTG data sources during brew sess
 - Collection lookup surfaces owned/proxy/unowned status per card
 
 ### Refs
-- Full spec: `specs/brew-ai-tools/requirements.md`
+- Full spec: `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-ai-tools/requirements.md` (archived; feature removed 2026-11)
 
 ---
 
@@ -470,7 +470,7 @@ Multi-model support in the brew interface. Users can switch between AI providers
 - Cost tracking per message (shown in UI)
 
 ### Refs
-- Full spec: `specs/brew-model-selector/requirements.md`
+- Full spec: `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-model-selector/requirements.md` (archived; feature removed 2026-11)
 
 ---
 
@@ -491,7 +491,7 @@ Client-side autosave hook that persists brew session state every 2 seconds to `b
 - Network failure doesn't crash the session — retry once, then skip
 
 ### Refs
-- Full spec: `specs/brew-session-autosave/requirements.md`
+- Full spec: `docs/oracle/archive/removed-features-2026-11/kiro-specs/brew-session-autosave/requirements.md` (archived; feature removed 2026-11)
 
 ---
 
@@ -553,7 +553,7 @@ EDHREC-powered upgrade suggestions for each deck. Cut/add card pairs with synerg
 - Change log tracks all decisions with timestamps
 
 ### Refs
-- Full spec: `specs/upgrade-tab-expansion/requirements.md`
+- Full spec: `docs/oracle/archive/removed-features-2026-11/kiro-specs/upgrade-tab-expansion/requirements.md` (archived; feature removed 2026-11)
 
 ---
 

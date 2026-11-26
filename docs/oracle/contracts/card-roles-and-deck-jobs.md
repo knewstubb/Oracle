@@ -1,4 +1,5 @@
 # Contract: card roles, deck jobs, strategy points and deck health (CC-26)
+> Status note 2026-11-22 (audit clean-up): the Strategy tab described here was removed from the deck page; the strategy lives in the left rail and the Strategy window. Read the parts about a Strategy tab as history.
 Role: Architect. Date: 2026-11-18. Status: **DRAFT for owner approval. Nothing here is applied. No code is written.**
 Types: `docs/oracle/contracts/card-roles-and-deck-jobs.types.ts` (import these; they match this file).
 Inputs: brief `briefs/card-roles-and-deck-jobs.md` (v3, 7d answered), spec `specs/card-roles-and-deck-jobs.md` (v3), audit `reports/2026-11-18-architect-card-roles-audit.md`, contracts `claude-connector-slice-b`, `claude-connector-deck-category`, `claude-connector-cc15-deck-create`, `claude-connector-cc13-amendment`, `card-tagging-pipeline` (proposal only, not built).

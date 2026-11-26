@@ -20,11 +20,11 @@ These specs describe features that exist in the current codebase.
 
 | Spec Folder | Feature | Verified By |
 |-------------|---------|-------------|
-| `brew-ai-tools/` | AI tool-use loop in brew | `src/lib/brew/tool-*` |
-| `brew-canvas-redesign/` | Spatial canvas for deck building | `src/components/brew-v2/BrewCanvas.tsx` |
-| `brew-mode-v2/` | Two-phase brew interface | `src/app/new-deck/page.tsx` |
-| `brew-model-selector/` | Multi-model AI support | `src/lib/ai-models.ts` |
-| `brew-session-autosave/` | Session persistence | `useBrewAutosave` hook |
+| `brew-ai-tools/` (archived 2026-11, feature removed) | AI tool-use loop in brew | `src/lib/brew/tool-*` |
+| `brew-canvas-redesign/` (archived 2026-11, feature removed) | Spatial canvas for deck building | `src/components/brew-v2/BrewCanvas.tsx` |
+| `brew-mode-v2/` (archived 2026-11, feature removed) | Two-phase brew interface | `src/app/new-deck/page.tsx` |
+| `brew-model-selector/` (archived 2026-11, feature removed) | Multi-model AI support | `src/lib/ai-models.ts` |
+| `brew-session-autosave/` (archived 2026-11, feature removed) | Session persistence | `useBrewAutosave` hook |
 | `card-category-classification/` | Functional categories | `default_category` column, `card-definition-resolver.ts` |
 | `card-identity-physical-copies/` | Card definition storage (Req 1 only) | `user_cards` table |
 | `card-status-taxonomy-rename/` | Six-state taxonomy | `CardSlotStatus` type, `CardSlotBadge.tsx` |
@@ -70,7 +70,7 @@ These specs describe features that exist but with caveats documented in the spec
 
 | Spec Folder | Issue | Resolution |
 |-------------|-------|------------|
-| `upgrade-tab-expansion/` | UpgradeTab exists but EDHREC integration may be dormant | Keep — verify EDHREC sync is active |
+| `upgrade-tab-expansion/` (archived 2026-11, feature removed) | UpgradeTab exists but EDHREC integration may be dormant | Keep — verify EDHREC sync is active |
 | `decks-dashboard/` | Decks grid exists at `/decks` but no separate dashboard page | Keep — feature exists, just no distinct `/dashboard` route |
 | `remove-notion-dependency/` | Feature complete, but legacy naming (`notion_logged`) noted as tech debt | Keep — accurately documents current state |
 

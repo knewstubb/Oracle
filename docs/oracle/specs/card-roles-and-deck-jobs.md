@@ -1,4 +1,5 @@
 # Spec: Card window, roles, deck jobs, strategy points and the layered Strategy tab (CC-26)
+> Status note 2026-11-22 (audit clean-up): the Strategy tab described here was removed from the deck page; the strategy lives in the left rail and the Strategy window. Read the parts about a Strategy tab as history.
 
 Role: Designer · Status: **DRAFT v3 for owner review. Nothing is built.** · 2026-11-18
 Brief: `docs/oracle/briefs/card-roles-and-deck-jobs.md` (version 3, owner answers to Q1 to Q10 and the round 3 decisions D-a to D-d recorded). Audit: `docs/oracle/reports/2026-11-18-architect-card-roles-audit.md`.

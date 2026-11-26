@@ -150,7 +150,7 @@ A copy marked Missing is taken out of any deck and ignored by every count, but i
 ## 5. Stage 3 — Decks
 
 ### 5.1 Deck list (menu: "Decks")
-Deck tiles with commander, colours and card count, split into **Active** and inactive groups, with a green/amber/red readiness icon and an optional folder. Folders only organise; they don't affect copies. AI brewing sessions appear separately as **Brewing**. A deck-status filter with a **Graveyard** option still exists in the code; you have agreed to remove it (D-029).
+Deck tiles with commander, colours and card count, split into **Active** and inactive groups, with a green/amber/red readiness icon and an optional folder. Folders only organise; they don't affect copies. (AI brewing sessions used to appear separately as **Brewing**; the AI brew screen was removed 2026-11-22.) A deck-status filter with a **Graveyard** option still exists in the code; you have agreed to remove it (D-029).
 
 ### 5.2 Deck page — Cards view
 Cards are grouped by category, with the **Maybeboard** separate. Each card shows a status chip from §2, for example "Original", "Proxy", "Planned · Available" or "Planned · Unowned". **Generic basic lands** appear as simple rows with a quantity control and no ownership chip; they always count as covered.

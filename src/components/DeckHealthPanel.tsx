@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef } from 'react'
-import { AlertTriangle, ChevronLeft, MessageCircle, X } from 'lucide-react'
+import { AlertTriangle, ChevronLeft, X } from 'lucide-react'
 import { Dialog as DialogPrimitive } from '@base-ui/react/dialog'
 import { Dialog, DialogPortal, DialogOverlay } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -19,8 +19,6 @@ export interface DeckHealthPanelProps {
   /** The row whose details are showing, or null for the overview. */
   selected: HealthKind | null
   onSelect: (kind: HealthKind | null) => void
-  /** Opens the Oracle chat with a question about the deck (role null) or one role. Omitted: no Chat about this buttons. */
-  onChat?: (role: HealthRoleKey | null) => void
 }
 
 const plural = (n: number, one: string, many: string) => (n === 1 ? one : many)
@@ -83,7 +81,7 @@ function RowCard({ row, onOpen }: { row: HealthRow; onOpen: (kind: HealthKind) =
   )
 }
 
-function Overview({ data, onOpen, onChat }: { data: DeckHealthResponse; onOpen: (kind: HealthKind) => void; onChat?: DeckHealthPanelProps['onChat'] }) {
+function Overview({ data, onOpen }: { data: DeckHealthResponse; onOpen: (kind: HealthKind) => void }) {
   const allIn = data.verdict.inRange === data.verdict.ranged
   const ranged = data.rows.filter((r) => r.range !== null)
   const gamePlan = data.rows.find((r) => r.kind === 'game_plan')
@@ -101,12 +99,6 @@ function Overview({ data, onOpen, onChat }: { data: DeckHealthResponse; onOpen: 
           <p role="status" className="mt-2 text-[length:var(--fs-sm)]" style={{ color: 'var(--signal-warning)' }}>
             Couldn&apos;t fully check. {data.unclassifiedCount} cards have no card text yet, so Oracle could not place them.
           </p>
-        )}
-        {onChat && (
-          <Button variant="outline" size="sm" onClick={() => onChat(null)} className="mt-3 h-8 px-2.5 text-[length:var(--fs-sm)]">
-            <MessageCircle aria-hidden="true" />
-            Chat about this
-          </Button>
         )}
       </section>
       {ranged.map((r) => (
@@ -130,7 +122,7 @@ function Overview({ data, onOpen, onChat }: { data: DeckHealthResponse; onOpen: 
 
 const FIRST_CARDS = 6
 
-function RowDetail({ data, row, deckId, onChat }: { data: DeckHealthResponse; row: HealthRow; deckId: number; onChat?: DeckHealthPanelProps['onChat'] }) {
+function RowDetail({ data, row, deckId }: { data: DeckHealthResponse; row: HealthRow; deckId: number }) {
   const off = row.verdict === 'light' || row.verdict === 'heavy'
   const shown = row.cards.slice(0, FIRST_CARDS)
   const more = row.cards.length - shown.length
@@ -181,7 +173,7 @@ function RowDetail({ data, row, deckId, onChat }: { data: DeckHealthResponse; ro
       {row.verdict === 'light' && row.role && (
         <section aria-label="Cards that could fill it" className="space-y-2">
           <h3 className="text-[length:var(--fs-sm)] font-medium" style={{ color: 'var(--text-secondary)' }}>Cards that could fill it</h3>
-          <GapDetail key={row.role} deckId={deckId} role={row.role} embedded onBack={() => {}} onChat={onChat ? () => onChat(row.role) : undefined} />
+          <GapDetail key={row.role} deckId={deckId} role={row.role} embedded onBack={() => {}} />
         </section>
       )}
       <section aria-label="Cards counted here" className="space-y-1">
@@ -218,7 +210,7 @@ function RowDetail({ data, row, deckId, onChat }: { data: DeckHealthResponse; ro
  * Deck health panel: right-hand drawer (420px) on wide screens, bottom sheet (86% high) below 700px.
  * Overview (six rows, notes, EDHREC reference) or the details of one row.
  */
-export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRetry, deckId, selected, onSelect, onChat }: DeckHealthPanelProps) {
+export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRetry, deckId, selected, onSelect }: DeckHealthPanelProps) {
   const titleRef = useRef<HTMLHeadingElement | null>(null)
   const first = useRef(true)
   const row = selected && data ? data.rows.find((r) => r.kind === selected) ?? null : null
@@ -275,8 +267,8 @@ export function DeckHealthPanel({ open, onClose, data, isLoading, isError, onRet
                 </Button>
               </div>
             )}
-            {data && !isError && !row && <Overview data={data} onOpen={onSelect} onChat={onChat} />}
-            {data && !isError && row && <RowDetail key={row.kind} data={data} row={row} deckId={deckId} onChat={onChat} />}
+            {data && !isError && !row && <Overview data={data} onOpen={onSelect} />}
+            {data && !isError && row && <RowDetail key={row.kind} data={data} row={row} deckId={deckId} />}
           </div>
         </DialogPrimitive.Popup>
       </DialogPortal>

@@ -40,7 +40,7 @@ Paseo itself doesn't store per-role system prompts in the repo. The mechanism he
 | Architect | Kimi K2.7 Code | Schema and identifier logic is where Oracle's real bugs have come from |
 | UX/UI | Kimi K2.7 Code | Specs are reviewed by a designer; weak reasoning here costs you review cycles |
 | Backend | DeepSeek | Implementation against a written contract |
-| Frontend | DeepSeek (Kimi for Brew Canvas) | Implementation against an approved spec; drag/snap is the exception |
+| Frontend | DeepSeek | Implementation against an approved spec |
 | Fallback | Claude (your Claude plan) | When a Kimi/DeepSeek agent loops or produces a bad contract twice |
 
 ## Where you step in

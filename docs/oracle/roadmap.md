@@ -5,7 +5,7 @@ Owner-approved 2026-09-25; phases replaced milestones 2026-10-11. The Orchestrat
 ## Why Oracle exists
 An AI advisor that can see Brad's real collection and decks, and suggests how to build new decks and refine existing ones — split into cards he already owns (and has free) and cards worth buying.
 
-Everything else (collection UI, deck building, Brew Canvas) exists to feed that advisor accurate data or to let Brad act on its advice.
+Everything else (collection UI, deck building) exists to feed that advisor accurate data or to let Brad act on its advice.
 
 ## Scope rules
 
@@ -66,7 +66,7 @@ Old milestones map as follows: M1 (complete) fed Phases 2, 4 and 5; M2 is now Ph
 **Exit test:** for three real decks, every suggestion resolves to a real card and printing, availability labels are correct, and every AI change can be undone. (T-14–T-19, T-36; former M2/M3.)
 
 ### Phase 9 — Extras
-**Outcome:** Brew Canvas (D-008–D-011), bulk actions, ratings, explore, buy lists and other conveniences, chosen from the parity log.
+**Outcome:** bulk actions, ratings, explore, buy lists and other conveniences, chosen from the parity log.
 **In:** T-06–T-09.
 
 ### Phase 10 — Share it

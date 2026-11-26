@@ -1,9 +1,14 @@
 # Oracle backlog
+Updated 22 November 2026 (second update, audit clean-up built but not merged: see the new section below; items for removed features corrected).
 Updated 22 November 2026 (deck rename, reorder and faster deck opening are finished and no longer listed).
 Updated 19 November 2026 (planning round: briefs and designs drafted for the deck page, Strategy window, card Tags and Claude change reason; all awaiting owner approval).
 
 Unfinished work only, grouped by what you would see in the app. This is a summary, not a priority order or approval to start work. Finished work and history are left out.
 
+## Audit clean-up: built, waiting for your click-through before merge
+- Removed: the Workbench tab with its curve view and Piled and Free-form layouts, the in-app chat and AI brew screen, the Upgrade tab, the Strategy tab and the old "Bring your collection over" importer. The deck page now has Cards, Picklist, Analysis and Combos.
+- Changed: an empty account's home page offers Import collection and Import deck; Analysis shows only what the left rail does not; Combos shows an "Out of date" label; the Collection status filter works; Settings hides Clear All Data unless the app runs on your own computer.
+- Open: where the build picker should live (it stays in the deck header for now); the wording of the Combos label; what to do with the old one-time scripts and other items the clean-up listed but did not touch; a read-only database check of data only the removed code used.
 ## Next priority: open question
 Decided so far: clean-up, then rename and reorder decks, then faster deck opening (all done). You then said Deck health is not the biggest blocker, so the next item is open. Candidates: collection and storage tools; Claude doing deck work; the deck page itself (strategy block, sideboard); trusting what is already built by walking through it in the app. Deck health work stays proposed, neither approved nor cancelled.
 
@@ -38,8 +43,8 @@ Decided so far: clean-up, then rename and reorder decks, then faster deck openin
 - Small polish on reordering decks: tiles sliding into place, respecting reduced-motion settings, a tilted copy while dragging.
 - Audit and refine the deck header.
 - Move the deck header into a sidebar.
-- Put Deck health beside the slot-usage bar and remove the footer it replaces.
-- Audit Workbench, Analysis and the other deck pages.
+- Put Deck health beside the slot-usage bar (the old footer health strip is already gone).
+- Audit Analysis, Combos and the other deck pages (the Workbench no longer exists).
 - Add sideboard support; agree how it differs from Maybeboard.
 
 The header, sidebar, Deck health and deck-page reviews should be considered together rather than redesigned separately.
@@ -83,15 +88,15 @@ The header, sidebar, Deck health and deck-page reviews should be considered toge
 
 These are retained from older plans, not a claim that the problems still occur.
 
-- Finish the broader collection/loading review and check that filters really change results.
-- Check the collection value banner and adding a proxy for an unowned card.
+- Finish the broader collection/loading review. The status filter now works (waiting for merge); check the other filters really change results.
+- Check adding a proxy for an unowned card. (The collection value banner was never shown and has been removed.)
 - Recheck collection imports that have no Scryfall ID column.
 - Finish the original-copy shortage view, including shortages currently covered by proxies.
 - Make "Break down deck" available on screen and finish the remaining card-movement work.
 - Finish controls for generic basic lands and the remaining deck-state work.
-- Revisit the older in-app advisor design, suggestions and Undo work alongside what now exists.
-- Check standalone Moxfield importing.
-- Brew Canvas and other later conveniences, including a mana-curve slider.
+- Revisit suggestions and Undo work alongside what now exists. (The in-app chat advisor was removed; Claude through the connector is the advisor.)
+- Check Import deck with Moxfield links. (Importing a whole Moxfield or Archidekt account by name went with the old importer.)
+- Other later conveniences, including a mana-curve slider. (The Brew Canvas was removed with the Workbench.)
 - Prepare for other users only when sharing becomes a priority.
 - Revisit backups and recovery when the core app is working.
 
@@ -99,7 +104,7 @@ Vector-based recommendations remain parked; the trial is closed.
 
 ## About this view
 
-Based on the detailed backlog as recorded on 22 November 2026, not a fresh audit of the app. Older entries sometimes conflict with newer updates; those are kept as "needing a fresh check" rather than marked as current bugs. No priorities or locked decisions have changed.
+Based on the detailed backlog as recorded on 22 November 2026 and corrected against the full-app audit and the clean-up. Older entries sometimes conflict with newer updates; those are kept as "needing a fresh check" rather than marked as current bugs. No priorities or locked decisions have changed.
 
 Full task table and history:
 

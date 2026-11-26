@@ -19,7 +19,7 @@ value, thereby sleeving a physical or proxy copy into a deck slot.
 | Value    | Meaning                                                                 |
 |----------|-------------------------------------------------------------------------|
 | `manual` | A user explicitly dragged, clicked, or confirmed the assignment.        |
-| `ai`     | The assignment was produced by the allocation suggestion engine (auto-assign, AI brew delta, version restore, upgrade apply). |
+| `ai`     | The assignment was produced by the allocation suggestion engine (version restore and the connector's suggestions; auto-assign, AI brew delta and upgrade apply existed until 2026-11-22 and are removed). |
 | `import` | The assignment was created as part of a deck import (Built import, new-cards import, import-conflict proxy, import-claim finalization). |
 
 ## Schema change

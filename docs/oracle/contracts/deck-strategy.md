@@ -1,4 +1,5 @@
 # Contract: deck strategy store (CC-26, strategy items, job-to-strategy link, deck brief)
+> Status note 2026-11-22 (audit clean-up): the Strategy tab described here was removed from the deck page; the strategy lives in the left rail and the Strategy window. Read the parts about a Strategy tab as history.
 Role: Architect. Date: 2026-11-18. Status: **DRAFT for owner approval. Nothing here is applied. No code is written.**
 Types: `docs/oracle/contracts/deck-strategy.types.ts` (import these; they match this file).
 Extends: `docs/oracle/contracts/card-roles-and-deck-jobs.md` (read it first; its section numbers are cited as "roles contract 3.4"). This file is an amendment contract in the same pattern as `claude-connector-cc13-amendment.md`: the roles contract is already 390 lines and DB-6 is its own database change, so it gets its own file. The roles contract gets a one-line pointer in its section 11.

@@ -158,3 +158,32 @@ Searched for Workbench, curve view, Piled, Free-form, chat, AI brew, old importe
 - Connector tests (`src/lib/connector`, `src/app/mcp`, `src/app/oauth`, `src/app/api/connector`) — 490 passed, 4 skipped, 0 failed.
 - Browser check (groups C, run earlier on port 3100 and a production build on 3101, test identity, reads only): deck page tabs, trimmed Analysis, nav menu, Settings with and without Clear All Data, Component Library PASS. Simulated, not real data: Combos label (one sample combo injected in the browser) and empty-account home (deck lists answered empty in the browser). Partly tested: Collection filter (the test identity has no collection; route tests cover real filtering). Not tested: Claude connector screens in the browser, any save path. Known: the fixture deck has a negative id, so rail panels show errors for it; not caused by this run. Known flaky tests: CardDetails timing ("saved Why", "arrow keys") and the upgrade-engine property run failed once under load and passed alone (the latter test file was removed in 8a).
 - Nothing pushed, merged or applied to any database.
+## Addendum 2026-11-22: owner click-through results
+Passed: deck page tabs, Workbench gone, chat gone, Collection status filter, Settings. Claude connector: owner tests later. Clear All Data still visible in Settings: fine for now, left as is.
+### Owner answers to the open questions
+1. Build picker stays in the deck header until the owner designs a new home.
+2. Analysis stays as it is for now.
+3. Combos keeps the "Out of date" label.
+4. Proxy-only cards as recommended (match no status, still shown with no filter); "Short" is the filter word.
+5. Old one-time scripts stay.
+6. Yes: Piled and Free-form are gone with the Workbench.
+7. Archive approved; decisions on the listed leftovers come later.
+The D-036(a) amendment text is not approved. `decisions.md` was not edited.
+### Bug 1: cannot sign out
+- Cause [Confirmed: src/middleware.ts, src/components/TopNav.tsx]: the Log out control was not removed. It is in the avatar menu (top right, desktop) and in the mobile menu, and the clean-up only dropped chat lines from that file. The older Sidebar and MobileHeader copies were already unused on main. On the owner's computer `.env.local` has local auto sign-in set (`LOCAL_AUTO_LOGIN_*`), so after Log out the next page load signed the owner straight back in. Same on main e198a27, so older than the clean-up. Reproduced in the browser on port 3000: Log out stayed on the home page.
+- Fix: Log out now also sets a marker cookie; the middleware skips local auto sign-in while the marker exists; the login form clears it on the next manual sign-in. Does not change the live site (auto sign-in only runs in development).
+- Checked in the browser: Log out lands on the login page and opening Collection redirects to login. Not checked: signing in again with the second account (its password was not available to this step), so the marker clearing at manual sign-in is covered by the code and not by a browser run.
+- Tests added: logout action (ends session, sets marker, redirects to login); middleware (auto sign-in without marker, none with marker, redirect to login).
+### Bug 2: Qty sort spinner
+- The Qty header exists in the Collection list view only. Sorting by Qty calls the printings route with sort=quantity. Measured on the owner's data (read only): name sort 1.6 s; Qty sort 13.2 s on the branch and 13.2 s on main e198a27, so not a regression. The route loads every copy before sorting for any sort other than name.
+- Why the spinner looked endless: the list query used the default 3 retries, so a failed or slow answer kept the "Updating results" spinner up for about a minute before an error appeared.
+- Fix (small): the list query no longer retries, so a failure shows the error state at once (D-030). Not fixed: the 13 s itself; that needs a database-side sort and is logged as CLEAN-12.
+- Test added: a failed Qty sort reports the error immediately, stops fetching and makes one request.
+- The grid view has no Qty sort that reaches this path (its sorts fall back to name order); noted, not changed.
+### Verification after the fixes
+- `NEXT_PUBLIC_IMPORT_INTENT_SAVE= npx vitest --run` — 3797 passed, 10 skipped, 309 files passed, 3 skipped (one run had one flaky failure that passed on rerun).
+- `npx tsc --noEmit` — 0 errors.
+- `npx eslint src` — 1 error (pre-existing, PicklistV2), 152 warnings.
+- `npm run build` (dummy Supabase values) — passes.
+- Connector tests — 490 passed, 4 skipped, 0 failed.
+- The preview on port 3000 and the temporary main server on port 3200 are stopped. Reads only on the owner's data; nothing written. Nothing pushed or merged.

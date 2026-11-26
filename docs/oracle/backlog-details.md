@@ -27,8 +27,12 @@ Owner answers of 2026-11-22 to the full-app audit. Report `reports/2026-11-22-de
 | CLEAN-07 | Settings "Clear All Data" hidden unless the app runs on the owner's own computer | BUILT, not merged |
 | CLEAN-08 | Notes archived under `docs/oracle/archive/removed-features-2026-11/`; backlog and feature inventory corrected | BUILT, not merged |
 | CLEAN-09 | Read-only database check of tables and functions only the removed code used (no changes) | OPEN, not started |
-| CLEAN-10 | New home for the build picker (it stays in the deck header until then) | OPEN, owner question |
-| CLEAN-11 | Decide on held items: old one-time scripts, YouTube, cron, SQLite snapshot and workflow packages, internal addresses kept (breakdown, folders, import-alerts, allocation candidates) | OPEN, owner question |
+| CLEAN-10 | New home for the build picker | Owner 2026-11-22: stays in the deck header until the owner designs a new home |
+| CLEAN-11 | Decide on held items: old one-time scripts, YouTube, cron, SQLite snapshot and workflow packages, internal addresses kept (breakdown, folders, import-alerts, allocation candidates) | Owner 2026-11-22: old one-time scripts stay; the archive is approved; the rest is decided later |
+| CLEAN-12 | Collection list view: sorting by Qty takes about 13 seconds because the server loads every copy before sorting (same on main e198a27, so not caused by the clean-up). Make it fast like the name sort | OPEN, separate item (not small) |
+| CLEAN-13 | Log out did nothing on the owner's computer because local auto sign-in signed back in; Log out now sets a marker so it stays logged out until a manual sign-in | BUILT on branch, not merged |
+| CLEAN-14 | A failed Collection list sort shows the error at once (no hidden retries behind the spinner, D-030) | BUILT on branch, not merged |
+| CLEAN-15 | Owner answers 2026-11-22: Analysis stays as is; Combos keeps "Out of date"; proxy-only cards match no status but show with no filter; "Short" is the filter word; Piled and Free-form gone with the Workbench | RECORDED |
 
 ### Pending polish — PROPOSED 2026-11-22 (owner has not yet chosen which to fix)
 Source: read-only check `.agents/tasks/2026-11-22-figma-text-line-gap-check.md` (Figma file page "Redesign", app measured on one real deck).

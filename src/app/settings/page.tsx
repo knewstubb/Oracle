@@ -80,7 +80,7 @@ export default function SettingsPage() {
             </Button>
             <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">
               Deletes all decks, cards, physical copies, and brew sessions for your account.
-              Use this to start a fresh onboarding test.
+              Use this to start again from an empty account.
             </p>
           </div>
 
@@ -106,7 +106,7 @@ export default function SettingsPage() {
             <DialogTitle>Clear all data?</DialogTitle>
             <DialogDescription>
               This will permanently delete all your decks, physical copies, card definitions,
-              and brew sessions. You&apos;ll need to run the onboarding import again.
+              and brew sessions. You&apos;ll need to import your collection and decks again.
               This cannot be undone.
             </DialogDescription>
           </DialogHeader>

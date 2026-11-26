@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLiveUserRefresh } from '@/hooks/useLiveRefresh'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import Link from 'next/link'
 import { AlertCircle, ChevronDown, ChevronRight, Loader2, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DeckImportButton } from '@/components/DeckImportButton'
 import { NewDeckModal } from '@/components/NewDeckModal'
+import { CollectionImportButton, CollectionImportDialogHost } from '@/components/collection/CollectionImportButton'
 import { DeckTile, StatusIcon, STATUS_BADGE } from '@/components/DeckTile'
 import { FolderChip, NewFolderChip } from '@/components/FolderChip'
 import { CreateFolderModal } from '@/components/CreateFolderModal'
@@ -148,6 +148,7 @@ export default function DashboardPage() {
       <>
         <DeckImportButton />
         <NewDeckModal />
+        <CollectionImportDialogHost />
       </>
     ),
   })
@@ -192,26 +193,22 @@ export default function DashboardPage() {
                 </div>
               </>
             ) : (
-              // New user — focus on collection import
+              // New user — two ways in: import a collection or import a deck
               <>
                 <h2 className="text-[length:var(--fs-xl)] font-medium text-foreground mb-2">
                   Welcome to The Oracle
                 </h2>
                 <p className="mb-6 max-w-md text-[length:var(--fs-md)] text-muted-foreground">
-                  Track your physical MTG collection at the individual-card level.
+                  Track your physical MTG collection at the individual-card level. Import your collection or a deck to start.
                 </p>
-                <Link
-                  href="/onboarding"
-                  className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-[length:var(--fs-md)] font-medium text-white transition-colors"
-                  style={{ backgroundColor: 'var(--accent-primary)' }}
-                >
-                  Bring your collection over
-                </Link>
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <CollectionImportButton withDialog={false} label="Import collection" variant="default" />
+                  <DeckImportButton variant="secondary" />
+                </div>
                 <p className="mt-2 text-[length:var(--fs-xs)] text-muted-foreground">
-                  Import from Archidekt or Moxfield
+                  Import from Archidekt, Moxfield or ManaBox
                 </p>
                 <div className="mt-6 flex items-center gap-4 text-[length:var(--fs-sm)] text-muted-foreground">
-                  <DeckImportButton />
                   <NewDeckModal />
                 </div>
               </>

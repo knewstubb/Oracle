@@ -31,19 +31,32 @@ function useImportOpen(): boolean {
   )
 }
 
-export function CollectionImportButton({ withDialog = true }: { withDialog?: boolean }) {
+/** The shared import dialog on its own, for pages that show the button only in some states. */
+export function CollectionImportDialogHost() {
+  const open = useImportOpen()
+  return <ManaBoxCollectionImportDialog open={open} onOpenChange={setOpen} />
+}
+export function CollectionImportButton({
+  withDialog = true,
+  label = 'Import cards',
+  variant = 'ghost',
+}: {
+  withDialog?: boolean
+  label?: string
+  variant?: 'ghost' | 'outline' | 'default'
+}) {
   const open = useImportOpen()
 
   return (
     <>
       <Button
-        variant="ghost"
+        variant={variant}
         size="sm"
         onClick={() => setOpen(true)}
         className="gap-1.5 text-[length:var(--fs-sm)]"
       >
         <Upload className="size-3.5" />
-        Import cards
+        {label}
       </Button>
       {withDialog && <ManaBoxCollectionImportDialog open={open} onOpenChange={setOpen} />}
     </>

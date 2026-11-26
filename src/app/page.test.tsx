@@ -178,9 +178,10 @@ describe('DashboardPage', () => {
       ).toBeInTheDocument()
     })
 
-    expect(
-      screen.getByRole('link', { name: /Bring your collection over/ })
-    ).toHaveAttribute('href', '/onboarding')
+    // Two ways in: import a collection or import a deck.
+    expect(screen.getByRole('button', { name: /Import collection/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Import deck/ })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /Bring your collection over/ })).not.toBeInTheDocument()
   })
 
   it('shows the no-decks empty state when a collection exists', async () => {

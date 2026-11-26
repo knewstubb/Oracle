@@ -18,8 +18,6 @@ import { findCommanderCards } from '@/lib/commander-card-flag'
 import { loadCommanderColours, type LookupClient } from '@/lib/owned-copy-lookup'
 import { saveImportColourIdentity } from '@/lib/import-command-zone-save'
 import { commanderChipText } from '@/lib/command-zone'
-import { buildDeckChatPrompt } from '@/lib/deck-chat-prompt'
-import { formatDeckSlotFactsForPrompt, buildDeckSlotFacts } from '@/lib/deck-chat-facts'
 
 const world = () => ({
   decks: [{ id: 7, user_id: 'u1', format: 'commander', commander_name: 'Tymna the Weaver', colour_identity: 'WB' }],
@@ -114,14 +112,8 @@ describe('commander section fallback and wording', () => {
     expect(findCommanderCards(rows, 'Tymna the Weaver').map((r) => r.id).sort()).toEqual([1, 2])
   })
 
-  it('header chip shows both names; assistant text calls them both commanders', () => {
+  it('header chip shows both names', () => {
     expect(commanderChipText(['Tymna the Weaver', 'Thrasios, Triton Hero'])).toBe('Commander · Tymna the Weaver + Thrasios, Triton Hero')
     expect(commanderChipText([null])).toBeNull()
-    const p = buildDeckChatPrompt('D', 'Tymna the Weaver', 'commander', 100, [], '', { commanderNames: ['Tymna the Weaver', 'Thrasios, Triton Hero'], colourIdentity: 'WUBG' })
-    expect(p).toMatch(/Commanders: Tymna the Weaver and Thrasios, Triton Hero/)
-    expect(p).toMatch(/colour identity: WUBG/)
-    expect(p).not.toMatch(/primary|secondary/i)
-    const facts = formatDeckSlotFactsForPrompt(buildDeckSlotFacts(rows.map((r) => ({ ...r, copy_id: null, scryfall_id: null, is_proxy: null })) as never, 'commander', 'Tymna the Weaver'))
-    expect(facts).toMatch(/INCLUDES the commanders/)
   })
 })

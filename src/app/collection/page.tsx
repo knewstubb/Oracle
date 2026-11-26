@@ -20,7 +20,6 @@ import type { TagMatch } from '@/lib/card-tags-read'
 import { CollectionGridView } from '@/components/collection/CollectionGridView'
 import { PrintingListView } from '@/components/collection/PrintingListView'
 import { PriceStaleIndicator } from '@/components/collection/PriceStaleIndicator'
-import { useOracleContext } from '@/contexts/OracleContext'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
 import type {
   SortField,
@@ -33,8 +32,6 @@ import type {
 /* ─── Page Component ────────────────────────────────────────────────── */
 
 export default function CollectionPage() {
-  // Set Oracle context for this page
-  useOracleContext({ type: 'collection' })
 
   // ─── Proxy toggle ──────────────────────────────────────────────
   const [includeProxies, setIncludeProxies] = useState(false)

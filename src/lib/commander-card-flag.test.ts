@@ -7,7 +7,6 @@ import {
   markCommanderCard,
   type FlagRow,
 } from './commander-card-flag'
-import { buildDeckSlotFacts, formatDeckSlotFactsForPrompt, type DeckSlotRow } from './deck-chat-facts'
 
 const row = (id: number, name: string, extra: Partial<FlagRow> = {}): FlagRow => ({
   id, card_name: name, categories: '["Creature"]', is_commander: false, command_zone_role: null, ...extra,
@@ -57,25 +56,6 @@ describe('withCommanderSection', () => {
   })
   it('leaves groups untouched with no commander', () => {
     expect(withCommanderSection(groups, [])).toBe(groups)
-  })
-})
-
-describe('commander counts once', () => {
-  const slot = (id: number, name: string, extra: Partial<DeckSlotRow> = {}): DeckSlotRow => ({
-    id, card_name: name, quantity: 1, categories: '["Creature"]', copy_id: null, scryfall_id: null, is_commander: false, is_proxy: null, ...extra,
-  })
-  const rows = Array.from({ length: 83 }, (_, i) => slot(i + 1, `Card ${i}`)).concat(slot(100, 'Mendicant Core, Guidelight'))
-
-  it('84 rows including the commander is 84 of 100 and the prompt says the commander is included (name fallback)', () => {
-    const f = buildDeckSlotFacts(rows, 'custom', 'Mendicant Core, Guidelight')
-    expect(f.mainListCount).toBe(84)
-    expect(f.emptySlots).toBe(16)
-    expect(f.commanderNames).toEqual(['Mendicant Core, Guidelight'])
-    expect(formatDeckSlotFactsForPrompt(f)).toContain('already INCLUDES the commander (Mendicant Core, Guidelight)')
-  })
-  it('flagged commander gives the same count', () => {
-    const flagged = rows.map((r) => (r.id === 100 ? { ...r, is_commander: true } : r))
-    expect(buildDeckSlotFacts(flagged, 'custom', null).mainListCount).toBe(84)
   })
 })
 

@@ -25,7 +25,6 @@ import { DeckSettingsHost } from '@/components/deck-strategy/DeckSettingsHost'
 import { LiveChangeNote } from '@/components/LiveChangeNote'
 import { useLiveDeckRefresh } from '@/hooks/useLiveRefresh'
 import { getFormatConfig } from '@/lib/format-config'
-import { useOracle } from '@/contexts/OracleContext'
 import { useDeckHoverPreload } from '@/hooks/useDeckHoverPreload'
 import type { DeckCard } from '@/components/CardGrid'
 import { deckKeys, createDeckInvalidators } from '@/hooks/useDeckQueryKeys'
@@ -75,7 +74,6 @@ export default function DeckViewPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
   const deckId = params.id
-  const { setContext } = useOracle()
 
   const [activeTab, setActiveTab] = useState<string>('cards')
   // The Strategy window's "See in History" opens the same Version History window the History button opens.
@@ -130,17 +128,6 @@ export default function DeckViewPage() {
 
   // Live refresh: while this deck is open and the tab is visible, notice when Claude changed it and refetch quietly.
   const live = useLiveDeckRefresh(deckId ? Number(deckId) : undefined)
-  // Set Oracle context when deck data loads
-  useEffect(() => {
-    if (data?.deck) {
-      setContext({
-        type: 'deck',
-        deckId: data.deck.id,
-        deckName: data.deck.name,
-        commanderName: data.deck.commander_name,
-      })
-    }
-  }, [data?.deck, setContext])
 
   // Quietly preload hover-preview images in the background so the first hover is instant.
   useDeckHoverPreload(deckId, data?.cards)

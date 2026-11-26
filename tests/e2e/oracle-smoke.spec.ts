@@ -424,18 +424,6 @@ test.describe('Allocation System', () => {
 })
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// 9. BREW CANVAS (NEW DECK)
-// ═══════════════════════════════════════════════════════════════════════════════
-
-test.describe('Brew Canvas', () => {
-  test('new deck page loads without errors', async ({ page }) => {
-    await page.goto('/new-deck')
-    await page.waitForTimeout(3000)
-    await expect(page.locator('body')).not.toContainText('Application error')
-  })
-})
-
-// ═══════════════════════════════════════════════════════════════════════════════
 // 10. CARD VIEW MODES (DECK DETAIL)
 // ═══════════════════════════════════════════════════════════════════════════════
 

@@ -3,7 +3,6 @@ import { render, screen, waitFor, fireEvent, act } from '@testing-library/react'
 import { toast } from 'sonner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import DashboardPage from './page'
-import { OracleProvider } from '@/contexts/OracleContext'
 import * as liveRefresh from '@/hooks/useLiveRefresh'
 import { PageHeaderProvider, usePageHeaderContext } from '@/contexts/PageHeaderContext'
 
@@ -38,7 +37,7 @@ vi.mock('next/navigation', () => ({
 
 const mockFetch = vi.fn()
 
-// jsdom in this runner has no localStorage; OracleProvider hydrates from it.
+// jsdom in this runner has no localStorage; the page reads saved view settings from it.
 const localStorageMock = (() => {
   let store: Record<string, string> = {}
   return {
@@ -69,12 +68,10 @@ function createWrapper(
   return function Wrapper({ children }: { children: React.ReactNode }) {
     return (
       <QueryClientProvider client={queryClient}>
-        <OracleProvider>
-          <PageHeaderProvider>
-            {children}
-            <HeaderTitleProbe />
-          </PageHeaderProvider>
-        </OracleProvider>
+        <PageHeaderProvider>
+          {children}
+          <HeaderTitleProbe />
+        </PageHeaderProvider>
       </QueryClientProvider>
     )
   }

@@ -19,6 +19,3 @@ if (typeof window !== 'undefined' && typeof window.matchMedia !== 'function') {
 process.env.NEXT_PUBLIC_SUPABASE_URL ??= 'http://localhost:54321'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??= 'test-anon-key'
 process.env.SUPABASE_SERVICE_ROLE_KEY ??= 'test-service-role-key'
-// The in-app AI chat is paused by default (DV-03). Existing tests cover the chat as it behaves when
-// switched on, so turn it on here; tests of the paused state use vi.stubEnv to switch it off.
-process.env.NEXT_PUBLIC_AI_CHAT_ENABLED ??= 'true'

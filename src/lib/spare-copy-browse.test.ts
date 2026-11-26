@@ -5,9 +5,6 @@ vi.mock('./mcp-client', () => ({ getMcpClient: vi.fn() }))
 
 import { browseSpareCopies, buildFilter, prefilterFor } from './spare-copy-browse'
 import type { LookupClient } from './owned-copy-lookup'
-import { DECK_CHAT_CONTEXT, getToolDefinitions, getToolDefinitionsForContext } from './tool-registry'
-import { OWNED_COPY_RULES } from './deck-chat-prompt'
-import { buildOracleSystemPrompt } from './oracle-prompt'
 
 type Row = Record<string, unknown>
 
@@ -220,21 +217,5 @@ describe('buildFilter', () => {
     expect(buildFilter('wipes').match('Creature', 'Flying')).toBe(false)
     expect(buildFilter('lands').match('Land', '')).toBe(true)
     expect(buildFilter('lands').match('Sorcery // Land', '')).toBe(false)
-  })
-})
-
-describe('browse_spare_copies wiring', () => {
-  it('is offered only in the deck chat context, suggest-only (edit tools stay off)', () => {
-    const names = getToolDefinitionsForContext(DECK_CHAT_CONTEXT, { deckChatEditEnabled: false }).map(t => t.name)
-    expect(names).toContain('browse_spare_copies')
-    expect(names).not.toContain('add_cards_to_deck')
-    expect(getToolDefinitionsForContext('general').map(t => t.name)).not.toContain('browse_spare_copies')
-    expect(getToolDefinitions().map(t => t.name)).not.toContain('browse_spare_copies')
-  })
-  it('prompts say browse first, then Spare, another deck, Buy', () => {
-    expect(OWNED_COPY_RULES.indexOf('browse_spare_copies')).toBeLessThan(OWNED_COPY_RULES.indexOf('check_owned_copies'))
-    expect(OWNED_COPY_RULES.indexOf('1. Spare')).toBeLessThan(OWNED_COPY_RULES.indexOf('2. In another deck'))
-    const p = buildOracleSystemPrompt({ type: 'deck', deckId: 1, deckName: 'D', commanderName: 'C' }, '', null, { deckChat: { editToolsEnabled: false, slotFacts: 'x' } })
-    expect(p).toContain('browse_spare_copies FIRST')
   })
 })

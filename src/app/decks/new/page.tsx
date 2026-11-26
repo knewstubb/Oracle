@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button'
 import { CommanderGrid } from '@/components/CommanderGrid'
 import { CommanderCard, type CommanderData } from '@/components/CommanderCard'
 import { ColorIdentityFilter } from '@/components/ColorIdentityFilter'
-import { useOracle } from '@/contexts/OracleContext'
 import { toast } from 'sonner'
 import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
@@ -62,9 +61,8 @@ function canPartnerWith(first: CommanderData, second: CommanderData): boolean {
 export default function NewDeckPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { setContext, open: openOracle } = useOracle()
   
-  // Check for pre-selected commander from URL (e.g., from Oracle chat)
+  // Check for pre-selected commander from URL (e.g., from a link)
   const preselectedCommander = searchParams.get('commander')
   
   // Search state
@@ -98,11 +96,6 @@ export default function NewDeckPage() {
     return () => clearTimeout(timeout)
   }, [partnerSearchQuery])
   
-  // Set Oracle context for commander selection and open chat panel
-  useEffect(() => {
-    setContext({ type: 'commander-selection' })
-    openOracle()
-  }, [setContext, openOracle])
   
   // Fetch featured commanders
   const {

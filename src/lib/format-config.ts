@@ -35,8 +35,6 @@ export interface FormatDefinition {
   hasCommander: boolean
   /** Whether color identity filtering applies */
   colorIdentityRule: boolean
-  /** Whether AI brew is available for this format */
-  brewEnabled: boolean
   /** Short description for UI tooltips */
   description: string
 }
@@ -55,7 +53,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: true,
     hasCommander: true,
     colorIdentityRule: true,
-    brewEnabled: true,
     description: '100-card singleton with a legendary commander',
   },
   standard: {
@@ -67,7 +64,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: '60-card constructed, up to 4 copies per card',
   },
   modern: {
@@ -79,7 +75,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: '60-card constructed, cards from 8th Edition onward',
   },
   legacy: {
@@ -91,7 +86,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: '60-card constructed, nearly all cards legal',
   },
   vintage: {
@@ -103,7 +97,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: '60-card constructed, all cards legal (some restricted)',
   },
   pioneer: {
@@ -115,7 +108,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: '60-card constructed, Return to Ravnica onward',
   },
   pauper: {
@@ -127,7 +119,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: '60-card constructed, commons only',
   },
   cube: {
@@ -139,7 +130,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: true,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: 'Custom draft environment, typically 360 singleton cards',
   },
   casual: {
@@ -151,7 +141,6 @@ export const FORMAT_DEFINITIONS: Record<DeckFormat, FormatDefinition> = {
     singleton: false,
     hasCommander: false,
     colorIdentityRule: false,
-    brewEnabled: false,
     description: 'No rules — just a container for cards',
   },
 }

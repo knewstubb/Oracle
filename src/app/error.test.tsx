@@ -3,11 +3,9 @@ import { render, screen, fireEvent } from '@testing-library/react'
 
 import RootError from './error'
 import DeckError from './decks/[id]/error'
-import NewDeckError from './new-deck/error'
 
 import RootLoading from './loading'
 import DeckLoading from './decks/[id]/loading'
-import NewDeckLoading from './new-deck/loading'
 
 describe('Error boundaries', () => {
   const testError = new Error('Connection refused')
@@ -45,20 +43,6 @@ describe('Error boundaries', () => {
       expect(mockReset).toHaveBeenCalledOnce()
     })
   })
-
-  describe('NewDeckError', () => {
-    it('renders error message', () => {
-      render(<NewDeckError error={testError} reset={mockReset} />)
-      expect(screen.getByRole('alert')).toBeInTheDocument()
-      expect(screen.getByText(/Connection refused/)).toBeInTheDocument()
-    })
-
-    it('calls reset on Retry click', () => {
-      render(<NewDeckError error={testError} reset={mockReset} />)
-      fireEvent.click(screen.getByRole('button', { name: /Retry/ }))
-      expect(mockReset).toHaveBeenCalledOnce()
-    })
-  })
 })
 
 describe('Loading states', () => {
@@ -73,12 +57,5 @@ describe('Loading states', () => {
     const skeletons = container.querySelectorAll('[data-slot="skeleton"]')
     // Header (circle + 2 text) + 15 card skeletons = 18+
     expect(skeletons.length).toBeGreaterThanOrEqual(15)
-  })
-
-  it('NewDeckLoading renders stepper and card skeletons', () => {
-    const { container } = render(<NewDeckLoading />)
-    const skeletons = container.querySelectorAll('[data-slot="skeleton"]')
-    // Title + 4 stepper circles + 4 labels + 3 dividers + search + 8 cards
-    expect(skeletons.length).toBeGreaterThanOrEqual(8)
   })
 })

@@ -13,7 +13,6 @@ import { NewDeckModal } from '@/components/NewDeckModal'
 import { DeckTile, StatusIcon, STATUS_BADGE } from '@/components/DeckTile'
 import { FolderChip, NewFolderChip } from '@/components/FolderChip'
 import { CreateFolderModal } from '@/components/CreateFolderModal'
-import { useOracleContext } from '@/contexts/OracleContext'
 import { usePageHeader } from '@/contexts/PageHeaderContext'
 import { moveInOrder } from '@/lib/deck-order'
 import { useSaveDeckOrder } from '@/hooks/useSaveDeckOrder'
@@ -90,8 +89,6 @@ function readGroupBy(): DeckGroupBy {
 
 const LIVE_KEYS = [['decks'], ['connector', 'pending-count']] as const
 export default function DashboardPage() {
-  // Set Oracle context for this page
-  useOracleContext({ type: 'deck-list' })
   // Deck list updates by itself when Claude creates or changes a deck.
   useLiveUserRefresh(LIVE_KEYS)
 

@@ -4,8 +4,6 @@ vi.mock('./supabase', () => ({ createAdminClient: vi.fn(() => { throw new Error(
 vi.mock('./mcp-client', () => ({ getMcpClient: vi.fn() }))
 
 import { lookupOwnedCopies, estimatePrice, type LookupClient } from './owned-copy-lookup'
-import { DECK_CHAT_CONTEXT, getToolDefinitions, getToolDefinitionsForContext } from './tool-registry'
-import { buildDeckChatPrompt } from './deck-chat-prompt'
 
 type Row = Record<string, unknown>
 const FRESH = new Date().toISOString()
@@ -198,25 +196,5 @@ describe('lookupOwnedCopies', () => {
   it('fails loudly (not with zeros) when a read fails', async () => {
     const bad: LookupClient = { from: () => ({ select: () => ({ in: () => Promise.resolve({ data: null, error: { message: 'x' } }) }) }) }
     await expect(lookupOwnedCopies(bad, { userId: 'u1', cardNames: ['Sol Ring'] })).rejects.toThrow()
-  })
-})
-
-describe('check_owned_copies wiring', () => {
-  it('is offered in the deck chat only, and edit tools stay gated off', () => {
-    const chat = getToolDefinitionsForContext(DECK_CHAT_CONTEXT, { deckChatEditEnabled: false }).map(t => t.name)
-    expect(chat).toContain('check_owned_copies')
-    expect(chat).not.toContain('add_cards_to_deck')
-    expect(getToolDefinitionsForContext('exploration').map(t => t.name)).not.toContain('check_owned_copies')
-    expect(getToolDefinitions().map(t => t.name)).not.toContain('check_owned_copies')
-  })
-
-  it('prompt tells the chat the order, the warning, estimates and suggest-only', () => {
-    const p = buildDeckChatPrompt('D', 'C', 'commander', 100, [], '', { editToolsEnabled: false })
-    expect(p).toContain('check_owned_copies')
-    expect(p.indexOf('1. Spare')).toBeLessThan(p.indexOf('2. In another deck'))
-    expect(p.indexOf('2. In another deck')).toBeLessThan(p.indexOf('3. Buy'))
-    expect(p).toMatch(/never hide or soften/i)
-    expect(p).toMatch(/estimate/)
-    expect(p).toMatch(/propose_deck_cards/)
   })
 })

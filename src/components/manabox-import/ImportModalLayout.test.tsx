@@ -56,14 +56,10 @@ describe('import modal layout (spec import-modal-redesign §3)', () => {
     for (const f of [
       'ui/dialog',
       'PrintingPicker',
-      'OracleChat',
       'CardLocator',
       'SmartSearch',
-      'brew-v2/CommanderDetailModal',
-      'explore/CommanderBrowser',
       'MobileCardPreview',
       'TopNav',
-      'OracleSidebar',
     ]) {
       const src = read(`src/components/${f}.tsx`)
       expect(src, f).toContain('OVERLAY_BACKDROP')

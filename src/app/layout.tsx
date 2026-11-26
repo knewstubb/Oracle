@@ -4,9 +4,7 @@ import { TopNav } from "@/components/TopNav";
 import { Toaster } from "@/components/ui/sonner";
 import { SmartSearch } from "@/components/SmartSearch";
 import { CardLocator } from "@/components/CardLocator";
-import { OracleSidebar } from "@/components/OracleSidebar";
 import { MainContentWrapper } from "@/components/MainContentWrapper";
-import { isAiChatEnabled } from "@/lib/ai-chat-switch";
 import "./globals.css";
 
 // Marks the page once the icon font has loaded (globals.css hides icons until then). If the font
@@ -69,8 +67,8 @@ export default function RootLayout({
             Skip to main content
           </a>
           <TopNav />
-          {/* MainContentWrapper renders PageHeader + content area with sidebar */}
-          <MainContentWrapper sidebar={isAiChatEnabled() ? <OracleSidebar /> : null}>
+          {/* MainContentWrapper renders PageHeader + content area */}
+          <MainContentWrapper>
             {children}
           </MainContentWrapper>
           <SmartSearch />

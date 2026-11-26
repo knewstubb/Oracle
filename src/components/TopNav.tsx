@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Search, Settings, ChevronDown, Menu, X, LogOut, MessageSquare } from 'lucide-react'
+import { Search, Settings, ChevronDown, Menu, X, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import {
@@ -13,8 +13,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { logout } from '@/app/actions/auth'
-import { useOracle } from '@/contexts/OracleContext'
-import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 import { CardDataLastUpdate } from '@/components/CardDataLastUpdate'
 import { OVERLAY_BACKDROP } from '@/lib/overlay-classes'
 
@@ -65,8 +63,6 @@ const mobileNavItems: NavItem[] = [
 export function TopNav() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const { isOpen: oracleOpen, toggle: toggleOracle } = useOracle()
-  const aiChatEnabled = isAiChatEnabled()
 
   // Close mobile menu on navigation. Adjust during render (React's recommended
   // alternative to a state-setting effect) so it happens in the same commit.
@@ -189,7 +185,7 @@ export function TopNav() {
 
           {/* Right: Settings + Avatar (desktop) / Menu button (mobile) */}
           <div className="flex items-center gap-2">
-            {/* Mobile: Search + Oracle + Menu */}
+            {/* Mobile: Search + Menu */}
             <button
               onClick={openSearch}
               className="md:hidden p-2 rounded-lg text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
@@ -198,20 +194,6 @@ export function TopNav() {
               <Search className="w-5 h-5" />
             </button>
 
-            {aiChatEnabled && (
-              <button
-                onClick={toggleOracle}
-                className={cn(
-                  'md:hidden p-2 rounded-lg transition-colors',
-                  oracleOpen
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                )}
-                aria-label="Toggle Oracle assistant"
-              >
-                <MessageSquare className="w-5 h-5" />
-              </button>
-            )}
 
             <button
               onClick={() => setMobileMenuOpen(true)}
@@ -223,22 +205,7 @@ export function TopNav() {
 
             <CardDataLastUpdate className="hidden md:block mr-1" />
 
-            {/* Desktop: Oracle + Settings + Avatar */}
-            {aiChatEnabled && (
-              <button
-                onClick={toggleOracle}
-                className={cn(
-                  'hidden md:flex p-2 rounded-lg transition-colors',
-                  oracleOpen
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                )}
-                aria-label="Toggle Oracle assistant"
-                title="Oracle (⌘O)"
-              >
-                <MessageSquare className="w-5 h-5" />
-              </button>
-            )}
+            {/* Desktop: Settings + Avatar */}
 
             <Link
               href="/settings"

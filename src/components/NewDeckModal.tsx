@@ -1,10 +1,9 @@
 'use client'
 
-import { isAiChatEnabled } from '@/lib/ai-chat-switch'
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Loader2, Sparkles, PenLine, Crown, Search } from 'lucide-react'
+import { Plus, Loader2, PenLine, Crown, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -81,18 +80,6 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
   function handleFormatSelect(format: DeckFormat) {
     setSelectedFormat(format)
     setStep('method')
-  }
-
-  function handleMethodSelect(method: 'ai' | 'manual') {
-    if (method === 'ai') {
-      // AI brew — go to /decks/new (commander selection page)
-      setOpen(false)
-      resetState()
-      router.push('/decks/new')
-    } else {
-      // Manual — show details step
-      setStep('details')
-    }
   }
 
   function handleCreate() {
@@ -205,25 +192,6 @@ export function NewDeckModal({ variant = 'default' }: NewDeckModalProps) {
                   />
                 </div>
 
-                {/* Help me find one — AI option (hidden while the in-app chat is paused) */}
-                {isAiChatEnabled() && (
-                  <button
-                    type="button"
-                    onClick={() => handleMethodSelect('ai')}
-                    disabled={!formatConfig.brewEnabled}
-                    className="flex items-start gap-3 rounded-lg border border-[var(--border-default)] px-4 py-4 text-left transition-colors hover:border-[var(--accent-primary)] hover:bg-[var(--accent-primary-bg)] disabled:opacity-40 disabled:pointer-events-none"
-                  >
-                    <Sparkles className="size-5 shrink-0 mt-0.5 text-[var(--accent-primary-text)]" />
-                    <div>
-                      <span className="block text-[length:var(--fs-md)] font-medium text-[var(--text-primary)]">
-                        Help me find one
-                      </span>
-                      <span className="block text-[length:var(--fs-sm)] text-[var(--text-tertiary)]">
-                        Get AI suggestions based on strategy or colors
-                      </span>
-                    </div>
-                  </button>
-                )}
               </div>
 
               <DialogFooter>

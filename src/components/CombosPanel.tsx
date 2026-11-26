@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { MaterialSymbol } from '@/components/vocabulary/MaterialSymbol'
 
 interface ComboPanelProps {
   deckId: number
@@ -57,6 +58,11 @@ export function CombosPanel({ deckId }: ComboPanelProps) {
       <div className="flex items-center justify-between">
         <h2 className="text-[length:var(--fs-lg)] font-medium">Combo Lines ({data.combos.length})</h2>
       </div>
+      {/* These combo lists were saved once and are not refreshed; vocabulary state "Out of date". */}
+      <p className="-mt-4 flex items-center gap-1 text-[length:var(--fs-xs)] text-muted-foreground" data-testid="combos-out-of-date">
+        <MaterialSymbol name="history" style={{ color: 'var(--signal-warning)' }} />
+        Out of date
+      </p>
 
       <div className="space-y-4">
         {data.combos.map((combo, i) => (
